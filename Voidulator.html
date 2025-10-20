@@ -371,7 +371,7 @@ input[type="range"]{ padding: 7px 0 !important; }
       <div class="hint">Switch to <b>Custom</b> to hand-pick each beam color. Swatches update with Beam count.</div>
     </div>
 
-    <div class="group" glow>
+    <div class="group">
       <div class="group-title">Per-beam Rotation (°/s)</div>
       <div class="two">
         <div class="button" id="fillPrimesRaw">Prime speeds (raw)</div>
@@ -414,39 +414,7 @@ input[type="range"]{ padding: 7px 0 !important; }
       <div class="hint">Alpha = intensity × mix(1, Wave(d − v·t), amplitude). Peak = full color; trough = transparent.</div>
     </div>
 
-    <div class="group">
-      <div class="group-title">Beam Glow Effects</div>
-      <div class="subgrid">
-  <div class="row"><label>Glow</label>
-    <div class="ctrl-row">
-      <div></div>
-    </div>
-  </div>
-  <div class="row"><label>Resolution</label>
-    <div class="ctrl-row">
-    </div>
-  </div>
-
-        <div class="row" style="display:none;"><label>Glow layers</label><option value="3" selected>Triple glow</option></select>
-        </div>
-        <div class="row"><label>Glow intensity</label>
-        </div>
-        <div class="row"><label>Glow spread</label>
-        </div>
-        <div class="row"><label>Core brightness</label>
-        </div>
-        <div class="row" style="display:none;"><label>Blend mode</label><option value="normal" selected>Normal</option></select>
-        </div>
-        <div class="row"><label>Bloom effect</label>
-          <select id="bloomEffect">
-            <option value="off" selected>Off</option>
-            <option value="subtle">Subtle</option>
-            <option value="dramatic">Dramatic</option>
-          </select>
-        </div>
-      </div>
-      <div class="hint">Multi-layer glow with additive blending creates spectacular beam effects. Higher values = more GPU intensive.</div>
-    </div>
+    
 
     
   </div>
