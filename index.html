@@ -3,1300 +3,3577 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Laser Room — WebGL Pulse, Multi-emitters, Presets, Renderer</title>
+<title>Voidulator – Laser Room Simulator</title>
 <style>
-  :root{
-    --bg:#0c0d10; --panel:#14161b; --stroke:#3b3f46;
-    --text:#e5e7eb; --text-dim:#9ca3af; --muted:#7c8594;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:#0c0d10;color:var(--text);font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-
-  .app{display:grid;grid-template-columns:1fr 460px;gap:18px;min-height:100svh;padding:16px}
-  @media (max-width:980px){.app{grid-template-columns:1fr;grid-auto-rows:min-content}}
-
-  .stage{position:relative;border:1px solid var(--stroke);border-radius:14px;overflow:hidden;min-height:58vh;background:linear-gradient(180deg,#0e1014,#0b0c10)}
-  canvas{display:block;width:100%;height:100%}
-  #gl{position:absolute;inset:0}
-  #overlay{position:absolute;inset:0;pointer-events:auto;touch-action:none}
-  .hud{position:absolute;left:12px;top:12px;display:flex;gap:8px;flex-wrap:wrap}
-  .tag{background:#0009;padding:6px 8px;border:1px solid #ffffff12;border-radius:10px;color:#cbd5e1}
-
-  .panel{background:var(--panel);border:1px solid var(--stroke);border-radius:14px;padding:14px;overflow:auto}
-  h2{font-size:16px;margin:2px 2px 10px}
-  .grid{display:grid;grid-template-columns:1fr 160px;gap:10px 12px}
-  .row{display:contents}
-  label{color:var(--text-dim);align-self:center}
-
-  input[type="range"],select,input[type="number"],input[type="text"]{
-    width:100%;background:#0e1116;color:#e5e7eb;border:1px solid #22262d;
-    border-radius:10px;padding: 7px 0;box-shadow:inset 0 0 0 1px #000
-  }
-  input[type="range"]{width:100%}
-  .two{grid-column:span 2;display:flex;gap:10px}
-  .button{cursor:pointer;user-select:none;background:#10141b;border:1px solid #242a33;color:#e5e7eb;padding:8px 10px;border-radius:10px;flex:1;text-align:center}
-  .group{margin-top:12px;border:1px solid var(--stroke);border-radius:12px;padding:10px;background:linear-gradient(180deg,#12151b,#0e1116)}
-  .group-title{font-weight:600;margin-bottom:8px}
-  N0px 1fr;gap:10px 12px}
-  .hint{grid-column:span 2;color:#9aa4b2;font-size:12px}
-  .warn{font-size:12px;color:#f59e0b}
-
-  /* color swatches */
-  #beamColors{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:8px;grid-column:span 2}
-  #beamColors .sw{display:flex;align-items:center;gap:6px}
-  #beamColors .sw label{font-size:12px;color:#aab1bd;width:28px;text-align:right}
-  .ctrl-row{display:flex;gap:8px;align-items:center}.ctrl-row>input[type="number"]{width:76px;min-width:64px}.ctrl-row>input[type="range"]{width:100%}input[type="color"]{
-    appearance:none;width:100%;height:26px;border:none;padding:0;border-radius:8px;
-    background:#0e1116; /* fixes stray white box */
+  :root {
+    --bg: #08090b;
+    --panel: #1a1e24;
+    --panel-top: #22272f;
+    --stroke: #2a2f38;
+    --stroke-glow: rgba(255, 159, 28, 0.15);
+    --accent: #ff9f1c;
+    --accent-dim: #cc7a10;
+    --accent-glow: rgba(255, 159, 28, 0.3);
+    --text: #ffffff;
+    --text-dim: #c8c0b8;
+    --input-bg: #0e1014;
   }
 
-/* UI layout: label | slider | number (one row) */
-.panel .grid .row{display:contents}
-.panel .grid .row > label{ justify-self:start; text-align:left; align-self:center; white-space:nowrap; padding-right: 4px; }
-.ctrl-row{display:flex; gap:10px; align-items:center}
-.ctrl-row > input[type="range"]{width:100%}
-.ctrl-row > input[type="number"]{width:56px; min-width:56px}
-
-\.panel\s*\.grid{grid-template-columns: 95px 1fr;}
-
-/* === Aligned slider layout: Label | Slider | Number === */
-.panel .grid .row{display:contents}
-.panel .grid .row > label{ justify-self:start; text-align:left; align-self:center; white-space:nowrap; padding-right: 4px; }
-.ctrl-row{display:flex;gap:10px;align-items:center}
-.ctrl-row > input[type="range"]{flex:1;min-width:0;width:auto}
-.ctrl-row > input[type="number"]{width:56px;min-width:56px}
-
-\.panel\s*\I0px 1fr;}
-
-\.subgrid{grid-template-columns:  95px 1fr;}
-
-/* Final override: tighter column gap and 80px/1fr columns */
-I0px 1fr; gap:10px 8px !important;}
-
-/* final spacing tweak */
-.grid{ gap: 10px 6px !important; }
-.panel .grid .row > label{ padding-right: 4px; }
-input[type="range"]{ padding: 7px 0 !important; }
-
-/* === Ensure sliders fill between label and number: Label | Slider | Number === */
-.panel .grid { grid-template-columns: 95px 1fr; } /* keep current label width */
-.subgrid      { grid-template-columns: 95px 1fr; }
-
-/* Render each control row as contents (label cell + control cell) */
-.panel .grid .row{ display: contents; }
-
-/* Control cell: grid with slider + fixed number on the right */
-.ctrl-row{
-  display: grid;
-  grid-template-columns: 1fr 56px;  /* slider grows, number fixed */
-  column-gap: 8px;
-  align-items: center;
-}
-
-/* Slider grows to fill */
-.ctrl-row > input[type="range"]{
-  width: 100% !important;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 7px 0 !important; /* no side padding */
-}
-
-/* Number stays compact */
-.ctrl-row > input[type="number"]{
-  width: 56px !important;
-  min-width: 56px;
-  box-sizing: border-box;
-}
-
-/* === UI tweak: label 110px, number 60px; keep slider fill === */
-.panel .grid{ grid-template-columns: 110px 1fr !important; }
-.subgrid{ grid-template-columns: 110px 1fr !important; }
-.ctrl-row{ grid-template-columns: 1fr 60px !important; }
-.ctrl-row > input[type="number"]{ width: 60px !important; min-width: 60px !important; }
-
-/* ==== Pulse & Beam Glow: label | slider | number (labels 60px) ==== */
-.group .subgrid{ grid-template-columns: 60px 1fr !important; }
-.group .subgrid .row{ display: contents; }
-.group .subgrid .row > label{
-  justify-self: start;
-  text-align: left;
-  align-self: center;
-  white-space: nowrap;
-  padding-right: 6px;
-}
-
-/* Controls fill the remaining space; same paddings as main */
-.group .subgrid .row > input[type="range"],
-.group .subgrid .row > select{
-  width: 100% !important;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 7px 0; /* match main slider padding */
-}
-
-/* If a row uses ctrl-row with a number, keep slider fill + number 60px */
-.group .subgrid .row .ctrl-row{
-  display: grid;
-  grid-template-columns: 1fr 60px;
-  column-gap: 8px;
-  align-items: center;
-}
-.group .subgrid .row .ctrl-row > input[type="range"]{
-  width: 100% !important;
-  min-width: 0;
-  padding: 7px 0;
-}
-.group .subgrid .row .ctrl-row > input[type="number"]{
-  width: 60px;
-  min-width: 60px;
-}
-
-/* === Force Pulse & Beam Glow to Label | Slider | Number (labels 60px) === */
-.group .subgrid{
-  display: grid;
-  grid-template-columns: 60px 1fr !important;  /* label | controls */
-  column-gap: 8px;
-  row-gap: 10px;
-  align-items: center;
-}
-/* labels in column 1 */
-.group .subgrid > label{
-  grid-column: 1;
-  justify-self: start;
-  text-align: left;
-  white-space: nowrap;
-  padding-right: 6px;
-}
-/* the element immediately after a label (range/select/ctrl-row) goes in column 2 */
-.group .subgrid > label + *{
-  grid-column: 2;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-}
-/* Make ranges fill and remove side padding so tracks reach the edges */
-.group .subgrid input[type="range"]{ padding: 7px 0; width: 100%; min-width: 0; }
-/* if a number is present, wrap slider+number inside .ctrl-row (grid) */
-.group .subgrid .ctrl-row{ display: grid; grid-template-columns: 1fr 60px; column-gap: 8px; align-items: center; }
-.group .subgrid .ctrl-row > input[type="range"]{ width: 100%; min-width: 0; padding: 7px 0; }
-.group .subgrid .ctrl-row > input[type="number"]{ width: 60px; min-width: 60px; }
-
-/* === Pulse & Beam Glow: widen label column to 140px, keep slider fill === */
-.group .subgrid{ grid-template-columns: 140px 1fr !important; column-gap: 8px; }
-.group .subgrid > label{ padding-right: 6px; white-space: nowrap; }
-.group .subgrid input[type="range"]{ padding: 7px 0 !important; width: 100% !important; min-width: 0; }
-.group .subgrid .ctrl-row{ display: grid; grid-template-columns: 1fr 60px; column-gap: 8px; align-items: center; }
-.group .subgrid .ctrl-row > input[type="number"]{ width: 60px; min-width: 60px; }
-
-/* === Scope: Pulse & Glow groups only === */
-.group.pulse .subgrid, .group.glow .subgrid {
-  grid-template-columns: 100px 1fr !important;
-  column-gap: 8px;
-}
-.group.pulse .subgrid > label, .group.glow .subgrid > label {
-  justify-self: start;
-  text-align: left;
-  white-space: nowrap;
-  padding-right: 6px;
-}
-.group.pulse .subgrid input[type="range"], .group.glow .subgrid input[type="range"] {
-  padding: 7px 0 !important;
-  width: 100% !important;
-  min-width: 0;
-  box-sizing: border-box;
-}
-/* If a number is present later, keep it at 60px on the right */
-.group.pulse .subgrid .ctrl-row, .group.glow .subgrid .ctrl-row {
-  display: grid; grid-template-columns: 1fr 60px; column-gap: 8px; align-items: center;
-}
-
-/* === Surgical UI-only additions for sticky mobile + safe touch === */
-.panel{touch-action:pan-y;}
-@media (max-width:980px){
-  .stage{ position:sticky; top:0; z-index:10; height:48svh; }
-}
-
-/* === Desktop fit: keep animation fully visible next to controls === */
-@media (min-width:981px){
-  .app{ grid-template-columns: 1fr 460px; }
-  .stage{
-    max-height: 100vh !important;
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.4 'Consolas', 'Monaco', 'Courier New', monospace;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 0 8px rgba(0,0,0,0.4);
   }
-  .stage canvas{
-    width: 100% !important;
-    height: auto !important;
-    display: block;
-  }
-  #overlay{
-    width: 100% !important;
-    height: auto !important;
-  }
-}
 
-/* === Desktop sticky stage + scrollable panel (like Android sticky) === */
-@media (min-width:981px){
-  .stage{
-    position: sticky;
-    top: 0;
-    z-index: 5;
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 480px;
+    gap: 12px;
+    min-height: 100svh;
+    padding: 12px;
   }
-  .panel{
-    max-height: 100vh;
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; grid-auto-rows: min-content; }
+  }
+
+  /* Stage */
+  .stage {
+    position: relative;
+    border: 1px solid var(--stroke);
+    border-radius: 6px;
+    overflow: hidden;
+    min-height: 50vh;
+    background: #000;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 0 1px var(--accent-glow);
+    aspect-ratio: 1 / 1;
+    max-height: calc(100vh - 24px);
+    justify-self: center;
+    width: 100%;
+    max-width: calc(100vh - 24px);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  #gl { position: absolute; inset: 0; }
+  #overlay { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
+
+  /* Panel */
+  .panel {
+    background: linear-gradient(180deg, var(--panel-top) 0%, var(--panel) 100%);
+    border: 1px solid var(--stroke);
+    border-radius: 6px;
+    padding: 14px;
     overflow: auto;
+    touch-action: pan-y;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 20px rgba(0,0,0,0.5);
   }
-}
+  .panel::-webkit-scrollbar { width: 6px; }
+  .panel::-webkit-scrollbar-track { background: var(--panel); }
+  .panel::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 3px; }
+  .panel::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
 
-/* === Desktop: single scrollbar (panel only) and stage sticky === */
-@media (min-width:981px){
-  html, body { height:100vh; overflow:hidden; }
-  .app { height:100vh; }
-  .panel{ max-height:100vh; overflow:auto; }
-  .stage{ position:sticky; top:0; z-index:5; }
-}
+  h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--stroke);
+    text-shadow: 0 0 8px var(--accent-glow);
+  }
 
-/* --- Hide HUD badges (Bounces / FPS) --- */
-.hud, .stats, .badge, #hud, .fps, .bounces { display:none !important; }
+  /* Grid layout */
+  .grid {
+    display: grid;
+    grid-template-columns: 115px 1fr;
+    gap: 8px 12px;
+    align-items: center;
+  }
+  .row { display: contents; }
+  label {
+    color: var(--text-dim);
+    font-size: 14px;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+  }
 
+  /* Inputs base */
+  input[type="range"], select, input[type="number"], input[type="text"] {
+    background: var(--input-bg);
+    color: var(--text-dim);
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    font: inherit;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, select:focus {
+    border-color: var(--accent-dim);
+    box-shadow: 0 0 0 1px var(--accent-glow);
+  }
+
+  /* Range sliders - completely custom appearance */
+  input[type="range"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 20px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    background: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
+    border-radius: 3px;
+    border: 1px solid #4a8595;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 3px;
+    margin-top: -5px;
+    box-shadow: 0 0 8px var(--accent-glow);
+    border: 1px solid #cc7a10;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    background: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
+    border-radius: 3px;
+    border: 1px solid #4a8595;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 3px;
+    border: 1px solid #cc7a10;
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  input[type="range"]::-ms-track {
+    height: 6px;
+    background: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
+    border-radius: 3px;
+    border: 1px solid #4a8595;
+  }
+  input[type="range"]::-ms-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 3px;
+    border: 1px solid #cc7a10;
+  }
+
+  /* Select dropdowns */
+  select {
+    padding: 4px 6px;
+    cursor: pointer;
+  }
+
+  /* Number inputs */
+  input[type="number"] {
+    width: 48px;
+    padding: 3px 4px;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Control row: slider + number */
+  .ctrl-row {
+    display: grid;
+    grid-template-columns: 1fr 44px;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* Buttons */
+  .btn {
+    background: linear-gradient(180deg, #1a1d24 0%, #0e1014 100%);
+    border: 1px solid var(--stroke);
+    border-radius: 3px;
+    color: var(--text-dim);
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    box-shadow: 0 0 8px var(--accent-glow);
+  }
+  .btn:active {
+    background: var(--input-bg);
+    transform: translateY(1px);
+  }
+
+  /* Groups */
+  .group {
+    margin-top: 8px;
+    padding: 8px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    border: 1px solid var(--stroke);
+    border-radius: 4px;
+  }
+  .group-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ffb340;
+    margin-bottom: 6px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8), 0 0 8px rgba(255,159,28,0.3);
+  }
+
+  /* Subgrid for groups */
+  .subgrid {
+    display: grid;
+    grid-template-columns: 85px 1fr;
+    gap: 4px 8px;
+    align-items: center;
+  }
+
+  /* Color swatches - compact */
+  #beamColors {
+    margin-top: 6px;
+  }
+  #beamColors .color-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  #beamColors .sw {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: grab;
+    padding: 2px;
+    border-radius: 3px;
+    transition: background 0.15s, transform 0.15s;
+  }
+  #beamColors .sw:hover {
+    background: rgba(255,255,255,0.05);
+  }
+  #beamColors .sw.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+  }
+  #beamColors .sw.drag-over {
+    background: rgba(255,165,0,0.2);
+    transform: scale(1.05);
+  }
+  #beamColors .sw label {
+    font-size: 9px;
+    color: var(--text-dim);
+    width: 10px;
+    pointer-events: none;
+  }
+  .em-color-header {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: 4px;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+  }
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--stroke);
+    border-radius: 2px;
+    background: var(--input-bg);
+    cursor: pointer;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 1px; }
+  input[type="color"]::-webkit-color-swatch { border-radius: 1px; border: none; }
+
+  /* Per-beam speeds - inline compact */
+  #beamSpeeds {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 4px;
+  }
+  #beamSpeeds .sw {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  #beamSpeeds .sw label {
+    font-size: 9px;
+    color: var(--text-dim);
+    width: 16px;
+  }
+  #beamSpeeds .sw input[type="number"] {
+    width: 42px;
+    padding: 2px 3px;
+    font-size: 10px;
+  }
+
+  /* Button row */
+  .btn-row {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .btn-row .btn { flex: 1; }
+
+  /* Hint text */
+  .hint {
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    opacity: 0.7;
+  }
+
+  /* Collapsible groups */
+  .group.collapsible .group-title {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .group.collapsible .group-title::after {
+    content: '▼';
+    font-size: 8px;
+    color: var(--accent-dim);
+    transition: transform 0.2s;
+  }
+  .group.collapsible.collapsed .group-title::after {
+    transform: rotate(-90deg);
+  }
+  .group.collapsible .group-content {
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    max-height: 500px;
+  }
+  .group.collapsible.collapsed .group-content {
+    max-height: 0;
+  }
+
+  /* Scene slots */
+  .scene-slots {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  /* Stepper controls */
+  .stepper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .step-btn {
+    width: 28px;
+    height: 24px;
+    padding: 0;
+    font-size: 9px;
+    line-height: 24px;
+    text-align: center;
+    flex: none;
+  }
+  .step-val {
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 28px;
+  }
+  .scene-slots .scene-slot {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 0;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .scene-slots .scene-slot.has-scene {
+    background: linear-gradient(180deg, #2a1f10 0%, #1a1408 100%);
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+  .scene-slots .scene-slot.active {
+    background: var(--accent);
+    color: #000;
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+
+  /* Two column buttons */
+  .two {
+    grid-column: span 2;
+    display: flex;
+    gap: 6px;
+  }
+  .two .btn { flex: 1; }
+
+  /* Mobile */
+  @media (max-width: 800px) {
+    .stage { position: sticky; top: 0; z-index: 10; height: 45svh; }
+  }
+
+  /* Fullscreen mode: hide panel, stage fills viewport */
+  :fullscreen .app {
+    grid-template-columns: 1fr !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  :fullscreen .panel { display: none !important; }
+  :fullscreen .stage {
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  /* Webkit prefix for Safari */
+  :-webkit-full-screen .app { grid-template-columns: 1fr !important; padding: 0 !important; gap: 0 !important; }
+  :-webkit-full-screen .panel { display: none !important; }
+  :-webkit-full-screen .stage { min-height: 100vh !important; max-height: 100vh !important; height: 100vh !important; border: none !important; border-radius: 0 !important; }
+
+  /* Desktop */
+  @media (min-width: 801px) {
+    html, body { height: 100vh; overflow: hidden; }
+    .app { height: 100vh; }
+    .stage { position: sticky; top: 0; z-index: 5; max-height: 100vh; }
+    .panel { max-height: 100vh; overflow: auto; }
+  }
 </style>
 </head>
 <body>
 <div class="app">
   <div class="stage">
-    <canvas id="gl" aria-label="beam canvas (webgl2)"></canvas>
-    <canvas id="overlay" aria-label="overlay (2d)"></canvas>
-    <div class="hud">
-      <div class="tag" id="bouncesTag">Bounces: 0</div>
-      <div class="tag" id="fpsTag">FPS: 0</div>
-    </div>
+    <canvas id="gl"></canvas>
+    <canvas id="overlay"></canvas>
   </div>
 
   <div class="panel">
-    <h2>Laser Room Controls</h2>
+    <h2>Voidulator</h2>
     <div class="grid">
-      <div class="row"><label>Room shape</label>
-        <select id="shape">
-          <option value="circle" selected>Circle</option>
-          <option value="regular-3">Triangle</option>
-          <option value="regular-4">Square</option>
-          <option value="regular-5">Pentagon</option>
-          <option value="regular-6">Hexagon</option>
-          <option value="random-5">Randomgon (5–10)</option>
-          <option value="blob">Blob (smooth)</option>
-        </select>
-      </div>
-
-      <div class="row"><label>Reflectivity (eased)</label>
+      <div class="row"><label>Reflectivity</label>
         <input id="reflect" type="range" min="0" max="1" step="0.001" value="0.80">
       </div>
 
       <div class="row"><label>Max bounces</label>
-  <div class="ctrl-row"><input id="bounces" type="range" min="1" max="300" step="1" value="8"><input id="bouncesNum" type="number" min="1" max="300" step="1" value="8">
-  </div>
-</div>
+        <div class="ctrl-row">
+          <input id="bounces" type="range" min="1" max="300" step="1" value="236">
+          <input id="bouncesNum" type="number" min="1" max="300" value="236">
+        </div>
+      </div>
 
       <div class="row"><label>Beam width</label>
-        <input id="beamWidth" type="range" min="1" max="8" step="1" value="2">
+        <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
+      </div>
+
+      <div class="row"><label>Layer mode</label>
+        <button class="btn" id="layerModeToggle">Depth</button>
+      </div>
+
+      <div class="row"><label>Blend mode</label>
+        <select id="blendMode">
+          <option value="normal" selected>Normal</option>
+          <option value="additive">Additive</option>
+        </select>
       </div>
 
       <div class="row"><label>Beam count</label>
-  <div class="ctrl-row"><input id="beamCount" type="range" min="1" max="24" step="1" value="1"><input id="beamCountNum" type="number" min="1" max="24" step="1" value="1">
-  </div>
-</div>
-
-      <div class="row"><label>Emitters</label>
-        <input id="emCount" type="number" min="1" max="4" step="1" value="1">
-      </div>
-      <div class="two">
-        <div class="button" id="centerEmitters">Center emitters</div>
-        <div class="button" id="shuffleShape">Shuffle shape</div>
+        <div class="stepper">
+          <button class="btn step-btn" id="beamCountDown">▼</button>
+          <span class="step-val" id="beamCountVal">1</span>
+          <button class="btn step-btn" id="beamCountUp">▲</button>
+        </div>
       </div>
 
-      <div class="row"><label>Spread (°)</label>
-  <div class="ctrl-row"><input id="spread" type="range" min="0" max="180" step="0.1" value="0"><input id="spreadNum" type="number" min="0" max="180" step="0.1" value="0">
-  </div>
-</div>
-
-      <div class="row"><label>Angle (°)</label>
-        <input id="angle" type="range" min="0" max="360" step="0.1" value="0">
+      <div class="row"><label>Emitter dot</label>
+        <button class="btn" id="showEmitterToggle">Hide</button>
       </div>
 
-      <div class="row"><label>Global speed (°/s)</label>
-  <div class="ctrl-row"><input id="rotSpeed" type="range" min="0" max="5" step="0.01" value="0"><input id="rotSpeedNum" type="number" min="0" max="5" step="0.01" value="0">
-  </div>
-</div>
-      <div class="row"><label>Speed range</label>
-        <select id="speedRange">
-          <option value="5" selected>Ultra slow (0–5)</option>
-          <option value="30">Slow (0–30)</option>
-          <option value="360">Normal (0–360)</option>
-          <option value="720">Fast (0–720)</option>
-          <option value="1440">Ultra fast (0–1440)</option>
-        </select>
+      <div class="row"><label>Speed mult.</label>
+        <div class="ctrl-row">
+          <input id="speedMultiplier" type="range" min="0" max="2" step="0.01" value="0.01">
+          <input id="speedMultiplierNum" type="number" min="0" max="2" step="0.01" value="0.01">
+        </div>
       </div>
-      <div class="row"><label>Speed multiplier</label>
-  <div class="ctrl-row"><input id="speedMultiplier" type="range" min="0" max="2" step="0.01" value="1"><input id="speedMultiplierNum" type="number" min="0" max="2" step="0.01" value="1">
-  </div>
-</div>
+      <div class="row"><label>Step size</label>
+        <div class="btn-row" style="gap:4px;">
+          <button class="btn" id="speedStepDown">−</button>
+          <select id="speedStepSize" style="flex:1;">
+            <option value="0.01" selected>0.01</option>
+            <option value="0.001">0.001</option>
+          </select>
+          <button class="btn" id="speedStepUp">+</button>
+        </div>
+      </div>
     </div>
 
-    <div class="group" pulse>
-      <div class="group-title">Per-beam Colors & Schemes</div>
+    <div class="group">
+      <div class="group-title">Colors</div>
       <div class="subgrid">
-        <div class="row"><label>Scheme</label>
-          <select id="beamScheme">
-            <option value="rainbow" >Even rainbow</option>
-            <option value="triad">Triad</option>
-            <option value="analogous">Analogous</option>
-            <option value="warm">Warm</option>
-            <option value="cool">Cool</option>
-            <option value="mono">Monochrome</option>
-            <option value="random">Random</option>
-            <option value="custom">Custom (edit swatches)</option>
-          
-            <option value="grayscale" selected>Greyscale</option>
-            <option value="muted">Muted pastels</option>
-            <option value="earth">Earth tones</option>
-            <option value="noir">Noir (low-sat)</option>
-            <option value="duotone-amber-teal">Duotone – Amber/Teal</option>
-            <option value="duotone-rose-ink">Duotone – Rose/Ink</option>
-            <option value="film-bleach">Film – Bleach Bypass</option>
-            <option value="pantone-soft">Pantone-style Soft Tones</option></select>
+        <label>Scheme</label>
+        <select id="beamScheme">
+          <option value="custom" selected>Custom</option>
+          <option value="grayscale">Greyscale</option>
+          <option value="rainbow">Rainbow</option>
+          <option value="triad">Triad</option>
+          <option value="analogous">Analogous</option>
+          <option value="warm">Warm</option>
+          <option value="cool">Cool</option>
+          <option value="monochrome">Monochrome</option>
+          <option value="muted">Muted</option>
+          <option value="earth">Earth</option>
+          <option value="noir">Noir</option>
+          <option value="duotone-amber-teal">Amber/Teal</option>
+          <option value="duotone-rose-ink">Rose/Ink</option>
+          <option value="film-bleach">Bleach</option>
+          <option value="pantone-soft">Pantone</option>
+          <option value="random">Random</option>
+        </select>
+        <label>Hue rotate</label>
+        <div class="ctrl-row">
+          <input id="hueRotateSpeed" type="range" min="0" max="60" step="0.5" value="0">
+          <input id="hueRotateSpeedNum" type="number" min="0" max="360" step="0.5" value="0">
         </div>
-        <div class="row"><label>Shuffle</label>
-          <div class="button" id="shuffleScheme">Shuffle scheme</div>
-        </div>
+        <label>Brightness</label>
+        <button class="btn" id="brightnessOscToggle">Off</button>
+        <label>Bright amp</label>
+        <input id="brightnessOscAmp" type="range" min="0" max="1" step="0.05" value="0.5">
+        <label>Bright freq</label>
+        <input id="brightnessOscFreq" type="range" min="0.1" max="5" step="0.1" value="1">
       </div>
       <div id="beamColors"></div>
-      <div class="hint">Switch to <b>Custom</b> to hand-pick each beam color. Swatches update with Beam count.</div>
+      <div class="btn-row">
+        <button class="btn" id="shuffleScheme">Shuffle</button>
+      </div>
+      <div class="hint">Hue rotate: °/s shift. Brightness: oscillate light/dark. Drag swatches for layer order.</div>
     </div>
 
-    <div class="group" glow>
-      <div class="group-title">Per-beam Rotation (°/s)</div>
-      <div class="two">
-        <div class="button" id="fillPrimesRaw">Prime speeds (raw)</div>
-</div>
-      <div id="beamSpeeds" class="subgrid"></div>
-      <div class="hint">Adds to the global speed. Use negative for opposite rotation.</div>
-      <div class="two" style="margin-top:8px">
-        <div class="button" id="resetPhases">Reset beam positions</div>
-        <div class="button" id="savePreset">Save preset</div>
+    <div class="group">
+      <div class="group-title">Per-beam Rotation</div>
+      <div class="subgrid">
+        <label>Pattern</label>
+        <select id="speedPattern">
+          <option value="prime" selected>Prime</option>
+          <option value="linear">Linear</option>
+          <option value="exponential">Exponential</option>
+          <option value="fibonacci">Fibonacci</option>
+          <option value="alternating">Alternating</option>
+          <option value="random">Random</option>
+          <option value="zero">Zero (manual)</option>
+        </select>
+        <label>Base speed</label>
+        <div class="ctrl-row">
+          <input id="patternBase" type="range" min="0.1" max="10" step="0.1" value="2">
+          <input id="patternBaseNum" type="number" min="0.1" max="50" step="0.1" value="2">
+        </div>
       </div>
-      <div class="two">
+      <div id="beamSpeeds"></div>
+      <div class="btn-row">
+        <button class="btn" id="resetPhases">Reset phases</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Pulse Effect</div>
+      <div class="subgrid">
+        <label>Enable</label>
+        <button class="btn" id="pulseToggle">On</button>
+        <label>Shape</label>
+        <button class="btn" id="pulseShapeToggle">Sine</button>
+        <label>Amplitude</label>
+        <input id="pulseAmp" type="range" min="0" max="1" step="0.01" value="1">
+        <label>Frequency</label>
+        <input id="pulseFreq" type="range" min="0.05" max="6" step="0.05" value="1.2">
+        <label>Speed</label>
+        <input id="pulseSpeed" type="range" min="0" max="450" step="1" value="60">
+        <label>Softness</label>
+        <input id="pulseQuality" type="range" min="0" max="1" step="0.01" value="0.18">
+        <label>Duty cycle</label>
+        <input id="pulseDuty" type="range" min="0" max="1" step="0.01" value="0.5">
+      </div>
+      <div class="hint">Duty: left = mostly dark, right = mostly light.</div>
+    </div>
+
+    <div class="group collapsible">
+      <div class="group-title">Width Wave</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Enable</label>
+          <button class="btn" id="widthWaveToggle">Off</button>
+          <label>Amount</label>
+          <div class="ctrl-row">
+            <input id="widthWaveAmount" type="range" min="0" max="3" step="0.1" value="1">
+            <input id="widthWaveAmountNum" type="number" min="0" max="3" step="0.1" value="1">
+          </div>
+          <label>Frequency</label>
+          <input id="widthWaveFreq" type="range" min="0.1" max="20" step="0.1" value="0.8">
+          <label>Speed</label>
+          <input id="widthWaveSpeed" type="range" min="0" max="400" step="1" value="100">
+          <label>Duty cycle</label>
+          <input id="widthWaveDuty" type="range" min="0" max="1" step="0.01" value="0.5">
+        </div>
+        <div class="hint">Duty: 0=thin/gaps, 0.5=normal, 1=thick. Amount controls wave depth.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible">
+      <div class="group-title">Trails</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Enable</label>
+          <button class="btn" id="trailsToggle">Off</button>
+          <label>Length</label>
+          <div class="ctrl-row">
+            <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
+            <input id="trailsLengthNum" type="number" min="1" max="180" value="20">
+          </div>
+          <label>Hue shift</label>
+          <div class="ctrl-row">
+            <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
+            <input id="trailsHueShiftNum" type="number" min="0" max="360" value="0">
+          </div>
+        </div>
+        <div class="hint">Length: trail duration. Hue shift: 0=same color, 180=complementary.</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Scenes</div>
+      <div class="subgrid">
+        <label>Scene</label>
+        <select id="sceneSelect">
+          <option value="">-- Select scene --</option>
+        </select>
+        <label>Name</label>
+        <input type="text" id="sceneName" placeholder="Scene name..." style="padding:4px 6px;">
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="saveScene">Save</button>
+        <button class="btn" id="goToScene">Go</button>
+        <button class="btn" id="deleteScene">Delete</button>
+      </div>
+      <div class="subgrid" style="margin-top:6px;">
+        <label>Transition</label>
+        <div class="ctrl-row">
+          <input id="transitionDuration" type="range" min="0" max="60" step="0.1" value="1.5">
+          <input id="transitionDurationNum" type="number" min="0" max="600" step="0.1" value="1.5">
+        </div>
+      </div>
+      <div class="scene-slots">
+        <button class="btn scene-slot" data-slot="1">1</button>
+        <button class="btn scene-slot" data-slot="2">2</button>
+        <button class="btn scene-slot" data-slot="3">3</button>
+        <button class="btn scene-slot" data-slot="4">4</button>
+        <button class="btn scene-slot" data-slot="5">5</button>
+        <button class="btn scene-slot" data-slot="6">6</button>
+        <button class="btn scene-slot" data-slot="7">7</button>
+        <button class="btn scene-slot" data-slot="8">8</button>
+      </div>
+      <div class="hint">Click slot to go, Shift+Click to save. Keys 1-8 trigger slots.</div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">File Presets</div>
+      <div class="btn-row">
+        <button class="btn" id="savePreset">Export</button>
+        <button class="btn" id="loadPreset">Import</button>
         <input id="presetFile" type="file" accept="application/json" style="display:none">
-        <div class="button" id="loadPreset">Load preset</div>
       </div>
-</div>
+    </div>
 
-    <div class="group">
-      <div class="group-title">Pulse (WebGL shader) </div>
-      
-      <div class="subgrid">
-        <div class="row"><label>Enable</label>
-          <select id="pulseEnable"><option value="off" selected>Off</option><option value="on">On</option></select>
+    <div class="group collapsible collapsed" id="audioGroup">
+      <div class="group-title">Audio Reactive</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Mic input</label>
+          <div class="btn-row">
+            <button class="btn" id="audioToggle">Start listening</button>
+          </div>
+          <label>Sensitivity</label>
+          <div class="ctrl-row">
+            <input id="audioSensitivity" type="range" min="0.1" max="5" step="0.1" value="1.5">
+            <input id="audioSensitivityNum" type="number" min="0.1" max="5" step="0.1" value="1.5">
+          </div>
+          <label>Smoothing</label>
+          <input id="audioSmoothing" type="range" min="0" max="0.98" step="0.01" value="0.5">
+          <label>Target</label>
+          <select id="audioTarget">
+            <option value="angle" selected>Angle drift</option>
+            <option value="spread">Spread</option>
+            <option value="width">Beam width</option>
+            <option value="pulse-speed">Pulse speed</option>
+            <option value="pulse-freq">Pulse freq</option>
+            <option value="center-range">Center range</option>
+          </select>
+          <label>Strength</label>
+          <div class="ctrl-row">
+            <input id="audioStrength" type="range" min="0" max="1" step="0.01" value="0.3">
+            <input id="audioStrengthNum" type="number" min="0" max="1" step="0.01" value="0.3">
+          </div>
+          <label>Band</label>
+          <select id="audioBand">
+            <option value="all" selected>Full spectrum</option>
+            <option value="bass">Bass (low)</option>
+            <option value="mid">Mids</option>
+            <option value="high">Highs</option>
+          </select>
         </div>
-        <div class="row"><label>Shape</label>
-          <select id="pulseShape"><option value="sine" selected>Sine</option><option value="square">Square (smooth)</option></select>
-        </div>
-        <div class="row"><label>Amplitude</label>
-          <input id="pulseAmp" type="range" min="0" max="1" step="0.01" value="1">
-        </div>
-        <div class="row"><label>Frequency</label>
-          <input id="pulseFreq" type="range" min="0.05" max="6" step="0.05" value="1.2">
-        </div>
-        <div class="row"><label>Speed (px/s)</label>
-          <input id="pulseSpeed" type="range" min="0" max="900" step="1" value="240">
-        </div>
-        <div class="row"><label>Quality (edge softness)</label>
-          <input id="pulseQuality" type="range" min="0" max="1" step="0.01" value="0.18">
-        </div>
+        <div class="hint">Uses mic/system audio. Press F for clean fullscreen.</div>
       </div>
-      <div class="hint">Alpha = intensity × mix(1, Wave(d − v·t), amplitude). Peak = full color; trough = transparent.</div>
     </div>
 
-    <div class="group">
-      <div class="group-title">Beam Glow Effects</div>
-      <div class="subgrid">
-  <div class="row"><label>Glow</label>
-    <div class="ctrl-row">
-      <div></div>
-    </div>
-  </div>
-  <div class="row"><label>Resolution</label>
-    <div class="ctrl-row">
-    </div>
-  </div>
+    <div class="group collapsible collapsed">
+      <div class="group-title">Bonus</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Shape</label>
+          <select id="shape">
+            <option value="circle" selected>Circle</option>
+            <option value="regular-3">Triangle</option>
+            <option value="regular-4">Square</option>
+            <option value="regular-5">Pentagon</option>
+            <option value="regular-6">Hexagon</option>
+            <option value="random-5">Randomgon</option>
+            <option value="blob">Blob</option>
+          </select>
+          
+          <label>Emitters</label>
+          <div class="stepper">
+            <button class="btn step-btn" id="emCountDown">▼</button>
+            <span class="step-val" id="emCountVal">1</span>
+            <button class="btn step-btn" id="emCountUp">▲</button>
+          </div>
 
-        <div class="row" style="display:none;"><label>Glow layers</label><option value="3" selected>Triple glow</option></select>
-        </div>
-        <div class="row"><label>Glow intensity</label>
-        </div>
-        <div class="row"><label>Glow spread</label>
-        </div>
-        <div class="row"><label>Core brightness</label>
-        </div>
-        <div class="row" style="display:none;"><label>Blend mode</label><option value="normal" selected>Normal</option></select>
-        </div>
-        <div class="row"><label>Bloom effect</label>
-          <select id="bloomEffect">
-            <option value="off" selected>Off</option>
-            <option value="subtle">Subtle</option>
-            <option value="dramatic">Dramatic</option>
+          <label>Symmetry</label>
+          <select id="emitterSymmetry">
+            <option value="on" selected>On</option>
+            <option value="off">Off</option>
+          </select>
+
+          <label>Move speed</label>
+          <div class="ctrl-row">
+            <input id="emitterSpeed" type="range" min="50" max="500" step="10" value="150">
+            <input id="emitterSpeedNum" type="number" min="50" max="500" value="150">
+          </div>
+
+          <label>Spread (°)</label>
+          <div class="ctrl-row">
+            <input id="spread" type="range" min="0" max="180" step="0.1" value="0">
+            <input id="spreadNum" type="number" min="0" max="180" value="0">
+          </div>
+
+          <label>Angle (°)</label>
+          <input id="angle" type="range" min="0" max="360" step="0.1" value="0">
+
+          <label>Global speed</label>
+          <div class="ctrl-row">
+            <input id="rotSpeed" type="range" min="0" max="5" step="0.01" value="0">
+            <input id="rotSpeedNum" type="number" min="0" max="5" step="0.01" value="0">
+          </div>
+
+          <label>Speed range</label>
+          <select id="speedRange">
+            <option value="5" selected>Ultra slow</option>
+            <option value="30">Slow</option>
+            <option value="360">Normal</option>
+            <option value="720">Fast</option>
+            <option value="1440">Ultra fast</option>
           </select>
         </div>
       </div>
-      <div class="hint">Multi-layer glow with additive blending creates spectacular beam effects. Higher values = more GPU intensive.</div>
     </div>
 
-    
   </div>
 </div>
 
-<!-- Legacy glow proxies for engine (must exist before engine script) -->
-<div id="__glow_proxies" style="display:none">
-<div class="group">
-        <div class="group-title">Canvas Background (inside)</div>
-        <div class="grid">
-          <div class="row">
-            <label>Color</label>
-            <input id="cbg" type="color" value="#0e1116">
-          </div>
-          </div>
-      </div>
 <script>
-
-/* --- Desktop fit glue: sync canvas internal resolution to displayed size --- */
-(function(){
-  function sizeStage(){
-    const stage = document.querySelector('.stage');
-    const glc = document.getElementById('gl');
-    const ov  = document.getElementById('overlay');
-    if(!stage || !glc || !ov) return;
-    // Constrain stage height (controller view): no taller than viewport, and no taller than its width.
-    if(window.matchMedia('(min-width: 981px)').matches){
-      const w = stage.clientWidth;
-      const hMax = window.innerHeight;
-      const h = Math.min(w, hMax);
-      stage.style.height = h + 'px';
-    }
-    // Match canvas backbuffer size to CSS size to avoid blur
-    const rect = glc.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const W = Math.max(1, Math.round(rect.width  * dpr));
-    const H = Math.max(1, Math.round(rect.height * dpr));
-    if(glc.width !== W || glc.height !== H){
-      glc.width = W; glc.height = H;
-      ov.width  = W; ov.height  = H;
-      try{ if(window.gl){ gl.viewport(0,0,W,H); } }catch(e){}
-    }
-  }
-  window.addEventListener('resize', sizeStage);
-  window.addEventListener('orientationchange', sizeStage);
-  document.addEventListener('DOMContentLoaded', sizeStage);
-  // reflow safety
-  setTimeout(sizeStage, 250);
-  setTimeout(sizeStage, 800);
-})();
-
-/* canvas background (safe, minimal) */
-let __bg = [0,0,0,1];
-function __hex2rgba(hex){
-  const m = /^#?([a-f0-9]{6})$/i.exec(hex||''); if(!m) return [0,0,0,1];
-  const v=parseInt(m[1],16); return [((v>>16)&255)/255, ((v>>8)&255)/255, (v&255)/255, 1];
-}
-window.addEventListener('DOMContentLoaded', ()=>{
-  const inp = document.getElementById('cbg');
-  const rst = document.getElementById('cbgReset');
-  if(inp){
-    inp.addEventListener('input', ()=>{
-      __bg = __hex2rgba(inp.value);
-      if(window.gl){ try{ gl.clearColor(0,0,0,1); }catch(e){} }
-    });
-  }
-  if(rst){
-    rst.addEventListener('click', ()=>{
-      __bg = [0.06,0.07,0.1,1];
-      if(inp) inp.value = '#0e1116';
-      if(window.gl){ try{ gl.clearColor(0,0,0,1); }catch(e){} }
-    });
-  }
-});
-
-// === safe DOM helpers (UI-locked) ===
-if (!window._safeOn) window._safeOn = (el, ...args) => { if (el && el.addEventListener) el.addEventListener(...args); };
-if (!window._el) window._el = (id) => document.getElementById(id);
-if (!window._on) window._on = (id, ...args) => { const el = _el(id); if (el) el.addEventListener(...args); };
-
 (() => {
-  // ---- DOM ----
   const _el = id => document.getElementById(id);
-  const _num = (id, fallback) => {
-    const el = _el(id);
-    if (!el) return fallback;
-    const v = (el.type === 'number' || el.type === 'range') ? el.value : el.value;
-    const n = parseFloat(v);
-    return isNaN(n) ? fallback : n;
-  };
+  const _on = (el, evt, fn) => { if (el) el.addEventListener(evt, fn); };
 
-  const glCanvas = document.getElementById('gl');
-  const ovCanvas = document.getElementById('overlay');
+  const glCanvas = _el('gl');
+  const ovCanvas = _el('overlay');
   const octx = ovCanvas.getContext('2d');
 
-  const shapeSel = document.getElementById('shape');
-  const reflectEl = document.getElementById('reflect');
-  const bouncesEl = document.getElementById('bounces');
-  const bouncesNumEl = document.getElementById('bouncesNum');
-  const widthEl = document.getElementById('beamWidth');const countEl = document.getElementById('beamCount');
-  const countNumEl = document.getElementById('beamCountNum');
-  const emCountEl = document.getElementById('emCount');
-  const centerEmittersBtn = document.getElementById('centerEmitters');
-  const shuffleShapeBtn = document.getElementById('shuffleShape');
+  // UI refs
+  const shapeSel = _el('shape');
+  const reflectEl = _el('reflect');
+  const bouncesEl = _el('bounces');
+  const bouncesNumEl = _el('bouncesNum');
+  const widthEl = _el('beamWidth');
+  const beamCountUpBtn = _el('beamCountUp');
+  const beamCountDownBtn = _el('beamCountDown');
+  const beamCountValEl = _el('beamCountVal');
+  const emCountUpBtn = _el('emCountUp');
+  const emCountDownBtn = _el('emCountDown');
+  const emCountValEl = _el('emCountVal');
+  const emitterSymmetryEl = _el('emitterSymmetry');
+  const spreadEl = _el('spread');
+  const spreadNumEl = _el('spreadNum');
+  const angleEl = _el('angle');
+  const rotSpeedEl = _el('rotSpeed');
+  const rotSpeedNum = _el('rotSpeedNum');
+  const speedRangeEl = _el('speedRange');
+  const speedMultiplierEl = _el('speedMultiplier');
+  const speedMultiplierNumEl = _el('speedMultiplierNum');
+  const speedStepDown = _el('speedStepDown');
+  const speedStepUp = _el('speedStepUp');
+  const speedStepSize = _el('speedStepSize');
+  const beamSchemeEl = _el('beamScheme');
+  const hueRotateSpeedEl = _el('hueRotateSpeed');
+  const hueRotateSpeedNumEl = _el('hueRotateSpeedNum');
+  const brightnessOscToggle = _el('brightnessOscToggle');
+  const brightnessOscAmpEl = _el('brightnessOscAmp');
+  const brightnessOscFreqEl = _el('brightnessOscFreq');
+  const shuffleSchemeBtn = _el('shuffleScheme');
+  const beamColorsDiv = _el('beamColors');
+  const speedPatternEl = _el('speedPattern');
+  const patternBaseEl = _el('patternBase');
+  const patternBaseNumEl = _el('patternBaseNum');
+  const resetPhasesBtn = _el('resetPhases');
+  const beamSpeedsDiv = _el('beamSpeeds');
+  const layerModeToggle = _el('layerModeToggle');
+  const pulseToggle = _el('pulseToggle');
+  const pulseShapeToggle = _el('pulseShapeToggle');
+  const pulseAmpEl = _el('pulseAmp');
+  const pulseFreqEl = _el('pulseFreq');
+  const pulseSpeedEl = _el('pulseSpeed');
+  const pulseQualityEl = _el('pulseQuality');
+  const pulseDutyEl = _el('pulseDuty');
+  // Trails
+  const trailsToggle = _el('trailsToggle');
+  const trailsLengthEl = _el('trailsLength');
+  const trailsLengthNumEl = _el('trailsLengthNum');
+  const trailsOpacityEl = _el('trailsOpacity');
+  const trailsFadeEl = _el('trailsFade');
+  const trailsHueShiftEl = _el('trailsHueShift');
+  const trailsHueShiftNumEl = _el('trailsHueShiftNum');
+  // Thickness pulse
+  const widthWaveToggle = _el('widthWaveToggle');
+  const widthWaveAmountEl = _el('widthWaveAmount');
+  const widthWaveAmountNumEl = _el('widthWaveAmountNum');
+  const widthWaveFreqEl = _el('widthWaveFreq');
+  const widthWaveSpeedEl = _el('widthWaveSpeed');
+  const widthWaveDutyEl = _el('widthWaveDuty');
+  // Blend mode
+  const blendModeEl = _el('blendMode');
+  const savePresetBtn = _el('savePreset');
+  const loadPresetBtn = _el('loadPreset');
+  const presetFile = _el('presetFile');
+  const emitterSpeedEl = _el('emitterSpeed');
+  const emitterSpeedNumEl = _el('emitterSpeedNum');
+  const showEmitterToggle = _el('showEmitterToggle');
+  const sceneSelectEl = _el('sceneSelect');
+  const sceneNameEl = _el('sceneName');
+  const saveSceneBtn = _el('saveScene');
+  const goToSceneBtn = _el('goToScene');
+  const deleteSceneBtn = _el('deleteScene');
+  const transitionDurationEl = _el('transitionDuration');
+  const transitionDurationNumEl = _el('transitionDurationNum');
+  const audioToggleBtn = _el('audioToggle');
+  const audioSensitivityEl = _el('audioSensitivity');
+  const audioSensitivityNumEl = _el('audioSensitivityNum');
+  const audioSmoothingEl = _el('audioSmoothing');
+  const audioTargetEl = _el('audioTarget');
+  const audioStrengthEl = _el('audioStrength');
+  const audioStrengthNumEl = _el('audioStrengthNum');
+  const audioBandEl = _el('audioBand');
 
-  const spreadEl = document.getElementById('spread');
-  const spreadNumEl = document.getElementById('spreadNum');
-  const angleEl = document.getElementById('angle');
-  const rotSpeedEl = document.getElementById('rotSpeed');
-  const rotSpeedNum = document.getElementById('rotSpeedNum');
-  const speedRangeEl = document.getElementById('speedRange');
-  const speedMultiplierEl = document.getElementById('speedMultiplier');
-  const speedMultiplierNumEl = document.getElementById('speedMultiplierNum');
-
-  const beamSchemeEl = document.getElementById('beamScheme');
-  const hueOffsetEl = document.getElementById('hueOffset');
-  const hueSpreadEl = document.getElementById('hueSpread');
-  const shuffleSchemeBtn = document.getElementById('shuffleScheme');
-  const beamColorsDiv = document.getElementById('beamColors');
-  const fillPrimesRawBtn = document.getElementById('fillPrimesRaw');
-  const resetPhasesBtn = document.getElementById('resetPhases');
-  const beamSpeedsDiv = document.getElementById('beamSpeeds');
-  const savePresetBtn = document.getElementById('savePreset');
-  const loadPresetBtn = document.getElementById('loadPreset');
-  const presetFile = document.getElementById('presetFile');
-
-  const pulseEnableEl = document.getElementById('pulseEnable');
-  const pulseShapeEl = document.getElementById('pulseShape');
-  const pulseAmpEl = document.getElementById('pulseAmp');
-  const pulseFreqEl = document.getElementById('pulseFreq');
-  const pulseSpeedEl = document.getElementById('pulseSpeed');
-  const pulseQualityEl = document.getElementById('pulseQuality');
-
-  const fpsTag = document.getElementById('fpsTag');
-  const bouncesTag = document.getElementById('bouncesTag');
-
-  const renSizeEl = document.getElementById('renSize');
-  const renFpsEl = document.getElementById('renFps');
-  const renSecsEl = document.getElementById('renSecs');
-  const renderStartBtn = document.getElementById('renderStart');
-  const renderStopBtn = document.getElementById('renderStop');
-
-  // ---- State ----
+  // State
   const S = {
-    seed: (Math.random()*1e9)|0,
-    polygonType: 'circle', sides: 0, isCircle: true,
-    circle:{cx:0,cy:0,R:0}, vertices:[],
-    // optics
-    reflectSlider: parseFloat(reflectEl.value),
+    seed: (Math.random() * 1e9) | 0,
+    polygonType: 'circle',
+    sides: 0,
+    isCircle: true,
+    circle: { cx: 0, cy: 0, R: 0 },
+    vertices: [],
+    reflectSlider: 0.8,
     reflectivity: 0.8,
-    maxBounces: parseInt(bouncesEl.value,10),
-    beamWidth: parseFloat(widthEl.value), beamCount: parseInt(countEl.value,10),
-    spreadDeg: parseFloat(spreadEl.value),
+    maxBounces: 236,
+    beamWidth: 2,
+    beamCount: 1,
+    spreadDeg: 0,
     angleDeg: 0,
-    rotationSpeed: parseFloat(rotSpeedEl.value),
-    speedMax: parseFloat(speedRangeEl.value),
-    speedMultiplier: parseFloat(speedMultiplierEl.value)||1,
-    // emitters
-    emitters: [{x:0,y:0}],
+    rotationSpeed: 0,
+    speedMax: 5,
+    speedMultiplier: 0.01,
+    // Emitters stored as normalized positions (0-1 range relative to room)
+    emittersNorm: [{ nx: 0.5, ny: 0.5 }],
+    emitters: [{ x: 0, y: 0 }],
     draggingIdx: -1,
-    // color palette
-    beamScheme: beamSchemeEl.value,
-    hueOffset: parseFloat(hueOffsetEl?.value)||0,
-    hueSpread: parseFloat(hueSpreadEl?.value)||360,
-    beamPalette: [],
-    // per-beam rotation
-    perBeamSpeed: [], perBeamPhase: [],
-    primeMode: 'raw',
-    // pulse (shader)
-    pulseOn:false, pulseShape:'sine', pulseAmp:parseFloat(pulseAmpEl.value),
-    pulseFreqCP100:parseFloat(pulseFreqEl.value),
-    pulseSpeed:parseFloat(pulseSpeedEl.value),
-    pulseSoft:parseFloat(pulseQualityEl.value),
-    // sizing / timing
-    dpr:1, lastSegments:0
+    emitterSymmetry: true,
+    symRadius: 0.15, // normalized radius for symmetric positioning
+    symAngle: 0,     // angle of first emitter in formation
+    beamScheme: 'custom',
+    hueRotateSpeed: 0, // degrees per second for color cycling
+    brightnessOsc: {
+      enabled: false,
+      amp: 0.5,    // 0-1 amplitude of brightness variation
+      freq: 1      // Hz - oscillations per second
+    },
+    beamPalette: [],           // Legacy: palette for emitter 0
+    emitterPalettes: [[]],     // Per-emitter palettes: emitterPalettes[emIdx][beamIdx]
+    perBeamSpeed: [],
+    perBeamPhase: [],
+    speedPattern: 'prime',
+    patternBase: 2,
+    pulseOn: true,
+    pulseShape: 'sine',
+    pulseAmp: 1,
+    pulseFreqCP100: 1.2,
+    pulseSpeed: 60,
+    pulseSoft: 0.18,
+    pulseDuty: 0.5, // 0 = mostly dark, 1 = mostly light
+    // Trails (framebuffer-based for performance)
+    trails: {
+      enabled: false,
+      length: 20,      // controls fade rate (1=fast, 180=slow)
+      opacity: 1,      // intensity/brightness of trails (0.1-1)
+      hueShift: 0      // degrees of hue shift (0=none, 180=complement)
+    },
+    // Width wave effect (sine wave along beam width)
+    widthWave: {
+      enabled: false,
+      amount: 1,       // amplitude (0-3)
+      freq: 0.8,       // cycles per 100 pixels
+      speed: 100,      // pixels per second
+      duty: 0.5        // 0=thin/gaps, 0.5=normal, 1=thick
+    },
+    blendMode: 'normal', // normal, additive
+    dpr: 1,
+    lastSegments: 0,
+    layerMode: 'depth', // 'depth' (radial sorting) or 'static' (beam order)
+    beamOrder: [], // Order of beams for static mode (indices into beams array)
+    emitterMoveSpeed: 150,
+    showEmitter: true,
+    keysDown: { w: false, a: false, s: false, d: false },
+    // Scenes
+    scenes: [], // Array of {name, slot, data}
+    sceneSlots: [null, null, null, null, null, null, null, null], // 8 slots
+    transitionDuration: 1.5,
+    // Transition state
+    transition: {
+      active: false,
+      startTime: 0,
+      duration: 1.5,
+      from: null,
+      to: null,
+      beamCountFrom: 1,
+      beamCountTo: 1,
+      lastBeamCountUpdate: 0
+    },
+    // Audio reactive
+    audio: {
+      active: false,
+      ctx: null,
+      analyser: null,
+      source: null,
+      stream: null,
+      dataArray: null,
+      energy: 0,
+      rawEnergy: 0,
+      sensitivity: 1.5,
+      smoothing: 0.5,
+      target: 'angle',
+      strength: 0.3,
+      band: 'all'
+    },
+    // Center motion
+    motion: {
+      mode: 'off',
+      speed: 0.15,
+      range: 0.2,
+      ratio: 1.5,
+      phaseOffset: 90,
+      time: 0,
+      wanderSeedsX: [0, 0, 0, 0],
+      wanderSeedsY: [0, 0, 0, 0]
+    },
+    // Wave/Ripple system
+    waves: {
+      enabled: false,
+      ripples: [],        // Active ripples: {x, y, startTime, speed, amplitude, wavelength, decay}
+      maxRipples: 8,
+      autoSpawn: false,
+      spawnInterval: 2.0, // seconds between auto-spawns
+      lastSpawn: 0,
+      // Default ripple settings - increased for visibility
+      speed: 200,         // pixels per second (faster)
+      amplitude: 50,      // pixels of displacement at peak (bigger!)
+      wavelength: 100,    // pixels between wave peaks (wider)
+      decay: 0.1,         // how fast amplitude fades with distance (slower decay)
+      damping: 0.98,      // how fast ripples die (per second retention - lasts longer)
+      wallBounce: true    // ripples reflect off walls
+    }
   };
-  // Neutralize legacy glow defaults (no-glow baseline)// ---- Force startup defaults (surgical) ----
-  (function forceStartupDefaults(){
-    try{
-      if (countEl) { countEl.value = "1"; }
-      if (countNumEl) { countNumEl.value = "1"; }
-      if (beamSchemeEl) { beamSchemeEl.value = "grayscale"; }
-      S.beamCount = 1;
-      S.beamScheme = 'grayscale';
-    }catch(_){}
-  })();
 
-  // ---- Utils ----
-  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-  function rand(){ S.seed=(1664525*S.seed+1013904223)>>>0; return S.seed/0x100000000; }
-  const add=(a,b)=>({x:a.x+b.x,y:a.y+b.y});
-  const sub=(a,b)=>({x:a.x-b.x,y:a.y-b.y});
-  const mul=(a,s)=>({x:a.x*s,y:a.y*s});
-  function norm(v){ const m=Math.hypot(v.x,v.y)||1; return {x:v.x/m,y:v.y/m}; }
-  const cross=(a,b)=>a.x*b.y-a.y*b.x;
-  const reflectByNormal=(d,n)=>norm(sub(d,{x:n.x*2*(d.x*n.x+d.y*n.y), y:n.y*2*(d.x*n.x+d.y*n.y)}));
-  function hslToRgb(h,s,l){ s/=100; l/=100; const k=n=>(n+h/30)%12; const a=s*Math.min(l,1-l);
-    const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
-    return [f(0),f(8),f(4)];
+  // Init defaults
+  S.beamCount = 1;
+  S.beamScheme = 'custom';
+  S.maxBounces = 236;
+  S.speedMultiplier = 0.01;
+  S.pulseOn = true;
+
+  // Utils
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function rand() {
+    S.seed = (1664525 * S.seed + 1013904223) >>> 0;
+    return S.seed / 0x100000000;
   }
-  function hexToHsl(hex){ hex=hex.replace('#',''); if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
-    const r=parseInt(hex.slice(0,2),16)/255,g=parseInt(hex.slice(2,4),16)/255,b=parseInt(hex.slice(4,6),16)/255;
-    const max=Math.max(r,g,b), min=Math.min(r,g,b); let h=0,s=0,l=(max+min)/2;
-    if(max!==min){ const d=max-min; s=l>0.5?d/(2-max-min):d/(max+min);
-      switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4;} h*=60; s*=100; l*=100;
-    } else { s=0; l*=100; }
-    return {h,s,l};
+  const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+  const cross = (a, b) => a.x * b.y - a.y * b.x;
+  function norm(v) {
+    const m = Math.hypot(v.x, v.y) || 1;
+    return { x: v.x / m, y: v.y / m };
   }
-  function hslToHex(h,s,l){ s/=100;l/=100;const k=n=>(n+h/30)%12;const a=s*Math.min(l,1-l);
-    const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
-    const r=Math.round(255*f(0)), g=Math.round(255*f(8)), b=Math.round(255*f(4));
-    return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  function reflectByNormal(d, n) {
+    const dot2 = 2 * (d.x * n.x + d.y * n.y);
+    return norm({ x: d.x - n.x * dot2, y: d.y - n.y * dot2 });
   }
 
-  function ensurePaletteSize(n){
-while (S.beamPalette.length < n) {
-  const i = S.beamPalette.length;
-  const h = (i * 360 / Math.max(1, n)) % 360;
-  S.beamPalette.push({ h, s: 80, l: 55 });
-}
-if (S.beamPalette.length > n) S.beamPalette.length = n;
-}
-  function generatePalette(scheme){
-const n = S.beamCount|0;
-const base = (rand()*360)%360;
-const out = [];
+  // Color utils
+  function hslToRgb(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [f(0), f(8), f(4)];
+  }
+  function hexToHsl(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        default: h = (r - g) / d + 4;
+      }
+      h *= 60; s *= 100; l *= 100;
+    } else { l *= 100; }
+    return { h, s, l };
+  }
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const r = Math.round(255 * f(0)), g = Math.round(255 * f(8)), b = Math.round(255 * f(4));
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
 
-if (scheme === 'rainbow') { for (let i=0;i<n;i++) out.push({ h:(base + i*360/n)%360, s:80, l:55 }); }
-else if (scheme === 'analogous') { const span=60; for (let i=0;i<n;i++) out.push({ h:(base-span/2 + span*(i/Math.max(1,n-1)))%360, s:80, l:55 }); }
-else if (scheme === 'complementary') { const a=[base,(base+180)%360]; for (let i=0;i<n;i++) out.push({ h:a[i%2], s:80, l:55 }); }
-else if (scheme === 'splitcomplement') { const a=[(base+150)%360,(base+210)%360,base]; for (let i=0;i<n;i++) out.push({ h:a[i%3], s:80, l:55 }); }
-else if (scheme === 'tetradic') { const a=[base,(base+90)%360,(base+180)%360,(base+270)%360]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:75, l:55 }); }
-else if (scheme === 'pastel') { for (let i=0;i<n;i++) out.push({ h:(base+i*360/n)%360, s:45, l:72 }); }
-else if (scheme === 'neon') { for (let i=0;i<n;i++) out.push({ h:(base+i*360/n)%360, s:95, l:55 }); }
-else if (scheme === 'sunset') { for (let i=0;i<n;i++) out.push({ h:(10+40*(i/Math.max(1,n-1)))%360, s:85, l:55 }); }
-else if (scheme === 'ocean') { for (let i=0;i<n;i++) out.push({ h:(180+60*(i/Math.max(1,n-1)))%360, s:70, l:50 }); }
-else if (scheme === 'aurora') { for (let i=0;i<n;i++) out.push({ h:(120+120*(i/Math.max(1,n-1)))%360, s:85, l:60 }); }
-else if (scheme === 'cyberpunk') { const a=[300,330,210,180]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:90, l:55 }); }
-else if (scheme === 'triad' || scheme === 'triadic') { const tri=[base,(base+120)%360,(base+240)%360]; for (let i=0;i<n;i++) out.push({ h:tri[i%3], s:80, l:55 }); }
-else if (scheme === 'monochrome') { const h=((base%360)+360)%360; for (let i=0;i<n;i++) out.push({ h, s:35+40*(i/Math.max(1,n-1)), l:40+20*(i/Math.max(1,n-1)) }); }
-else if (scheme === 'warm') { for (let i=0;i<n;i++) out.push({ h:(10+60*(i/Math.max(1,n-1)))%360, s:85, l:55 }); }
-else if (scheme === 'cool') { for (let i=0;i<n;i++) out.push({ h:(190+70*(i/Math.max(1,n-1)))%360, s:75, l:55 }); }
-else if (scheme === 'forest') { const a=[110,125,140,85]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:60, l:45 }); }
-else if (scheme === 'fire') { const a=[10,20,35,50]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:90, l:55 }); }
-else if (scheme === 'ice') { const a=[190,200,210,220]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:55, l:70 }); }
-else if (scheme === 'sunrise') { for (let i=0;i<n;i++) out.push({ h:(350+40*(i/Math.max(1,n-1)))%360, s:85, l:60 }); }
-else if (scheme === 'dusk') { for (let i=0;i<n;i++) out.push({ h:(240+60*(i/Math.max(1,n-1)))%360, s:70, l:55 }); }
-else if (scheme === 'spring') { for (let i=0;i<n;i++) out.push({ h:(80+80*(i/Math.max(1,n-1)))%360, s:75, l:60 }); }
-else if (scheme === 'candy') { const a=[310,340,30,50,200]; for (let i=0;i<n;i++) out.push({ h:a[i%5], s:90, l:65 }); }
-else if (scheme === 'tealorange') { const a=[200,25]; for (let i=0;i<n;i++) out.push({ h:a[i%2], s:85, l:55 }); }
-else if (scheme === 'magentacyan') { const a=[300,180]; for (let i=0;i<n;i++) out.push({ h:a[i%2], s:90, l:60 }); }
-else if (scheme === 'earth') { const a=[30,45,60,20,100]; for (let i=0;i<n;i++) out.push({ h:a[i%5], s:55, l:45 }); }
-else if (scheme === 'retro') { const a=[30,200,340,140]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:65, l:60 }); }
-else if (scheme === 'grayscale') { for (let i=0;i<n;i++) out.push({ h:0, s:0, l:20 + 60*(i/Math.max(1,n-1)) }); }
-else if (scheme === 'vaporwave') { const a=[315,170,195,35]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:85, l:65 }); }
-else if (scheme === 'galaxy') { const a=[260,280,300,200,180]; for (let i=0;i<n;i++) out.push({ h:a[i%5], s:70, l:60 }); }
-else if (scheme === 'midnight') { const a=[220,235,250,265]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:45, l:45 }); }
-else if (scheme === 'desert') { const a=[20,28,36,44,12]; for (let i=0;i<n;i++) out.push({ h:a[i%5], s:65, l:55 }); }
-else if (scheme === 'voltage') { const a=[130,60,300,200]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:95, l:55 }); }
-else if (scheme === 'rainbowsoft') { for (let i=0;i<n;i++) out.push({ h:(base+i*360/n)%360, s:55, l:65 }); }
-else if (scheme === 'citrus') { const a=[30,55,100,20]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:95, l:55 }); }
-else if (scheme === 'mojito') { const a=[110,140,160,80]; for (let i=0;i<n;i++) out.push({ h:a[i%4], s:70, l:55 }); }
+  // Palette
+  function ensurePaletteSize(n) {
+    while (S.beamPalette.length < n) {
+      const i = S.beamPalette.length;
+      S.beamPalette.push({ h: (i * 360 / Math.max(1, n)) % 360, s: 80, l: 55 });
+    }
+    if (S.beamPalette.length > n) S.beamPalette.length = n;
+    // Sync emitter palettes
+    ensureEmitterPalettes();
+  }
 
-else if (scheme === 'muted') {
-  const baseH = base;
-  for (let i=0;i<n;i++) { const h=(baseH + i*22)%360; out.push({ h, s:28, l:68 }); }
-}
-else if (scheme === 'noir') {
-  const h = (base%360+360)%360;
-  for (let i=0;i<n;i++){ out.push({ h, s:6, l:22 + (i%3)*6 }); }
-}
-else if (scheme === 'duotone-amber-teal') {
-  const a=[38, 190];
-  for (let i=0;i<n;i++) out.push({ h:a[i%2], s:70, l:52 });
-}
-else if (scheme === 'duotone-rose-ink') {
-  const a=[345, 220];
-  for (let i=0;i<n;i++) out.push({ h:a[i%2], s:60, l:50 });
-}
-else if (scheme === 'film-bleach') {
-  for (let i=0;i<n;i++){ const h=(base + i*18)%360; out.push({ h, s:22, l:62 }); }
-}
-else if (scheme === 'pantone-soft') {
-  const tones = [
-    {h:10,s:30,l:72},
-    {h:35,s:25,l:74},
-    {h:200,s:22,l:70},
-    {h:300,s:18,l:72},
-    {h:120,s:20,l:68},
-    {h:260,s:20,l:70},
-  ];
-  for (let i=0;i<n;i++) out.push(tones[i%tones.length]);
-}
-else { for (let i=0;i<n;i++) out.push({ h:(base + i*360/n)%360, s:80, l:55 }); }
+  function ensureEmitterPalettes() {
+    const numEm = S.emitters.length;
+    const numBeams = S.beamCount | 0;
+    while (S.emitterPalettes.length < numEm) {
+      // New emitter gets a copy of emitter 0's palette (or generates fresh)
+      S.emitterPalettes.push(S.emitterPalettes[0] ? 
+        JSON.parse(JSON.stringify(S.emitterPalettes[0])) :
+        S.beamPalette.map(c => ({ ...c })));
+    }
+    S.emitterPalettes.length = numEm;
+    // Ensure each emitter palette has the right beam count
+    for (let em = 0; em < numEm; em++) {
+      while (S.emitterPalettes[em].length < numBeams) {
+        const i = S.emitterPalettes[em].length;
+        S.emitterPalettes[em].push({ h: (i * 360 / Math.max(1, numBeams)) % 360, s: 80, l: 55 });
+      }
+      if (S.emitterPalettes[em].length > numBeams) S.emitterPalettes[em].length = numBeams;
+    }
+    // Keep beamPalette in sync with emitter 0
+    S.beamPalette = S.emitterPalettes[0];
+  }
 
-return out;
-}
-  function rebuildBeamSwatches(){
-    const n=S.beamCount|0; ensurePaletteSize(n); beamColorsDiv.innerHTML='';
-    for(let i=0;i<n;i++){
-      const w=document.createElement('div'); w.className='sw';
-      const lab=document.createElement('label'); lab.textContent='B'+(i+1);
-      const inp=document.createElement('input'); inp.type='color'; inp.value=hslToHex(S.beamPalette[i].h,S.beamPalette[i].s,S.beamPalette[i].l);
-      inp.addEventListener('input',()=>{ S.beamPalette[i]=hexToHsl(inp.value); S.beamScheme='custom'; beamSchemeEl.value='custom'; });
-      w.append(lab,inp); beamColorsDiv.appendChild(w);
+  function applySchemeToAllEmitters() {
+    const palette = generatePalette(S.beamScheme);
+    S.beamPalette = palette;
+    S.emitterPalettes[0] = palette;
+    // Copy to other emitters
+    for (let em = 1; em < S.emitterPalettes.length; em++) {
+      S.emitterPalettes[em] = JSON.parse(JSON.stringify(palette));
     }
   }
 
-  function ensureSpeedArrays(n){ while(S.perBeamSpeed.length<n) S.perBeamSpeed.push(0); S.perBeamSpeed.length=n; while(S.perBeamPhase.length<n) S.perBeamPhase.push(0); S.perBeamPhase.length=n; }
-function halfMirrorNegative(){
-  const n = S.beamCount|0; ensureSpeedArrays(n);
-  const half = Math.floor(n/2);
-  for(let i=0;i<half;i++){ S.perBeamSpeed[(i+half)%n] = -(S.perBeamSpeed[i]||0); }
-  if (typeof rebuildBeamSpeedInputs==='function') rebuildBeamSpeedInputs();
-}
+  function generatePalette(scheme) {
+    const n = S.beamCount | 0;
+    const base = (rand() * 360) % 360;
+    const out = [];
+    if (scheme === 'rainbow') for (let i = 0; i < n; i++) out.push({ h: (base + i * 360 / n) % 360, s: 80, l: 55 });
+    else if (scheme === 'analogous') { const span = 60; for (let i = 0; i < n; i++) out.push({ h: (base - span / 2 + span * (i / Math.max(1, n - 1))) % 360, s: 80, l: 55 }); }
+    else if (scheme === 'triad') { const tri = [base, (base + 120) % 360, (base + 240) % 360]; for (let i = 0; i < n; i++) out.push({ h: tri[i % 3], s: 80, l: 55 }); }
+    else if (scheme === 'monochrome') { const h = ((base % 360) + 360) % 360; for (let i = 0; i < n; i++) out.push({ h, s: 35 + 40 * (i / Math.max(1, n - 1)), l: 40 + 20 * (i / Math.max(1, n - 1)) }); }
+    else if (scheme === 'warm') for (let i = 0; i < n; i++) out.push({ h: (10 + 60 * (i / Math.max(1, n - 1))) % 360, s: 85, l: 55 });
+    else if (scheme === 'cool') for (let i = 0; i < n; i++) out.push({ h: (190 + 70 * (i / Math.max(1, n - 1))) % 360, s: 75, l: 55 });
+    else if (scheme === 'earth') { const a = [30, 45, 60, 20, 100]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: 55, l: 45 }); }
+    else if (scheme === 'grayscale') for (let i = 0; i < n; i++) out.push({ h: 0, s: 0, l: 20 + 60 * (i / Math.max(1, n - 1)) });
+    else if (scheme === 'muted') for (let i = 0; i < n; i++) out.push({ h: (base + i * 22) % 360, s: 28, l: 68 });
+    else if (scheme === 'noir') { const h = ((base % 360) + 360) % 360; for (let i = 0; i < n; i++) out.push({ h, s: 6, l: 22 + (i % 3) * 6 }); }
+    else if (scheme === 'duotone-amber-teal') { const a = [38, 190]; for (let i = 0; i < n; i++) out.push({ h: a[i % 2], s: 70, l: 52 }); }
+    else if (scheme === 'duotone-rose-ink') { const a = [345, 220]; for (let i = 0; i < n; i++) out.push({ h: a[i % 2], s: 60, l: 50 }); }
+    else if (scheme === 'film-bleach') for (let i = 0; i < n; i++) out.push({ h: (base + i * 18) % 360, s: 22, l: 62 });
+    else if (scheme === 'pantone-soft') { const t = [{ h: 10, s: 30, l: 72 }, { h: 35, s: 25, l: 74 }, { h: 200, s: 22, l: 70 }, { h: 300, s: 18, l: 72 }, { h: 120, s: 20, l: 68 }, { h: 260, s: 20, l: 70 }]; for (let i = 0; i < n; i++) out.push(t[i % t.length]); }
+    else if (scheme === 'random') for (let i = 0; i < n; i++) out.push({ h: rand() * 360, s: 60 + rand() * 30, l: 45 + rand() * 20 });
+    else for (let i = 0; i < n; i++) out.push({ h: (base + i * 360 / n) % 360, s: 80, l: 55 });
+    return out;
+  }
 
-  function rebuildBeamSpeedInputs(){
-    const n=S.beamCount|0; ensureSpeedArrays(n); beamSpeedsDiv.innerHTML='';
-    for(let i=0;i<n;i++){
-      const d=document.createElement('div'); d.className='sw';
-      const lab=document.createElement('label'); lab.textContent='B'+(i+1);
-      const inp=document.createElement('input'); inp.type='number'; inp.step='0.01'; inp.min=String(-S.speedMax); inp.max=String(S.speedMax); inp.value=(S.perBeamSpeed[i]||0).toFixed(2);
-      inp.addEventListener('input',()=>{ let v=parseFloat(inp.value); if(!isFinite(v)) v=0; v=clamp(v,-S.speedMax,S.speedMax); S.perBeamSpeed[i]=v; });
-      d.append(lab,inp); beamSpeedsDiv.appendChild(d);
+  function rebuildBeamSwatches() {
+    const n = S.beamCount | 0;
+    const numEm = S.emitters.length;
+    ensurePaletteSize(n);
+    
+    // Ensure beamOrder is valid
+    ensureBeamOrder(n);
+    
+    beamColorsDiv.innerHTML = '';
+    
+    for (let em = 0; em < numEm; em++) {
+      const palette = S.emitterPalettes[em];
+      if (!palette) continue;
+      
+      // Emitter header (only show if multiple emitters)
+      if (numEm > 1) {
+        const header = document.createElement('div');
+        header.className = 'em-color-header';
+        header.textContent = `E${em + 1}`;
+        beamColorsDiv.appendChild(header);
+      }
+      
+      const row = document.createElement('div');
+      row.className = 'color-row';
+      row.dataset.emitter = em;
+      
+      // Render swatches in beamOrder for first emitter (which controls layer order)
+      const displayOrder = (em === 0) ? S.beamOrder : [...Array(n).keys()];
+      
+      for (let orderIdx = 0; orderIdx < n; orderIdx++) {
+        const i = displayOrder[orderIdx]; // Actual beam index
+        if (i >= palette.length) continue;
+        
+        const w = document.createElement('div'); 
+        w.className = 'sw';
+        w.draggable = true;
+        w.dataset.beamIdx = i;
+        w.dataset.orderIdx = orderIdx;
+        w.dataset.emitter = em;
+        
+        const lab = document.createElement('label'); 
+        lab.textContent = (n > 1) ? (i + 1) : '';
+        const inp = document.createElement('input'); inp.type = 'color';
+        inp.value = hslToHex(palette[i].h, palette[i].s, palette[i].l);
+        const emIdx = em, beamIdx = i;
+        inp.addEventListener('input', () => { 
+          S.emitterPalettes[emIdx][beamIdx] = hexToHsl(inp.value); 
+          S.beamScheme = 'custom'; 
+          beamSchemeEl.value = 'custom'; 
+        });
+        
+        // Drag events (only for first emitter row which controls order)
+        if (em === 0) {
+          w.addEventListener('dragstart', (e) => {
+            w.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', i.toString());
+            e.dataTransfer.effectAllowed = 'move';
+          });
+          
+          w.addEventListener('dragend', () => {
+            w.classList.remove('dragging');
+            document.querySelectorAll('.sw.drag-over').forEach(el => el.classList.remove('drag-over'));
+          });
+          
+          w.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            w.classList.add('drag-over');
+          });
+          
+          w.addEventListener('dragleave', () => {
+            w.classList.remove('drag-over');
+          });
+          
+          w.addEventListener('drop', (e) => {
+            e.preventDefault();
+            w.classList.remove('drag-over');
+            const draggedBeamIdx = parseInt(e.dataTransfer.getData('text/plain'));
+            const targetBeamIdx = i;
+            
+            if (draggedBeamIdx !== targetBeamIdx) {
+              // Reorder beamOrder array
+              const fromOrderIdx = S.beamOrder.indexOf(draggedBeamIdx);
+              const toOrderIdx = S.beamOrder.indexOf(targetBeamIdx);
+              
+              if (fromOrderIdx !== -1 && toOrderIdx !== -1) {
+                // Remove from old position
+                S.beamOrder.splice(fromOrderIdx, 1);
+                // Insert at new position
+                S.beamOrder.splice(toOrderIdx, 0, draggedBeamIdx);
+                
+                // Rebuild swatches to show new order
+                rebuildBeamSwatches();
+              }
+            }
+          });
+        }
+        
+        w.append(lab, inp); 
+        row.appendChild(w);
+      }
+      beamColorsDiv.appendChild(row);
     }
   }
-  function resetPhases(){ for(let i=0;i<S.perBeamPhase.length;i++) S.perBeamPhase[i]=0; }
+  
+  // Ensure beamOrder array is valid for current beam count
+  function ensureBeamOrder(n) {
+    // If beamOrder doesn't exist or wrong length, reset it
+    if (!S.beamOrder || S.beamOrder.length !== n) {
+      S.beamOrder = [...Array(n).keys()]; // [0, 1, 2, ..., n-1]
+    }
+    // Validate all indices are valid
+    const valid = S.beamOrder.every(idx => idx >= 0 && idx < n);
+    if (!valid) {
+      S.beamOrder = [...Array(n).keys()];
+    }
+  }
 
-  function firstNPrimes(n){ const primes=[]; let x=2; while(primes.length<n){ let ok=true; for(const p of primes){ if(p*p>x) break; if(x%p===0){ ok=false; break; } } if(ok) primes.push(x); x++; } return primes; }
+  // ---- Scene System ----
+  function captureScene() {
+    return {
+      // Shape
+      polygonType: S.polygonType,
+      sides: S.sides,
+      // Optics
+      reflectSlider: S.reflectSlider,
+      maxBounces: S.maxBounces,
+      beamWidth: S.beamWidth,
+      beamCount: S.beamCount,
+      spreadDeg: S.spreadDeg,
+      angleDeg: S.angleDeg,
+      rotationSpeed: S.rotationSpeed,
+      speedMax: S.speedMax,
+      speedMultiplier: S.speedMultiplier,
+      // Emitters
+      emittersNorm: JSON.parse(JSON.stringify(S.emittersNorm)),
+      // Colors
+      beamScheme: S.beamScheme,
+      beamPalette: JSON.parse(JSON.stringify(S.beamPalette)),
+      emitterPalettes: JSON.parse(JSON.stringify(S.emitterPalettes)),
+      // Per-beam
+      perBeamSpeed: [...S.perBeamSpeed],
+      perBeamPhase: [...S.perBeamPhase],
+      speedPattern: S.speedPattern,
+      patternBase: S.patternBase,
+      // Pulse
+      pulseOn: S.pulseOn,
+      pulseShape: S.pulseShape,
+      pulseAmp: S.pulseAmp,
+      pulseFreqCP100: S.pulseFreqCP100,
+      pulseSpeed: S.pulseSpeed,
+      pulseSoft: S.pulseSoft,
+      // Center motion
+      motion: {
+        mode: S.motion.mode,
+        speed: S.motion.speed,
+        range: S.motion.range,
+        ratio: S.motion.ratio,
+        phaseOffset: S.motion.phaseOffset
+      }
+    };
+  }
 
-  function setSpeedMax(newMax){
+  function applySceneInstant(scene) {
+    // Instant properties (no lerp)
+    S.polygonType = scene.polygonType;
+    S.sides = scene.sides;
+    S.beamCount = scene.beamCount;
+    S.beamScheme = scene.beamScheme;
+    S.speedPattern = scene.speedPattern;
+    S.pulseOn = scene.pulseOn;
+    S.pulseShape = scene.pulseShape;
+    S.speedMax = scene.speedMax;
+    
+    // Apply all values
+    S.reflectSlider = scene.reflectSlider;
+    S.reflectivity = 1 - Math.pow(1 - scene.reflectSlider, 3.2);
+    S.maxBounces = scene.maxBounces;
+    S.beamWidth = scene.beamWidth;
+    S.spreadDeg = scene.spreadDeg;
+    S.angleDeg = scene.angleDeg;
+    S.rotationSpeed = scene.rotationSpeed;
+    S.speedMultiplier = scene.speedMultiplier;
+    S.emittersNorm = JSON.parse(JSON.stringify(scene.emittersNorm));
+    S.emitters = scene.emittersNorm.map(() => ({ x: 0, y: 0 }));
+    S.beamPalette = JSON.parse(JSON.stringify(scene.beamPalette));
+    if (scene.emitterPalettes) {
+      S.emitterPalettes = JSON.parse(JSON.stringify(scene.emitterPalettes));
+    } else {
+      // Legacy scenes without per-emitter palettes
+      S.emitterPalettes = [S.beamPalette];
+    }
+    S.perBeamSpeed = [...scene.perBeamSpeed];
+    S.perBeamPhase = scene.perBeamPhase ? [...scene.perBeamPhase] : S.perBeamSpeed.map(() => 0);
+    S.patternBase = scene.patternBase;
+    S.pulseAmp = scene.pulseAmp;
+    S.pulseFreqCP100 = scene.pulseFreqCP100;
+    S.pulseSpeed = scene.pulseSpeed;
+    S.pulseSoft = scene.pulseSoft;
+    
+    // Center motion
+    if (scene.motion) {
+      S.motion.mode = scene.motion.mode || 'off';
+      S.motion.speed = scene.motion.speed || 0.15;
+      S.motion.range = scene.motion.range || 0.2;
+      S.motion.ratio = scene.motion.ratio || 1.5;
+      S.motion.phaseOffset = scene.motion.phaseOffset || 90;
+      S.motion.time = 0;
+    }
+
+    // Rebuild
+    buildShape();
+    updateEmittersFromNorm();
+    ensureSpeedArrays(S.beamCount);
+    ensurePaletteSize(S.beamCount);
+    rebuildBeamSwatches();
+    rebuildBeamSpeedInputs();
+    syncUIFromState();
+  }
+
+  function syncUIFromState() {
+    shapeSel.value = S.polygonType === 'circle' ? 'circle' : 
+      (S.polygonType === 'random' ? 'random-5' : 
+      (S.polygonType === 'blob' ? 'blob' : 'regular-' + S.sides));
+    reflectEl.value = S.reflectSlider;
+    bouncesEl.value = bouncesNumEl.value = S.maxBounces;
+    widthEl.value = S.beamWidth;
+    beamCountValEl.textContent = S.beamCount;
+    emCountValEl.textContent = S.emittersNorm.length;
+    spreadEl.value = S.spreadDeg;
+    spreadNumEl.value = S.spreadDeg.toFixed(1);
+    angleEl.value = S.angleDeg.toFixed(1);
+    rotSpeedEl.value = rotSpeedNum.value = S.rotationSpeed;
+    speedMultiplierEl.value = speedMultiplierNumEl.value = S.speedMultiplier;
+    beamSchemeEl.value = S.beamScheme;
+    speedPatternEl.value = S.speedPattern;
+    patternBaseEl.value = patternBaseNumEl.value = S.patternBase;
+    pulseToggle.textContent = S.pulseOn ? 'On' : 'Off';
+    pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
+    pulseAmpEl.value = S.pulseAmp;
+    pulseFreqEl.value = S.pulseFreqCP100;
+    pulseSpeedEl.value = S.pulseSpeed;
+    pulseQualityEl.value = S.pulseSoft;
+  }
+
+  // Easing function for smooth transitions
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  // Lerp helpers
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  
+  function lerpAngle(a, b, t) {
+    // Handle angle wraparound
+    let diff = b - a;
+    while (diff > 180) diff -= 360;
+    while (diff < -180) diff += 360;
+    return a + diff * t;
+  }
+
+  function lerpHSL(a, b, t) {
+    return {
+      h: lerpAngle(a.h, b.h, t),
+      s: lerp(a.s, b.s, t),
+      l: lerp(a.l, b.l, t)
+    };
+  }
+
+  function lerpScene(from, to, t) {
+    // Lerp continuous values
+    S.reflectSlider = lerp(from.reflectSlider, to.reflectSlider, t);
+    S.reflectivity = 1 - Math.pow(1 - S.reflectSlider, 3.2);
+    // Don't lerp maxBounces here - it's handled per-beam in updateTransition
+    S.beamWidth = lerp(from.beamWidth, to.beamWidth, t);
+    S.spreadDeg = lerp(from.spreadDeg, to.spreadDeg, t);
+    S.angleDeg = lerpAngle(from.angleDeg, to.angleDeg, t);
+    S.rotationSpeed = lerp(from.rotationSpeed, to.rotationSpeed, t);
+    S.speedMultiplier = lerp(from.speedMultiplier, to.speedMultiplier, t);
+    S.patternBase = lerp(from.patternBase, to.patternBase, t);
+    S.pulseAmp = lerp(from.pulseAmp, to.pulseAmp, t);
+    S.pulseFreqCP100 = lerp(from.pulseFreqCP100, to.pulseFreqCP100, t);
+    S.pulseSpeed = lerp(from.pulseSpeed, to.pulseSpeed, t);
+    S.pulseSoft = lerp(from.pulseSoft, to.pulseSoft, t);
+    
+    // Lerp emitter positions
+    // Handle all emitters in the current array
+    for (let i = 0; i < S.emittersNorm.length; i++) {
+      const fromPos = from.emittersNorm[i] || { nx: 0.5, ny: 0.5 };
+      const toPos = to.emittersNorm[i] || { nx: 0.5, ny: 0.5 };
+      S.emittersNorm[i] = {
+        nx: lerp(fromPos.nx, toPos.nx, t),
+        ny: lerp(fromPos.ny, toPos.ny, t)
+      };
+    }
+    updateEmittersFromNorm();
+    
+    // Lerp per-beam phases
+    const fromPhases = from.perBeamPhase || [];
+    const toPhases = to.perBeamPhase || [];
+    for (let i = 0; i < S.perBeamPhase.length; i++) {
+      const fromPhase = fromPhases[i] || 0;
+      const toPhase = toPhases[i] || 0;
+      // Use angle lerp for phases to handle wraparound
+      S.perBeamPhase[i] = lerpAngle(fromPhase, toPhase, t);
+    }
+    
+    // Lerp colors for all beams
+    const targetPalette = to.beamPalette || [];
+    const sourcePalette = from.beamPalette || [];
+    
+    for (let i = 0; i < S.beamPalette.length; i++) {
+      const targetCol = targetPalette[i] || { h: 0, s: 0, l: 50 };
+      
+      if (i < sourcePalette.length) {
+        S.beamPalette[i] = lerpHSL(sourcePalette[i], targetCol, t);
+      } else {
+        // New beam: fade in from desaturated version of target
+        const neutralCol = { h: targetCol.h, s: 0, l: 30 };
+        S.beamPalette[i] = lerpHSL(neutralCol, targetCol, t);
+      }
+    }
+    
+    // Also lerp emitter palettes
+    for (let em = 0; em < S.emitterPalettes.length; em++) {
+      const emPalette = S.emitterPalettes[em];
+      const toEmPalette = (to.emitterPalettes && to.emitterPalettes[em]) || targetPalette;
+      const fromEmPalette = (from.emitterPalettes && from.emitterPalettes[em]) || sourcePalette;
+      
+      for (let i = 0; i < emPalette.length; i++) {
+        const targetCol = toEmPalette[i] || { h: 0, s: 0, l: 50 };
+        
+        if (i < fromEmPalette.length) {
+          emPalette[i] = lerpHSL(fromEmPalette[i], targetCol, t);
+        } else {
+          const neutralCol = { h: targetCol.h, s: 0, l: 30 };
+          emPalette[i] = lerpHSL(neutralCol, targetCol, t);
+        }
+      }
+    }
+    
+    // Lerp per-beam speeds
+    const fromSpeeds = from.perBeamSpeed || [];
+    const toSpeeds = to.perBeamSpeed || [];
+    for (let i = 0; i < S.perBeamSpeed.length; i++) {
+      const fromSpd = fromSpeeds[i] || 0;
+      const toSpd = toSpeeds[i] || 0;
+      S.perBeamSpeed[i] = lerp(fromSpd, toSpd, t);
+    }
+    
+    // Update UI periodically during transition
+    if (Math.random() < 0.1) {
+      syncUIFromState();
+      rebuildBeamSwatches();
+      rebuildBeamSpeedInputs();
+    }
+  }
+
+  function startTransition(targetScene) {
+    if (S.transitionDuration <= 0) {
+      applySceneInstant(targetScene);
+      return;
+    }
+    
+    // IMPORTANT: Capture current state FIRST, before any modifications
+    const fromScene = captureScene();
+    const currentBeamCount = S.beamCount;
+    const targetBeamCount = targetScene.beamCount;
+    
+    // Apply instant properties (shape, pattern type, etc.)
+    S.polygonType = targetScene.polygonType;
+    S.sides = targetScene.sides;
+    S.beamScheme = targetScene.beamScheme;
+    S.speedPattern = targetScene.speedPattern;
+    S.pulseOn = targetScene.pulseOn;
+    S.pulseShape = targetScene.pulseShape;
+    S.speedMax = targetScene.speedMax;
+    
+    // Rebuild shape
+    buildShape();
+    
+    // Adjust emitter array sizes (but DON'T change positions - lerp will handle that)
+    while (S.emittersNorm.length < targetScene.emittersNorm.length) {
+      // New emitters start at center, will lerp to target
+      S.emittersNorm.push({ nx: 0.5, ny: 0.5 });
+      S.emitters.push({ x: 0, y: 0 });
+    }
+    S.emittersNorm.length = targetScene.emittersNorm.length;
+    S.emitters.length = targetScene.emittersNorm.length;
+    
+    // Prepare beam count for transition
+    const maxBeams = Math.max(currentBeamCount, targetBeamCount);
+    ensureSpeedArrays(maxBeams);
+    ensurePaletteSize(maxBeams);
+    ensureEmitterPalettes();
+    
+    S.transition = {
+      active: true,
+      startTime: performance.now(),
+      duration: S.transitionDuration * 1000,
+      from: fromScene,  // Use the pre-captured state
+      to: targetScene,
+      beamCountFrom: currentBeamCount,
+      beamCountTo: targetBeamCount,
+      lastBeamCountUpdate: currentBeamCount,
+      perBeamBounces: [],
+      newBeamStartIndices: []
+    };
+    
+    // Initialize per-beam bounces
+    const fromBounces = fromScene.maxBounces;
+    const toBounces = targetScene.maxBounces;
+    for (let i = 0; i < maxBeams; i++) {
+      if (i < currentBeamCount) {
+        S.transition.perBeamBounces[i] = fromBounces;
+      } else {
+        S.transition.perBeamBounces[i] = 0;
+        S.transition.newBeamStartIndices.push(i);
+      }
+    }
+  }
+
+  function updateTransition(now) {
+    if (!S.transition.active) return;
+    
+    const elapsed = now - S.transition.startTime;
+    const rawT = elapsed / S.transition.duration;
+    
+    if (rawT >= 1) {
+      // Transition complete
+      applySceneInstant(S.transition.to);
+      S.transition.active = false;
+      S.transition.perBeamBounces = [];
+    } else {
+      const t = easeInOutCubic(rawT);
+      
+      const fromCount = S.transition.beamCountFrom;
+      const toCount = S.transition.beamCountTo;
+      const numNewBeams = Math.max(0, toCount - fromCount);
+      const toBounces = S.transition.to.maxBounces;
+      const fromBounces = S.transition.from.maxBounces;
+      
+      // Gradual beam count transition
+      if (fromCount !== toCount) {
+        const targetCount = Math.round(lerp(fromCount, toCount, rawT));
+        if (targetCount !== S.beamCount) {
+          S.beamCount = targetCount;
+          ensureSpeedArrays(S.beamCount);
+          ensurePaletteSize(S.beamCount);
+          ensureEmitterPalettes();
+          rebuildBeamSwatches();
+          rebuildBeamSpeedInputs();
+          beamCountValEl.textContent = S.beamCount;
+        }
+      }
+      
+      // Update per-beam bounces
+      // Existing beams: lerp bounces smoothly
+      for (let i = 0; i < fromCount; i++) {
+        S.transition.perBeamBounces[i] = Math.round(lerp(fromBounces, toBounces, t));
+      }
+      
+      // New beams: grow bounces sequentially
+      // Each new beam starts growing when it appears and finishes when the next one appears
+      if (numNewBeams > 0) {
+        for (let newIdx = 0; newIdx < numNewBeams; newIdx++) {
+          const beamIndex = fromCount + newIdx;
+          
+          // When does this beam appear based on lerp(fromCount, toCount, rawT)?
+          // lerp gives: fromCount + (toCount - fromCount) * rawT
+          // Beam i appears when this >= i, i.e., rawT >= (i - fromCount) / (toCount - fromCount)
+          // But since we use Math.round, beam appears when rawT makes rounded value = beamIndex + 1
+          // Simplified: beam newIdx (0-indexed among new beams) appears at rawT = (newIdx + 0.5) / numNewBeams
+          const appearT = (newIdx + 0.5) / numNewBeams;
+          const nextAppearT = (newIdx + 1.5) / numNewBeams;
+          
+          // Beam grows from when it appears until the next beam appears (or transition ends)
+          const growStartT = appearT;
+          const growEndT = Math.min(nextAppearT, 1.0);
+          
+          // Calculate bounce progress for this beam
+          let bounceProgress = 0;
+          if (rawT >= growEndT) {
+            bounceProgress = 1;
+          } else if (rawT >= growStartT) {
+            bounceProgress = (rawT - growStartT) / (growEndT - growStartT);
+          }
+          // If rawT < growStartT, beam hasn't appeared yet, bounces = 0
+          
+          S.transition.perBeamBounces[beamIndex] = Math.round(toBounces * bounceProgress);
+        }
+      }
+      
+      // Set global maxBounces to target (per-beam overrides handle individual beams)
+      S.maxBounces = toBounces;
+      
+      lerpScene(S.transition.from, S.transition.to, t);
+    }
+  }
+
+  // Scene storage
+  function saveScenes() {
+    const data = { scenes: S.scenes, slots: S.sceneSlots };
+    localStorage.setItem('voidulator-scenes', JSON.stringify(data));
+  }
+
+  function loadScenes() {
+    try {
+      const data = JSON.parse(localStorage.getItem('voidulator-scenes'));
+      if (data) {
+        S.scenes = data.scenes || [];
+        S.sceneSlots = data.slots || [null, null, null, null, null, null, null, null];
+      }
+    } catch (e) { }
+    updateSceneUI();
+  }
+
+  function updateSceneUI() {
+    // Update dropdown
+    sceneSelectEl.innerHTML = '<option value="">-- Select scene --</option>';
+    S.scenes.forEach((scene, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      opt.textContent = scene.name;
+      sceneSelectEl.appendChild(opt);
+    });
+    
+    // Update slot buttons
+    document.querySelectorAll('.scene-slot').forEach(btn => {
+      const slot = parseInt(btn.dataset.slot) - 1;
+      const hasScene = S.sceneSlots[slot] !== null;
+      btn.classList.toggle('has-scene', hasScene);
+      btn.title = hasScene ? S.sceneSlots[slot].name : 'Empty';
+    });
+  }
+
+  function saveSceneToList(name) {
+    const scene = { name, data: captureScene() };
+    S.scenes.push(scene);
+    saveScenes();
+    updateSceneUI();
+    sceneSelectEl.value = S.scenes.length - 1;
+  }
+
+  function saveSceneToSlot(slotIndex, name) {
+    S.sceneSlots[slotIndex] = { name: name || `Scene ${slotIndex + 1}`, data: captureScene() };
+    saveScenes();
+    updateSceneUI();
+  }
+
+  function goToScene(sceneData) {
+    startTransition(sceneData);
+  }
+
+  // Speed patterns
+  function firstNPrimes(n) {
+    const primes = []; let x = 2;
+    while (primes.length < n) {
+      let ok = true;
+      for (const p of primes) { if (p * p > x) break; if (x % p === 0) { ok = false; break; } }
+      if (ok) primes.push(x); x++;
+    }
+    return primes;
+  }
+
+  function fibonacci(n) {
+    const seq = [1, 1];
+    while (seq.length < n) seq.push(seq[seq.length - 1] + seq[seq.length - 2]);
+    return seq.slice(0, n);
+  }
+
+  function generateSpeedPattern(pattern, n, base) {
+    const speeds = [];
+    switch (pattern) {
+      case 'prime':
+        const primes = firstNPrimes(n);
+        for (let i = 0; i < n; i++) speeds.push(primes[i] * (base / 2));
+        break;
+      case 'linear':
+        for (let i = 0; i < n; i++) speeds.push((i + 1) * base);
+        break;
+      case 'exponential':
+        for (let i = 0; i < n; i++) speeds.push(Math.pow(base, i + 1));
+        break;
+      case 'fibonacci':
+        const fib = fibonacci(n);
+        for (let i = 0; i < n; i++) speeds.push(fib[i] * base);
+        break;
+      case 'alternating':
+        for (let i = 0; i < n; i++) speeds.push((i % 2 === 0 ? 1 : -1) * (i + 1) * base);
+        break;
+      case 'random':
+        for (let i = 0; i < n; i++) speeds.push((rand() * 2 - 1) * base * 5);
+        break;
+      case 'zero':
+      default:
+        for (let i = 0; i < n; i++) speeds.push(0);
+    }
+    return speeds;
+  }
+
+  function ensureSpeedArrays(n) {
+    while (S.perBeamSpeed.length < n) S.perBeamSpeed.push(0);
+    S.perBeamSpeed.length = n;
+    while (S.perBeamPhase.length < n) S.perBeamPhase.push(0);
+    S.perBeamPhase.length = n;
+  }
+
+  function applySpeedPattern() {
+    const n = S.beamCount | 0;
+    ensureSpeedArrays(n);
+    const speeds = generateSpeedPattern(S.speedPattern, n, S.patternBase);
+    for (let i = 0; i < n; i++) S.perBeamSpeed[i] = speeds[i];
+    rebuildBeamSpeedInputs();
+  }
+
+  function rebuildBeamSpeedInputs() {
+    const n = S.beamCount | 0;
+    ensureSpeedArrays(n);
+    beamSpeedsDiv.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div'); d.className = 'sw';
+      const lab = document.createElement('label'); lab.textContent = (i + 1);
+      const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.1';
+      inp.min = String(-S.speedMax); inp.max = String(S.speedMax);
+      inp.value = (S.perBeamSpeed[i] || 0).toFixed(1);
+      inp.addEventListener('input', () => {
+        let v = parseFloat(inp.value); if (!isFinite(v)) v = 0;
+        S.perBeamSpeed[i] = clamp(v, -S.speedMax, S.speedMax);
+      });
+      d.append(lab, inp); beamSpeedsDiv.appendChild(d);
+    }
+  }
+
+  function setSpeedMax(newMax) {
     S.speedMax = newMax;
-    // update UI bounds
     rotSpeedEl.max = rotSpeedNum.max = String(newMax);
-    document.querySelectorAll('#beamSpeeds input[type="number"]').forEach(inp=>{ inp.min=String(-newMax); inp.max=String(newMax); });
-    // set closest range label
-    if(newMax<=5) speedRangeEl.value='5'; else if(newMax<=30) speedRangeEl.value='30'; else if(newMax<=360) speedRangeEl.value='360'; else if(newMax<=720) speedRangeEl.value='720'; else speedRangeEl.value='1440';
+    document.querySelectorAll('#beamSpeeds input[type="number"]').forEach(inp => {
+      inp.min = String(-newMax); inp.max = String(newMax);
+    });
   }
 
-  function applyPrimeSpeeds(mode){
-const n = S.beamCount|0; ensureSpeedArrays(n);
-const primes = firstNPrimes(n);
-for (let i=0;i<n;i++) S.perBeamSpeed[i] = primes[i] || 0;
-S.primeMode = 'raw';
-rebuildBeamSpeedInputs();
-}
-
-  // ---- Geometry & collisions ----
-  function resize(){
+  // Geometry
+  function resize() {
     const rect = glCanvas.parentElement.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     S.dpr = dpr;
-    const w = Math.floor(rect.width * dpr), h = Math.floor(rect.height * dpr);
-    [glCanvas, ovCanvas].forEach(c => { c.width = w; c.height = h; c.style.width = rect.width+'px'; c.style.height = rect.height+'px'; });
+    const w = Math.floor(rect.width * dpr);
+    const h = Math.floor(rect.height * dpr);
+    [glCanvas, ovCanvas].forEach(c => {
+      c.width = w; c.height = h;
+      c.style.width = rect.width + 'px';
+      c.style.height = rect.height + 'px';
+    });
     buildShape();
-    randomizeEmitters();
-    glSetViewport(rect.width, rect.height, dpr);
-  }
-  function buildShape(){
-    const W=glCanvas.width/S.dpr, H=glCanvas.height/S.dpr, cx=W/2, cy=H/2, margin=16;
-    if(S.polygonType==='circle'){ S.isCircle=true; S.circle={cx,cy,R:Math.min(W,H)/2-margin}; S.vertices=[]; return; }
-    S.isCircle=false;
-    if(S.polygonType==='random'){
-      const n=S.sides||5, verts=[];
-      for(let i=0;i<n;i++){ const base=i*2*Math.PI/n; const a=base+(rand()*2-1)*(Math.PI/n*0.45); const r=0.9*(0.8+0.3*rand()); verts.push({x:r*Math.cos(a),y:r*Math.sin(a)}); }
-      let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9; for(const p of verts){ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; }
-      const scale = 0.98*Math.min((W-2*margin)/(maxX-minX),(H-2*margin)/(maxY-minY));
-      for(const p of verts){ p.x=p.x*scale+cx; p.y=p.y*scale+cy; }
-      S.vertices=verts; return;
-    }
-    if(S.polygonType==='blob'){
-      const steps=720, L=3, amp=0.06, ph1=rand()*6.28, ph2=rand()*6.28, ph3=rand()*6.28, R=Math.min(W,H)/2-margin, out=[];
-      for(let i=0;i<steps;i++){ const a=-Math.PI/2 + i*2*Math.PI/steps; const f=1+amp*(0.7*Math.cos(L*a+ph1)+0.4*Math.cos((L+1)*a+ph2)+0.3*Math.cos((L-1)*a+ph3)); out.push({x:cx+R*f*Math.cos(a), y:cy+R*f*Math.sin(a)}); }
-      S.vertices=out; return;
-    }
-    // regular
-    const n=S.sides||5, R=Math.min(W,H)/2-margin, verts=[]; for(let i=0;i<n;i++){ const a=-Math.PI/2 + i*2*Math.PI/n; verts.push({x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)}); } S.vertices=verts;
-  }
-  function centroid(v){ let x=0,y=0; for(const p of v){ x+=p.x;y+=p.y; } return {x:x/v.length,y:y/v.length}; }
-  function pointInPoly(pt,vs){ let ins=false; const x=pt.x,y=pt.y; for(let i=0,j=vs.length-1;i<vs.length;j=i++){ const xi=vs[i].x,yi=vs[i].y,xj=vs[j].x,yj=vs[j].y; const inter=((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi+1e-9)+xi); if(inter) ins=!ins; } return ins; }
-  function randomPointInRoom(){
-    if(S.isCircle){ const r=S.circle.R*Math.sqrt(rand()); const a=rand()*Math.PI*2; return {x:S.circle.cx+r*Math.cos(a), y:S.circle.cy+r*Math.sin(a)}; }
-    // polygon: rejection in bbox
-    const vs=S.vertices; if(!vs.length) return {x:glCanvas.width/(2*S.dpr), y:glCanvas.height/(2*S.dpr)};
-    let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9; for(const p of vs){ if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x; if(p.y<minY)minY=p.y; if(p.y>maxY)maxY=p.y; }
-    for(let k=0;k<1000;k++){ const x=minX+rand()*(maxX-minX), y=minY+rand()*(maxY-minY); const pt={x,y}; if(pointInPoly(pt,vs)) return pt; }
-    return centroid(vs);
-  }
-  function randomizeEmitters(){
-    for(let i=0;i<S.emitters.length;i++){ S.emitters[i]=randomPointInRoom(); }
+    updateEmittersFromNorm(); // Convert normalized positions to actual coordinates
+    if (gl) gl.viewport(0, 0, w, h);
   }
 
-  // intersections
-  function raySegIntersection(o,d,a,b){
-    const v=sub(b,a), w=sub(a,o), denom=cross(d,v);
-    if(Math.abs(denom)<1e-9) return null;
-    const t=(w.x*v.y-w.y*v.x)/denom, u=(w.x*d.y-w.y*d.x)/denom;
-    if(t>1e-4 && u>=0 && u<=1) return {point:{x:o.x+d.x*t,y:o.y+d.y*t}, t, a, b};
+  function buildShape() {
+    const W = glCanvas.width / S.dpr;
+    const H = glCanvas.height / S.dpr;
+    const cx = W / 2, cy = H / 2, margin = 16;
+    if (S.polygonType === 'circle') {
+      S.isCircle = true;
+      S.circle = { cx, cy, R: Math.min(W, H) / 2 - margin };
+      S.vertices = [];
+      return;
+    }
+    S.isCircle = false;
+    if (S.polygonType === 'random') {
+      const n = S.sides || 5; const verts = [];
+      for (let i = 0; i < n; i++) {
+        const base = i * 2 * Math.PI / n;
+        const a = base + (rand() * 2 - 1) * (Math.PI / n * 0.45);
+        const r = 0.9 * (0.8 + 0.3 * rand());
+        verts.push({ x: r * Math.cos(a), y: r * Math.sin(a) });
+      }
+      let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+      for (const p of verts) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
+      const scale = 0.98 * Math.min((W - 2 * margin) / (maxX - minX), (H - 2 * margin) / (maxY - minY));
+      for (const p of verts) { p.x = p.x * scale + cx; p.y = p.y * scale + cy; }
+      S.vertices = verts; return;
+    }
+    if (S.polygonType === 'blob') {
+      const steps = 720, L = 3, amp = 0.06;
+      const ph1 = rand() * 6.28, ph2 = rand() * 6.28, ph3 = rand() * 6.28;
+      const R = Math.min(W, H) / 2 - margin; const out = [];
+      for (let i = 0; i < steps; i++) {
+        const a = -Math.PI / 2 + i * 2 * Math.PI / steps;
+        const f = 1 + amp * (0.7 * Math.cos(L * a + ph1) + 0.4 * Math.cos((L + 1) * a + ph2) + 0.3 * Math.cos((L - 1) * a + ph3));
+        out.push({ x: cx + R * f * Math.cos(a), y: cy + R * f * Math.sin(a) });
+      }
+      S.vertices = out; return;
+    }
+    const n = S.sides || 5; const R = Math.min(W, H) / 2 - margin; const verts = [];
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / n;
+      verts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
+    }
+    S.vertices = verts;
+  }
+
+  function centroid(v) {
+    let x = 0, y = 0;
+    for (const p of v) { x += p.x; y += p.y; }
+    return { x: x / v.length, y: y / v.length };
+  }
+
+  function getRoomBounds() {
+    const W = glCanvas.width / S.dpr;
+    const H = glCanvas.height / S.dpr;
+    if (S.isCircle) {
+      return {
+        minX: S.circle.cx - S.circle.R,
+        maxX: S.circle.cx + S.circle.R,
+        minY: S.circle.cy - S.circle.R,
+        maxY: S.circle.cy + S.circle.R
+      };
+    }
+    let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+    for (const p of S.vertices) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    return { minX, maxX, minY, maxY };
+  }
+
+  function updateEmittersFromNorm() {
+    const bounds = getRoomBounds();
+    const w = bounds.maxX - bounds.minX;
+    const h = bounds.maxY - bounds.minY;
+    for (let i = 0; i < S.emittersNorm.length; i++) {
+      S.emitters[i] = {
+        x: bounds.minX + S.emittersNorm[i].nx * w,
+        y: bounds.minY + S.emittersNorm[i].ny * h
+      };
+    }
+  }
+
+  function updateNormFromEmitters() {
+    const bounds = getRoomBounds();
+    const w = bounds.maxX - bounds.minX;
+    const h = bounds.maxY - bounds.minY;
+    for (let i = 0; i < S.emitters.length; i++) {
+      S.emittersNorm[i] = {
+        nx: (S.emitters[i].x - bounds.minX) / w,
+        ny: (S.emitters[i].y - bounds.minY) / h
+      };
+    }
+  }
+
+  function pointInPoly(pt, vs) {
+    let ins = false; const x = pt.x, y = pt.y;
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+      const xi = vs[i].x, yi = vs[i].y, xj = vs[j].x, yj = vs[j].y;
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi)) ins = !ins;
+    }
+    return ins;
+  }
+
+  function pointInRoom(pt) {
+    if (S.isCircle) {
+      const dx = pt.x - S.circle.cx;
+      const dy = pt.y - S.circle.cy;
+      return (dx * dx + dy * dy) <= (S.circle.R * S.circle.R);
+    }
+    return pointInPoly(pt, S.vertices);
+  }
+
+  function constrainToRoom(pt) {
+    // If already inside, return as-is
+    if (pointInRoom(pt)) return pt;
+    
+    if (S.isCircle) {
+      // Clamp to circle edge
+      const dx = pt.x - S.circle.cx;
+      const dy = pt.y - S.circle.cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 0.001) return { x: S.circle.cx, y: S.circle.cy };
+      const scale = (S.circle.R * 0.99) / dist;
+      return {
+        x: S.circle.cx + dx * scale,
+        y: S.circle.cy + dy * scale
+      };
+    }
+    
+    // For polygons, find the nearest point on the boundary
+    // Simple approach: move toward centroid until inside
+    const c = centroid(S.vertices);
+    let x = pt.x, y = pt.y;
+    for (let i = 0; i < 50; i++) {
+      x = x * 0.9 + c.x * 0.1;
+      y = y * 0.9 + c.y * 0.1;
+      if (pointInPoly({ x, y }, S.vertices)) {
+        return { x, y };
+      }
+    }
+    return c; // Fallback to centroid
+  }
+
+  function randomPointInRoom() {
+    if (S.isCircle) {
+      const r = S.circle.R * Math.sqrt(rand());
+      const a = rand() * Math.PI * 2;
+      return { x: S.circle.cx + r * Math.cos(a), y: S.circle.cy + r * Math.sin(a) };
+    }
+    const bounds = getRoomBounds();
+    for (let k = 0; k < 1000; k++) {
+      const x = bounds.minX + rand() * (bounds.maxX - bounds.minX);
+      const y = bounds.minY + rand() * (bounds.maxY - bounds.minY);
+      if (pointInPoly({ x, y }, S.vertices)) return { x, y };
+    }
+    return centroid(S.vertices);
+  }
+
+  function randomizeEmitters() {
+    for (let i = 0; i < S.emitters.length; i++) {
+      S.emitters[i] = randomPointInRoom();
+    }
+    updateNormFromEmitters();
+    if (S.emitterSymmetry && S.emitters.length > 1) {
+      computeSymmetryFromEmitters();
+    }
+  }
+
+  // Symmetric emitter positioning
+  function getRoomCenter() {
+    if (S.isCircle) return { x: S.circle.cx, y: S.circle.cy };
+    return centroid(S.vertices);
+  }
+
+  function computeSymmetryFromEmitters() {
+    // Derive symmetry center/radius/angle from current first emitter position
+    const center = getRoomCenter();
+    const e0 = S.emitters[0];
+    S.symRadius = Math.hypot(e0.x - center.x, e0.y - center.y);
+    S.symAngle = Math.atan2(e0.y - center.y, e0.x - center.x);
+  }
+
+  function positionEmittersSymmetric() {
+    const n = S.emitters.length;
+    if (n <= 1) return; // No symmetry needed for single emitter
+    const center = getRoomCenter();
+    for (let i = 0; i < n; i++) {
+      const ang = S.symAngle + (i * 2 * Math.PI / n);
+      const pos = {
+        x: center.x + S.symRadius * Math.cos(ang),
+        y: center.y + S.symRadius * Math.sin(ang)
+      };
+      S.emitters[i] = constrainToRoom(pos);
+    }
+    updateNormFromEmitters();
+  }
+
+  function moveEmitterSymmetric(dragIdx, newPos) {
+    // Move the dragged emitter, compute formation, reposition all
+    const center = getRoomCenter();
+    S.symRadius = Math.hypot(newPos.x - center.x, newPos.y - center.y);
+    S.symAngle = Math.atan2(newPos.y - center.y, newPos.x - center.x);
+    // Offset so dragged emitter is at its angle position
+    S.symAngle -= (dragIdx * 2 * Math.PI / S.emitters.length);
+    positionEmittersSymmetric();
+  }
+
+  function setEmitterCount(n) {
+    n = clamp(n, 1, 4) | 0;
+    const oldCount = S.emitters.length;
+    
+    while (S.emitters.length < n) {
+      S.emitters.push({ x: 0, y: 0 });
+      S.emittersNorm.push({ nx: 0.5, ny: 0.5 });
+    }
+    S.emitters.length = n;
+    S.emittersNorm.length = n;
+    emCountValEl.textContent = n;
+    
+    if (S.emitterSymmetry && n > 1) {
+      computeSymmetryFromEmitters();
+      positionEmittersSymmetric();
+    } else if (n > oldCount) {
+      for (let i = oldCount; i < n; i++) {
+        S.emitters[i] = randomPointInRoom();
+      }
+      updateNormFromEmitters();
+    }
+    
+    ensureEmitterPalettes();
+    rebuildBeamSwatches();
+  }
+
+  // Ray intersection
+  function raySegIntersection(o, d, a, b) {
+    const v = sub(b, a), w = sub(a, o), denom = cross(d, v);
+    if (Math.abs(denom) < 1e-9) return null;
+    const t = (w.x * v.y - w.y * v.x) / denom;
+    const u = (w.x * d.y - w.y * d.x) / denom;
+    if (t > 1e-4 && u >= 0 && u <= 1) return { point: { x: o.x + d.x * t, y: o.y + d.y * t }, t, a, b };
     return null;
   }
-  function firstHitPoly(o,d,verts){ let best=null,bestT=1e20; for(let i=0;i<verts.length;i++){ const a=verts[i], b=verts[(i+1)%verts.length]; const h=raySegIntersection(o,d,a,b); if(h && h.t<bestT){ best=h; bestT=h.t; } } return best; }
-  function firstHitCircle(o,d,c){
-    const ox=o.x-c.cx, oy=o.y-c.cy; const b=ox*d.x+oy*d.y; const c0=ox*ox+oy*oy-c.R*c.R; const disc=b*b-c0;
-    if(disc<1e-9) return null; const s=Math.sqrt(disc); const t1=-b-s, t2=-b+s; let t=null; if(t1>1e-4) t=t1; else if(t2>1e-4) t=t2; if(t==null) return null;
-    return {point:{x:o.x+d.x*t,y:o.y+d.y*t}, t};
+
+  function firstHitPoly(o, d, verts) {
+    let best = null, bestT = 1e20;
+    for (let i = 0; i < verts.length; i++) {
+      const a = verts[i], b = verts[(i + 1) % verts.length];
+      const h = raySegIntersection(o, d, a, b);
+      if (h && h.t < bestT) { best = h; bestT = h.t; }
+    }
+    return best;
   }
-  function computePath(origin,dir){
-    let o={...origin}, d=norm(dir), intensity=1, segs=[], i=0, cum=0;
-    for(; i<S.maxBounces && intensity>0.01; i++){
-      const hit = S.isCircle ? firstHitCircle(o,d,S.circle) : firstHitPoly(o,d,S.vertices);
-      if(!hit) break;
-      const to=hit.point; const len=Math.hypot(to.x-o.x,to.y-o.y);
-      segs.push({from:o,to,len,cum,intensity});
-      cum+=len;
-      if(S.isCircle){
-        const n=norm({x:to.x-S.circle.cx,y:to.y-S.circle.cy}); d=reflectByNormal(d,n);
+
+  function firstHitCircle(o, d, c) {
+    const ox = o.x - c.cx, oy = o.y - c.cy;
+    const b = ox * d.x + oy * d.y;
+    const c0 = ox * ox + oy * oy - c.R * c.R;
+    const disc = b * b - c0;
+    if (disc < 1e-9) return null;
+    const s = Math.sqrt(disc);
+    const t1 = -b - s, t2 = -b + s;
+    let t = null;
+    if (t1 > 1e-4) t = t1; else if (t2 > 1e-4) t = t2;
+    if (t === null) return null;
+    return { point: { x: o.x + d.x * t, y: o.y + d.y * t }, t };
+  }
+
+  function computePath(origin, dir, maxBounces) {
+    let o = { ...origin }, d = norm(dir), intensity = 1;
+    const segs = []; let cum = 0;
+    const limit = maxBounces !== undefined ? maxBounces : S.maxBounces;
+    
+    for (let i = 0; i < limit && intensity > 0.01; i++) {
+      const hit = S.isCircle ? firstHitCircle(o, d, S.circle) : firstHitPoly(o, d, S.vertices);
+      if (!hit) break;
+      
+      const len = Math.hypot(hit.point.x - o.x, hit.point.y - o.y);
+      segs.push({ from: {...o}, to: hit.point, len, cum, intensity });
+      cum += len;
+      o = hit.point;
+      
+      // Reflect off wall
+      if (S.isCircle) {
+        const n = norm({ x: o.x - S.circle.cx, y: o.y - S.circle.cy });
+        d = reflectByNormal(d, n);
       } else {
-        const e=sub(hit.b,hit.a); const n=norm({x:-e.y,y:e.x}); d=reflectByNormal(d,n);
+        const edge = findNearestEdge(o, S.vertices);
+        if (edge) {
+          const e = sub(edge.b, edge.a);
+          const n = norm({ x: -e.y, y: e.x });
+          d = reflectByNormal(d, n);
+        }
       }
-      intensity *= S.reflectivity; o={x:to.x+d.x*0.02,y:to.y+d.y*0.02};
+      
+      intensity *= S.reflectivity;
+      o = { x: o.x + d.x * 0.5, y: o.y + d.y * 0.5 };
     }
     return segs;
   }
 
-  // reflectivity easing
-  function updateReflect(){ const x=parseFloat(reflectEl.value)||0; const gamma=3.2; S.reflectSlider=x; S.reflectivity = 1 - Math.pow(1-x, gamma); }
+  function updateReflect() {
+    const x = parseFloat(reflectEl.value) || 0;
+    S.reflectSlider = x;
+    S.reflectivity = 1 - Math.pow(1 - x, 3.2);
+  }
 
-  // ---- WebGL (beams) ----
-  let gl, prog, buf, a_pos, a_t, a_col, a_alpha, u_res, u_time, u_freqPx, u_speed, u_amp, u_shape, u_soft, u_pulseOn;
-  function glInit(){
-    gl = glCanvas.getContext('webgl2', {antialias:true, alpha:false});
-    if(!gl){ alert('WebGL2 not available'); return; }
-    const vs = `#version 300 es\nprecision highp float;\nin vec2 a_pos; in float a_t; in vec3 a_col; in float a_alpha;\nuniform vec2 u_res;\nout float v_t; out vec3 v_col; out float v_alpha;\nvoid main(){ vec2 clip=(a_pos/u_res)*2.0-1.0; clip.y=-clip.y; gl_Position=vec4(clip,0.0,1.0); v_t=a_t; v_col=a_col; v_alpha=a_alpha; }`;
-    const fs = `#version 300 es\nprecision highp float;\nin float v_t; in vec3 v_col; in float v_alpha;\nuniform float u_time,u_freqPx,u_speed,u_amp,u_shape,u_soft,u_pulseOn;\nout vec4 outColor;\nvoid main(){ float a=v_alpha; if(u_pulseOn>0.5){ float s=sin(6.2831853*u_freqPx*(v_t-u_speed*u_time)); float f=(u_shape<0.5)?(0.5+0.5*s):smoothstep(-u_soft,u_soft,s); a*=(1.0-u_amp)+u_amp*f; } outColor=vec4(v_col,a); }`;
-    const V = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(V,vs); gl.compileShader(V);
-    const F = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(F,fs); gl.compileShader(F);
-    prog = gl.createProgram(); gl.attachShader(prog,V); gl.attachShader(prog,F); gl.linkProgram(prog);
-  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
-    try{ octx.setTransform(1,0,0,1,0,0); octx.clearRect(0,0,ovCanvas.width,ovCanvas.height); octx.fillStyle='#f66'; octx.font='12px monospace'; octx.fillText('Shader link error', 12, 20);}catch(_){ }
-    console.error('Shader link error:', gl.getShaderInfoLog(V), gl.getShaderInfoLog(F), gl.getProgramInfoLog(prog));
+  // WebGL
+  let gl, prog, buf, a_pos, a_t, a_col, a_alpha;
+  let u_res, u_time, u_freqPx, u_speed, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+  
+  // Framebuffer trails
+  let trailFBO, trailTex, trailProg, trailBuf;
+  let copyProg, copyBuf;
+
+  function glInit() {
+    gl = glCanvas.getContext('webgl2', { antialias: true, alpha: false, preserveDrawingBuffer: true });
+    if (!gl) { alert('WebGL2 required'); return; }
+
+    // === Main beam shader ===
+    const vs = `#version 300 es
+precision highp float;
+in vec2 a_pos; in float a_t; in vec3 a_col; in float a_alpha;
+uniform vec2 u_res;
+out float v_t; out vec3 v_col; out float v_alpha;
+void main() {
+  vec2 clip = (a_pos / u_res) * 2.0 - 1.0;
+  clip.y = -clip.y;
+  gl_Position = vec4(clip, 0.0, 1.0);
+  v_t = a_t; v_col = a_col; v_alpha = a_alpha;
+}`;
+
+    const fs = `#version 300 es
+precision highp float;
+in float v_t; in vec3 v_col; in float v_alpha;
+uniform float u_time, u_freqPx, u_speed, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+out vec4 outColor;
+void main() {
+  float a = v_alpha;
+  if (u_pulseOn > 0.5) {
+    // Explicit check: duty=0 means completely black
+    if (u_duty < 0.01) {
+      a = 0.0;
+    } else {
+      float phase = 6.2831853 * u_freqPx * (v_t - u_speed * u_time);
+      float s = sin(phase); // -1 to 1
+      
+      // Normalize sine to 0-1
+      float wave = (s + 1.0) * 0.5;
+      
+      // Duty controls the threshold
+      // At duty=0.5: threshold=0.5 (normal 50/50)
+      // At duty=1: threshold=0 or below (always on)
+      float threshold = 1.0 - u_duty;
+      
+      float f;
+      if (u_shape < 0.5) {
+        // Sine mode: softness controls gradient
+        float softWidth = max(0.01, u_soft * 0.4);
+        f = smoothstep(threshold - softWidth, threshold + softWidth, wave);
+      } else {
+        // Square mode: hard edges
+        float softWidth = max(0.01, u_soft * 0.1);
+        f = smoothstep(threshold - softWidth, threshold + softWidth, wave);
+      }
+      
+      // Apply amplitude - blend between no pulse (1.0) and full pulse (f)
+      a *= (1.0 - u_amp) + u_amp * f;
+    }
+  }
+  outColor = vec4(v_col, a);
+}`;
+
+    const V = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(V, vs); gl.compileShader(V);
+    const F = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(F, fs); gl.compileShader(F);
+    prog = gl.createProgram(); gl.attachShader(prog, V); gl.attachShader(prog, F); gl.linkProgram(prog);
+
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error('Shader error'); return;
+    }
+
+    a_pos = gl.getAttribLocation(prog, 'a_pos');
+    a_t = gl.getAttribLocation(prog, 'a_t');
+    a_col = gl.getAttribLocation(prog, 'a_col');
+    a_alpha = gl.getAttribLocation(prog, 'a_alpha');
+    u_res = gl.getUniformLocation(prog, 'u_res');
+    u_time = gl.getUniformLocation(prog, 'u_time');
+    u_freqPx = gl.getUniformLocation(prog, 'u_freqPx');
+    u_speed = gl.getUniformLocation(prog, 'u_speed');
+    u_amp = gl.getUniformLocation(prog, 'u_amp');
+    u_shape = gl.getUniformLocation(prog, 'u_shape');
+    u_soft = gl.getUniformLocation(prog, 'u_soft');
+    u_pulseOn = gl.getUniformLocation(prog, 'u_pulseOn');
+    u_duty = gl.getUniformLocation(prog, 'u_duty');
+
+    buf = gl.createBuffer();
+    
+    // === Trail fade shader (renders previous frame with fade + hue shift) ===
+    const trailVs = `#version 300 es
+in vec2 a_pos;
+out vec2 v_uv;
+void main() {
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+    const trailFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_tex;
+uniform float u_fade;
+uniform float u_hueShift;
+uniform float u_threshold;
+out vec4 outColor;
+
+vec3 rgb2hsv(vec3 c) {
+  vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  float e = 1.0e-10;
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 hsv2rgb(vec3 c) {
+  vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+  vec4 col = texture(u_tex, v_uv);
+  // Fade RGB multiplicatively
+  col.rgb *= u_fade;
+  // Also subtract a tiny amount to ensure eventual fadeout
+  col.rgb = max(vec3(0.0), col.rgb - 0.002);
+  // Cut to black if below threshold (prevents grey residue)
+  float brightness = max(max(col.r, col.g), col.b);
+  if (brightness < u_threshold) {
+    outColor = vec4(0.0, 0.0, 0.0, 1.0);
     return;
   }
-    a_pos = gl.getAttribLocation(prog,'a_pos'); a_t = gl.getAttribLocation(prog,'a_t'); a_col = gl.getAttribLocation(prog,'a_col'); a_alpha = gl.getAttribLocation(prog,'a_alpha');
-    u_res = gl.getUniformLocation(prog,'u_res'); u_time=gl.getUniformLocation(prog,'u_time'); u_freqPx=gl.getUniformLocation(prog,'u_freqPx'); u_speed=gl.getUniformLocation(prog,'u_speed'); u_amp=gl.getUniformLocation(prog,'u_amp'); u_shape=gl.getUniformLocation(prog,'u_shape'); u_soft=gl.getUniformLocation(prog,'u_soft'); u_pulseOn=gl.getUniformLocation(prog,'u_pulseOn');
-    buf = gl.createBuffer(); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  // Apply hue shift (180 = complementary color)
+  if (u_hueShift > 0.001) {
+    vec3 hsv = rgb2hsv(col.rgb);
+    hsv.x = fract(hsv.x + u_hueShift);
+    col.rgb = hsv2rgb(hsv);
   }
-  function glSetViewport(viewW, viewH, dpr){ gl.viewport(0,0,Math.floor(viewW*dpr),Math.floor(viewH*dpr)); }
-
-  function pushQuad(arr, x0,y0, x1,y1, halfW, t0, t1, rgb, alpha){
-    const dx=x1-x0, dy=y1-y0; const L=Math.hypot(dx,dy)||1; const nx=-dy/L, ny=dx/L;
-    const lx0=x0+nx*halfW, ly0=y0+ny*halfW, rx0=x0-nx*halfW, ry0=y0-ny*halfW;
-    const lx1=x1+nx*halfW, ly1=y1+ny*halfW, rx1=x1-nx*halfW, ry1=y1-ny*halfW;
-    const pushV=(x,y,t)=>{ arr.push(x,y,t, rgb[0],rgb[1],rgb[2], alpha); };
-    pushV(lx0,ly0,t0); pushV(lx1,ly1,t1); pushV(rx0,ry0,t0);
-    pushV(rx0,ry0,t0); pushV(lx1,ly1,t1); pushV(rx1,ry1,t1);
+  outColor = vec4(col.rgb, 1.0);
+}`;
+    
+    const TV = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(TV, trailVs); gl.compileShader(TV);
+    const TF = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(TF, trailFs); gl.compileShader(TF);
+    trailProg = gl.createProgram(); gl.attachShader(trailProg, TV); gl.attachShader(trailProg, TF); gl.linkProgram(trailProg);
+    
+    trailBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, trailBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    
+    // === Copy shader (for final composite) ===
+    const copyVs = trailVs;
+    const copyFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_tex;
+out vec4 outColor;
+void main() {
+  outColor = texture(u_tex, v_uv);
+}`;
+    const CV = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(CV, copyVs); gl.compileShader(CV);
+    const CF = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(CF, copyFs); gl.compileShader(CF);
+    copyProg = gl.createProgram(); gl.attachShader(copyProg, CV); gl.attachShader(copyProg, CF); gl.linkProgram(copyProg);
+    
+    copyBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, copyBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    
+    gl.enable(gl.BLEND);
+    setBlendMode('normal');
+  }
+  
+  function setBlendMode(mode) {
+    if (mode === 'additive') {
+      // Additive: colors add together
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    } else {
+      // Normal: standard alpha blending
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    }
+    gl.blendEquation(gl.FUNC_ADD);
+  }
+  
+  function ensureTrailFBO() {
+    const w = glCanvas.width, h = glCanvas.height;
+    if (trailTex && trailTex._w === w && trailTex._h === h) return;
+    
+    // Create two textures for ping-pong rendering
+    if (trailFBO) gl.deleteFramebuffer(trailFBO);
+    if (trailTex) gl.deleteTexture(trailTex);
+    if (window.trailTex2) gl.deleteTexture(window.trailTex2);
+    if (window.trailFBO2) gl.deleteFramebuffer(window.trailFBO2);
+    
+    // First texture/FBO
+    trailTex = gl.createTexture();
+    trailTex._w = w; trailTex._h = h;
+    gl.bindTexture(gl.TEXTURE_2D, trailTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    
+    trailFBO = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, trailTex, 0);
+    
+    // Second texture/FBO for ping-pong
+    window.trailTex2 = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, window.trailTex2);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    
+    window.trailFBO2 = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, window.trailFBO2);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, window.trailTex2, 0);
+    
+    // Track which is the "read" texture (starts with first)
+    window.trailPingPong = 0;
+    
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
-  function hslToRgbArr(hsl){ return hslToRgb(hsl.h,hsl.s,hsl.l); }
+  function pushQuad(arr, x0, y0, x1, y1, halfW, t0, t1, rgb, alpha, timeSec) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const segLen = Math.hypot(dx, dy) || 1;
+    const nx = -dy / segLen, ny = dx / segLen;
+    
+    // If width wave enabled, subdivide segment for smooth sine variation
+    if (S.widthWave.enabled && S.widthWave.amount > 0) {
+      const ww = S.widthWave;
+      // Frequency: cycles per 100 pixels
+      const cyclesPerPx = ww.freq / 100;
+      // Speed: pixels per second the wave travels
+      const speed = ww.speed;
+      // Amount: how much the width varies (0 = none, 1 = ±100%, 2 = ±200%)
+      const amt = ww.amount;
+      // Duty cycle: 0=thin/gaps, 0.5=normal, 1=thick
+      const duty = ww.duty || 0.5;
+      
+      // Calculate how many wave cycles are in this segment
+      const wavesInSeg = segLen * cyclesPerPx;
+      
+      // Need at least 12 points per wave cycle for smooth sine
+      const pointsPerWave = 12;
+      const subdivs = Math.max(2, Math.ceil(wavesInSeg * pointsPerWave));
+      
+      for (let i = 0; i < subdivs; i++) {
+        const frac0 = i / subdivs;
+        const frac1 = (i + 1) / subdivs;
+        
+        const px0 = x0 + dx * frac0, py0 = y0 + dy * frac0;
+        const px1 = x0 + dx * frac1, py1 = y0 + dy * frac1;
+        
+        // Use cumulative distance for phase (consistent across all segments)
+        const pt0 = t0 + (t1 - t0) * frac0;
+        const pt1 = t0 + (t1 - t0) * frac1;
+        
+        // Phase calculation: freq cycles per 100px, speed px/s
+        const phase0 = 2 * Math.PI * cyclesPerPx * (pt0 - speed * timeSec);
+        const phase1 = 2 * Math.PI * cyclesPerPx * (pt1 - speed * timeSec);
+        
+        // Sine wave: -1 to 1
+        const sin0 = Math.sin(phase0);
+        const sin1 = Math.sin(phase1);
+        
+        // Apply duty cycle to shift the wave
+        // duty=0 → completely invisible
+        // duty=0.5 → normal sine (-1 to 1 centered at 0)  
+        // duty=1 → always at maximum
+        let modSin0, modSin1;
+        if (duty < 0.02) {
+          modSin0 = -1;
+          modSin1 = -1;
+        } else if (duty > 0.98) {
+          modSin0 = 1;
+          modSin1 = 1;
+        } else {
+          // Shift sine wave based on duty
+          // duty=0.5 → no shift (sin ranges -1 to 1)
+          // duty=0.2 → shift down (sin ranges -1.6 to 0.4, clamp to -1 to 0.4)
+          // duty=0.8 → shift up (sin ranges -0.4 to 1.6, clamp to -0.4 to 1)
+          const shift = (duty - 0.5) * 2; // -1 to 1
+          modSin0 = Math.max(-1, Math.min(1, sin0 + shift));
+          modSin1 = Math.max(-1, Math.min(1, sin1 + shift));
+        }
+        
+        // Width calculation:
+        // modSin ranges from -1 to 1
+        // At modSin=-1: width = halfW * (1 - amt) → can be 0 or negative (clamped)
+        // At modSin=0: width = halfW * 1 = halfW (base width)
+        // At modSin=1: width = halfW * (1 + amt) → wider than base
+        const w0 = halfW * Math.max(0, 1 + modSin0 * amt);
+        const w1 = halfW * Math.max(0, 1 + modSin1 * amt);
+        
+        // Skip if both widths are effectively zero
+        if (w0 < 0.1 && w1 < 0.1) continue;
+        
+        const lx0 = px0 + nx * w0, ly0 = py0 + ny * w0;
+        const rx0 = px0 - nx * w0, ry0 = py0 - ny * w0;
+        const lx1 = px1 + nx * w1, ly1 = py1 + ny * w1;
+        const rx1 = px1 - nx * w1, ry1 = py1 - ny * w1;
+        
+        const pv = (x, y, t) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], alpha);
+        pv(lx0, ly0, pt0); pv(lx1, ly1, pt1); pv(rx0, ry0, pt0);
+        pv(rx0, ry0, pt0); pv(lx1, ly1, pt1); pv(rx1, ry1, pt1);
+      }
+    } else {
+      // No width wave - single quad
+      const lx0 = x0 + nx * halfW, ly0 = y0 + ny * halfW;
+      const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
+      const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
+      const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
+      const pv = (x, y, t) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], alpha);
+      pv(lx0, ly0, t0); pv(lx1, ly1, t1); pv(rx0, ry0, t0);
+      pv(rx0, ry0, t0); pv(lx1, ly1, t1); pv(rx1, ry1, t1);
+    }
+  }
 
-  function renderBeamsGL(timeSec){
+  function renderBeamsGL(timeSec) {
     gl.useProgram(prog);
-    gl.uniform2f(u_res, glCanvas.width/S.dpr, glCanvas.height/S.dpr);
+    gl.uniform2f(u_res, glCanvas.width / S.dpr, glCanvas.height / S.dpr);
     gl.uniform1f(u_time, timeSec);
     gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
     gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
     gl.uniform1f(u_speed, S.pulseSpeed);
     gl.uniform1f(u_amp, S.pulseAmp);
-    gl.uniform1f(u_shape, S.pulseShape==='square'? 1.0 : 0.0);
+    gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
     gl.uniform1f(u_soft, S.pulseSoft);
+    gl.uniform1f(u_duty, S.pulseDuty);
 
     const verts = [];
-    const base = S.angleDeg*Math.PI/180;
-    const spread = (S.spreadDeg||0)*Math.PI/180;
-    const n = S.beamCount|0;
-    const half = (S.beamWidth||2)/2;
+    const base = S.angleDeg * Math.PI / 180;
+    const spread = (S.spreadDeg || 0) * Math.PI / 180;
+    const n = S.beamCount | 0;
+    const half = (S.beamWidth || 2) / 2;
     let totalSegs = 0;
+    
+    // Check if we have per-beam bounce data from a transition
+    const hasPerBeamBounces = S.transition.active && 
+                              S.transition.perBeamBounces && 
+                              S.transition.perBeamBounces.length > 0;
 
-    for(let em=0; em<S.emitters.length; em++){
+    // Get room center for radial sorting
+    let centerX, centerY;
+    if (S.isCircle) {
+      centerX = S.circle.cx;
+      centerY = S.circle.cy;
+    } else if (S.vertices.length > 0) {
+      centerX = centerY = 0;
+      for (const v of S.vertices) { centerX += v.x; centerY += v.y; }
+      centerX /= S.vertices.length;
+      centerY /= S.vertices.length;
+    } else {
+      centerX = glCanvas.width / S.dpr / 2;
+      centerY = glCanvas.height / S.dpr / 2;
+    }
+
+    // Collect all beams with their radial score for sorting
+    const allBeams = [];
+
+    for (let em = 0; em < S.emitters.length; em++) {
       const E = S.emitters[em];
-      for(let i=0;i<n;i++){
-        const off = (n===1)?0:(i/(n-1)-0.5);
-        const ang = base + off*spread + (S.perBeamPhase[i]||0)*Math.PI/180;
-        const dir = {x:Math.cos(ang), y:Math.sin(ang)};
-        const segs = computePath(E, dir);
-        totalSegs += segs.length;
-        const rgb = hslToRgbArr(S.beamPalette[i % S.beamPalette.length]);
+      const palette = S.emitterPalettes[em] || S.beamPalette;
+      for (let i = 0; i < n; i++) {
+        const off = (n === 1) ? 0 : (i / (n - 1) - 0.5);
+        const ang = base + off * spread + (S.perBeamPhase[i] || 0) * Math.PI / 180;
+        const dir = { x: Math.cos(ang), y: Math.sin(ang) };
         
-for (const s of segs) {
-const baseA = s.intensity;
-let steps = Math.max(1, (S.glowSteps|0));
-// Adaptive throttle: keep total segment*step work near a budget using last frame's segment count
-const __seg = Math.max(1, (S.lastSegments||1));
-const __budget = 12000; // heuristic budget
-if (__seg * steps > __budget) steps = Math.max(1, Math.floor(__budget / __seg));
-const curve = 1.0;
-  const maxW = 1.0;
-  for (let gi=0; gi<steps; gi++) {
-    const t = (steps<=1)? 0 : (gi/(steps-1));
-    const wMul = (gi===0)? 1.0 : 1.0 + Math.pow(t, curve) * (maxW - 1.0);
-    const a = baseA * (gi===0 ? 1.0 : Math.pow(Math.min(0.99, Math.max(0.01, (S.glowFalloffRatio||0.36))), gi));
-    const w = half * wMul;
-    pushQuad(verts, s.from.x, s.from.y, s.to.x, s.to.y, w, s.cum, s.cum + s.len, rgb, a);
-  }
-}
-
+        // Get per-beam bounce count if transitioning, otherwise use global
+        const beamBounces = hasPerBeamBounces 
+          ? (S.transition.perBeamBounces[i] !== undefined ? S.transition.perBeamBounces[i] : S.maxBounces)
+          : S.maxBounces;
+        
+        const segs = computePath(E, dir, beamBounces);
+        totalSegs += segs.length;
+        const col = palette[i % palette.length];
+        // Apply hue rotation over time
+        const hueShift = (S.hueRotateSpeed || 0) * timeSec;
+        const rotatedHue = (col.h + hueShift) % 360;
+        
+        // Apply brightness oscillation
+        let adjustedL = col.l;
+        if (S.brightnessOsc.enabled) {
+          const brightOsc = Math.sin(2 * Math.PI * S.brightnessOsc.freq * timeSec);
+          // Oscillate lightness: amp=1 means ±50% lightness variation
+          const lightDelta = brightOsc * S.brightnessOsc.amp * 30;
+          adjustedL = clamp(col.l + lightDelta, 10, 90);
+        }
+        
+        const rgb = hslToRgb(rotatedHue, col.s, adjustedL);
+        
+        // Calculate layer score based on beam direction relative to center
+        // Beams pointing AWAY from center (toward walls) = TOP layer
+        // Beams pointing TOWARD center = BOTTOM layer
+        
+        // Get the angle of this beam's direction
+        const beamAngle = Math.atan2(dir.y, dir.x);
+        
+        // Get the "outward" direction = FROM center TOWARD emitter (and beyond to wall)
+        const fromCenterX = E.x - centerX;
+        const fromCenterY = E.y - centerY;
+        const outwardAngle = Math.atan2(fromCenterY, fromCenterX);
+        
+        // How aligned is beam direction with "outward from center" direction?
+        // angleDiff = 0 means beam points directly outward (away from center)
+        // angleDiff = π means beam points toward center
+        let angleDiff = beamAngle - outwardAngle;
+        while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+        while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+        
+        // Score: +1.0 = pointing directly outward (away from center), should be TOP
+        //        -1.0 = pointing toward center, should be BOTTOM
+        const radialScore = Math.cos(angleDiff);
+        
+        allBeams.push({ segs, rgb, radialScore, beamAngle, emitterIdx: em, beamIdx: i });
       }
     }
     S.lastSegments = totalSegs;
 
+    // Sort beams: most center-pointing (negative radialScore) first (bottom layer)
+    // most outward-pointing (positive radialScore) last (top layer)
+    allBeams.sort((a, b) => a.radialScore - b.radialScore);
+    
+    // Debug: log beam order (uncomment to debug)
+    // if (Math.random() < 0.005) {
+    //   console.log('Beam render order (first=bottom, last=top):', 
+    //     allBeams.map(b => `B${b.beamIdx}`).join(' → '),
+    //     'scores:', allBeams.map(b => b.radialScore.toFixed(2)).join(', ')
+    //   );
+    // }
+
+    // Render based on layer depth setting
+    if (S.layerMode === 'depth') {
+      // LAYERED DEPTH MODE: Sort all segments by distance from center
+      const allSegments = [];
+      
+      for (const beam of allBeams) {
+        let bounceIdx = 0;
+        for (const s of beam.segs) {
+          const midX = (s.from.x + s.to.x) / 2;
+          const midY = (s.from.y + s.to.y) / 2;
+          const distFromCenter = Math.hypot(midX - centerX, midY - centerY);
+          
+          allSegments.push({
+            seg: s,
+            rgb: beam.rgb,
+            distFromCenter,
+            radialScore: beam.radialScore,
+            bounceIdx: bounceIdx
+          });
+          bounceIdx++;
+        }
+      }
+      
+      // Sort: early bounces first, then by distance, then by radial score
+      allSegments.sort((a, b) => {
+        const aEarly = a.bounceIdx < 3 ? 0 : 1;
+        const bEarly = b.bounceIdx < 3 ? 0 : 1;
+        if (aEarly !== bEarly) return aEarly - bEarly;
+        
+        const distDiff = a.distFromCenter - b.distFromCenter;
+        if (Math.abs(distDiff) > 10) return distDiff;
+        
+        return a.radialScore - b.radialScore;
+      });
+
+      // Render sorted segments
+      for (const item of allSegments) {
+        const s = item.seg;
+        pushQuad(verts, s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.rgb, s.intensity, timeSec);
+      }
+    } else {
+      // STATIC MODE: Render beams in beamOrder (user-defined layer order via drag-drop)
+      // Ensure beamOrder is valid
+      if (!S.beamOrder || S.beamOrder.length !== n) {
+        S.beamOrder = [...Array(n).keys()];
+      }
+      
+      // Sort allBeams according to beamOrder
+      const beamsByIdx = new Map();
+      for (const beam of allBeams) {
+        const key = `${beam.emitterIdx}-${beam.beamIdx}`;
+        if (!beamsByIdx.has(key)) beamsByIdx.set(key, []);
+        beamsByIdx.get(key).push(beam);
+      }
+      
+      // Render in beamOrder - first in order = bottom, last = top
+      for (const beamIdx of S.beamOrder) {
+        for (let em = 0; em < S.emitters.length; em++) {
+          const key = `${em}-${beamIdx}`;
+          const beams = beamsByIdx.get(key);
+          if (!beams) continue;
+          
+          for (const beam of beams) {
+            for (const s of beam.segs) {
+              pushQuad(verts, s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.rgb, s.intensity, timeSec);
+            }
+          }
+        }
+      }
+    }
+
     const data = new Float32Array(verts);
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
-
-    const stride = 7*4;
-    gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, stride, 0);
-    gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 2*4);
-    gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 3*4);
-    gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 6*4);
-
-    gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLES, 0, data.length/7);
+    const stride = 7 * 4;
+    
+    // Set blend mode
+    setBlendMode(S.blendMode);
+    
+    if (S.trails.enabled) {
+      // Framebuffer-based trails with ping-pong
+      ensureTrailFBO();
+      const w = glCanvas.width, h = glCanvas.height;
+      
+      // Determine read/write textures and FBOs
+      const pp = window.trailPingPong || 0;
+      const readTex = pp === 0 ? trailTex : window.trailTex2;
+      const writeFBO = pp === 0 ? window.trailFBO2 : trailFBO;
+      const writeTex = pp === 0 ? window.trailTex2 : trailTex;
+      
+      // Length (1-180): controls fade rate / trail duration
+      // Map length to fade rate: len=1 → 0.75, len=180 → 0.995
+      const len = Math.max(1, S.trails.length);
+      const t = (len - 1) / 179; // 0 to 1
+      const fadeRate = 0.75 + 0.245 * Math.pow(t, 0.6);
+      
+      // Hue shift: shift toward complementary color (180 = opposite on color wheel)
+      const hueShiftPerFrame = S.trails.hueShift / Math.max(1, len * 2);
+      
+      // Threshold to cut to black (prevents grey residue)
+      const threshold = 0.015;
+      
+      // Step 1: Render to write FBO (faded previous + new beams)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO);
+      gl.viewport(0, 0, w, h);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      
+      // Draw faded previous frame
+      gl.useProgram(trailProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, trailBuf);
+      const taPosLoc = gl.getAttribLocation(trailProg, 'a_pos');
+      gl.enableVertexAttribArray(taPosLoc);
+      gl.vertexAttribPointer(taPosLoc, 2, gl.FLOAT, false, 0, 0);
+      
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, readTex);
+      gl.uniform1i(gl.getUniformLocation(trailProg, 'u_tex'), 0);
+      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_fade'), fadeRate);
+      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_hueShift'), hueShiftPerFrame / 360);
+      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_threshold'), threshold);
+      
+      gl.disable(gl.BLEND);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.enable(gl.BLEND);
+      
+      // Draw current beams on top (to write FBO)
+      gl.useProgram(prog);
+      gl.uniform2f(u_res, w / S.dpr, h / S.dpr);
+      gl.uniform1f(u_time, timeSec);
+      gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
+      gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
+      gl.uniform1f(u_speed, S.pulseSpeed);
+      gl.uniform1f(u_amp, S.pulseAmp);
+      gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
+      gl.uniform1f(u_soft, S.pulseSoft);
+      gl.uniform1f(u_duty, S.pulseDuty);
+      
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, stride, 0);
+      gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
+      gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
+      gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
+      
+      setBlendMode(S.blendMode);
+      if (data.length > 0) {
+        gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+      }
+      
+      // Step 2: Copy write FBO to screen
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, w, h);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      
+      gl.useProgram(copyProg);
+      gl.bindBuffer(gl.ARRAY_BUFFER, copyBuf);
+      const caPosLoc = gl.getAttribLocation(copyProg, 'a_pos');
+      gl.enableVertexAttribArray(caPosLoc);
+      gl.vertexAttribPointer(caPosLoc, 2, gl.FLOAT, false, 0, 0);
+      
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, writeTex);
+      gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+      
+      gl.disable(gl.BLEND);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.enable(gl.BLEND);
+      
+      // Swap ping-pong for next frame
+      window.trailPingPong = 1 - pp;
+    } else {
+      // No trails - simple render
+      gl.useProgram(prog);
+      gl.uniform2f(u_res, glCanvas.width / S.dpr, glCanvas.height / S.dpr);
+      gl.uniform1f(u_time, timeSec);
+      gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
+      gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
+      gl.uniform1f(u_speed, S.pulseSpeed);
+      gl.uniform1f(u_amp, S.pulseAmp);
+      gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
+      gl.uniform1f(u_soft, S.pulseSoft);
+      gl.uniform1f(u_duty, S.pulseDuty);
+      
+      gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, stride, 0);
+      gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
+      gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
+      gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
+      
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (data.length > 0) {
+        gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+      }
+    }
   }
 
-  // ---- Overlay (boundary + emitters) ----
-  function drawOverlay(){
-    const W=ovCanvas.width/S.dpr, H=ovCanvas.height/S.dpr;
-    octx.setTransform(S.dpr,0,0,S.dpr,0,0);
-    octx.clearRect(0,0,W,H);
+  function drawOverlay() {
+    const W = ovCanvas.width / S.dpr, H = ovCanvas.height / S.dpr;
+    octx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+    octx.clearRect(0, 0, W, H);
 
-    // boundary
-    octx.strokeStyle='#2b2f36'; octx.lineWidth=2;
+    // Skip boundary and emitters in fullscreen for clean look
+    if (document.fullscreenElement) return;
+
+    // Boundary
+    octx.strokeStyle = '#1a1d24';
+    octx.lineWidth = 1;
     octx.beginPath();
-    if(S.isCircle){ octx.arc(S.circle.cx,S.circle.cy,S.circle.R,0,Math.PI*2); }
-    else { const v=S.vertices; if(v.length){ octx.moveTo(v[0].x,v[0].y); for(let i=1;i<v.length;i++) octx.lineTo(v[i].x,v[i].y); octx.closePath(); } }
+    if (S.isCircle) {
+      octx.arc(S.circle.cx, S.circle.cy, S.circle.R, 0, Math.PI * 2);
+    } else {
+      const v = S.vertices;
+      if (v.length) {
+        octx.moveTo(v[0].x, v[0].y);
+        for (let i = 1; i < v.length; i++) octx.lineTo(v[i].x, v[i].y);
+        octx.closePath();
+      }
+    }
     octx.stroke();
 
-    // emitters
-    for(const e of S.emitters){ octx.fillStyle='#8a93a3'; octx.strokeStyle='#1b1f26'; octx.lineWidth=1.5; octx.beginPath(); octx.arc(e.x,e.y,4,0,Math.PI*2); octx.fill(); octx.stroke(); }
-
-    document.getElementById('bouncesTag').textContent = 'Bounces: '+S.lastSegments;
-  }
-
-  // ---- Interaction ----
-  ovCanvas.addEventListener('pointerdown', (e)=>{
-    const r=ovCanvas.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
-    let idx=-1, best=9999;
-    for(let i=0;i<S.emitters.length;i++){
-      const d=Math.hypot(x - S.emitters[i].x, y - S.emitters[i].y);
-      if(d<16 && d<best){ best=d; idx=i; }
+    // Emitters (only if visible)
+    if (S.showEmitter) {
+      for (const e of S.emitters) {
+        octx.fillStyle = '#ff9f1c';
+        octx.strokeStyle = '#0a0b0e';
+        octx.lineWidth = 1.5;
+        octx.beginPath();
+        octx.arc(e.x, e.y, 4, 0, Math.PI * 2);
+        octx.fill();
+        octx.stroke();
+      }
     }
-    if(idx>=0){ S.draggingIdx = idx; ovCanvas.setPointerCapture(e.pointerId); }
-  });
-  ovCanvas.addEventListener('pointermove',(e)=>{
-    if(S.draggingIdx<0) return;
-    const r=ovCanvas.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
-    S.emitters[S.draggingIdx] = {x,y};
-  });
-  ovCanvas.addEventListener('pointerup',()=> S.draggingIdx=-1);
-
-  // ---- Bindings ----
-  function setShapeFromSelect(){
-    const v=shapeSel.value;
-    if(v==='circle'){ S.polygonType='circle'; }
-    else if(v.startsWith('regular-')){ S.polygonType='regular'; S.sides=parseInt(v.split('-')[1],10)||5; }
-    else if(v.startsWith('random-')){ S.polygonType='random'; S.sides=parseInt(v.split('-')[1],10)||5; }
-    else { S.polygonType='blob'; }
-    buildShape(); randomizeEmitters();
   }
-  shapeSel.addEventListener('change', setShapeFromSelect);
-  _safeOn(reflectEl,'input', updateReflect);
-  _safeOn(bouncesEl,'input', ()=>{ const v=parseInt(bouncesEl.value,10)||1; S.maxBounces=v; bouncesNumEl.value=v; });
-  _safeOn(bouncesNumEl,'input', ()=>{ const v=parseInt(bouncesNumEl.value,10)||1; S.maxBounces=v; bouncesEl.value=v; });
-  _safeOn(widthEl,'input', ()=> S.beamWidth=parseInt(widthEl.value,10)||2);
-  const syncCount=(v)=>{ v=clamp(v,1,24)|0; S.beamCount=v; countEl.value=v; countNumEl.value=v; ensureSpeedArrays(v); if(S.primeMode) applyPrimeSpeeds(S.primeMode); rebuildBeamSpeedInputs(); if(S.beamScheme!=='custom'){ S.beamPalette=generatePalette(S.beamScheme); } ensurePaletteSize(v); rebuildBeamSwatches(); };
-  _safeOn(countEl,'input', ()=> syncCount(parseInt(countEl.value,10)||1));_safeOn(countNumEl,'input', ()=> syncCount(parseInt(countNumEl.value,10)||1));
 
-  _safeOn(emCountEl,'input', ()=>{
-    const n = clamp(parseInt(emCountEl.value,10)||1,1,4);
-    while(S.emitters.length<n) S.emitters.push({...S.emitters[S.emitters.length-1]||{x:0,y:0}});
-    if(S.emitters.length>n) S.emitters.length=n;
-    randomizeEmitters();
+  // Interaction
+  ovCanvas.addEventListener('pointerdown', (e) => {
+    const r = ovCanvas.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    
+    // Check emitters
+    let idx = -1, best = 20;
+    for (let i = 0; i < S.emitters.length; i++) {
+      const d = Math.hypot(x - S.emitters[i].x, y - S.emitters[i].y);
+      if (d < best) { best = d; idx = i; }
+    }
+    if (idx >= 0) { S.draggingIdx = idx; ovCanvas.setPointerCapture(e.pointerId); }
   });
-  centerEmittersBtn.addEventListener('click', ()=>{ const c=S.isCircle?{x:S.circle.cx,y:S.circle.cy}:centroid(S.vertices); for(let i=0;i<S.emitters.length;i++) S.emitters[i]={x:c.x+(i-(S.emitters.length-1)/2)*14,y:c.y}; });
 
-  _safeOn(spreadEl,'input', ()=>{ S.spreadDeg=parseFloat(spreadEl.value)||0; spreadNumEl.value=S.spreadDeg.toFixed(1); });
-  _safeOn(spreadNumEl,'input', ()=>{ const v=clamp(parseFloat(spreadNumEl.value)||0,0,180); S.spreadDeg=v; spreadEl.value=v; });
-  _safeOn(angleEl,'input', ()=> S.angleDeg=parseFloat(angleEl.value)||0);
-  _safeOn(rotSpeedEl,'input', ()=>{ S.rotationSpeed=parseFloat(rotSpeedEl.value)||0; rotSpeedNum.value=S.rotationSpeed.toFixed(2); });
-  rotSpeedNum.addEventListener('input', ()=>{ const v=clamp(parseFloat(rotSpeedNum.value)||0,0,S.speedMax); S.rotationSpeed=v; rotSpeedEl.value=v; });
-  _safeOn(speedRangeEl,'change', ()=>{ const m=parseFloat(speedRangeEl.value)||5; setSpeedMax(m); ensureSpeedArrays(S.beamCount); if(S.primeMode) applyPrimeSpeeds(S.primeMode); rebuildBeamSpeedInputs(); });
-  _safeOn(speedMultiplierEl,'input', ()=>{ S.speedMultiplier = Math.max(0, Math.min(2, parseFloat(speedMultiplierEl.value)||0)); speedMultiplierNumEl.value = S.speedMultiplier.toFixed(2); });
-  _safeOn(speedMultiplierNumEl,'input', ()=>{ const v = Math.max(0, Math.min(2, parseFloat(speedMultiplierNumEl.value)||0)); S.speedMultiplier = v; speedMultiplierEl.value = v; });
+  ovCanvas.addEventListener('pointermove', (e) => {
+    if (S.draggingIdx < 0) return;
+    const r = ovCanvas.getBoundingClientRect();
+    const newX = e.clientX - r.left, newY = e.clientY - r.top;
+    const newPos = { x: newX, y: newY };
+    if (S.emitterSymmetry && S.emitters.length > 1) {
+      moveEmitterSymmetric(S.draggingIdx, newPos);
+    } else {
+      S.emitters[S.draggingIdx] = constrainToRoom(newPos);
+      updateNormFromEmitters();
+    }
+  });
 
-  _safeOn(hueOffsetEl,'input', ()=>{ S.hueOffset = parseFloat(hueOffsetEl.value)||0; rebuildBeamSwatches(); });
-  _safeOn(hueSpreadEl,'input', ()=>{ S.hueSpread = parseFloat(hueSpreadEl.value)||360; rebuildBeamSwatches(); });
-  _safeOn(beamSchemeEl,'change', ()=>{ S.beamScheme=beamSchemeEl.value; S.beamPalette=generatePalette(S.beamScheme); rebuildBeamSwatches(); });
-  shuffleSchemeBtn.addEventListener('click', ()=>{ S.seed=(Math.random()*1e9)|0; if(S.beamScheme==='custom'){ S.beamScheme='random'; beamSchemeEl.value='random'; } S.beamPalette=generatePalette(S.beamScheme); rebuildBeamSwatches(); });
+  ovCanvas.addEventListener('pointerup', () => {
+    S.draggingIdx = -1;
+  });
 
-  fillPrimesRawBtn.addEventListener('click', ()=> applyPrimeSpeeds('raw'));
-  const halfMirrorBtn=document.getElementById('halfMirrorNeg'); if(halfMirrorBtn) halfMirrorBtn.addEventListener('click', halfMirrorNegative);
-  resetPhasesBtn.addEventListener('click', resetPhases);
+  // UI bindings
+  function setShapeFromSelect() {
+    const v = shapeSel.value;
+    if (v === 'circle') S.polygonType = 'circle';
+    else if (v.startsWith('regular-')) { S.polygonType = 'regular'; S.sides = parseInt(v.split('-')[1], 10) || 5; }
+    else if (v.startsWith('random-')) { S.polygonType = 'random'; S.sides = 5 + Math.floor(rand() * 6); }
+    else S.polygonType = 'blob';
+    buildShape();
+    randomizeEmitters();
+  }
 
-  _safeOn(pulseEnableEl,'change', ()=> S.pulseOn = (pulseEnableEl.value==='on'));
-  _safeOn(pulseShapeEl,'change', ()=> S.pulseShape=pulseShapeEl.value);
-  _safeOn(pulseAmpEl,'input', ()=> S.pulseAmp=parseFloat(pulseAmpEl.value)||0);
-  _safeOn(pulseFreqEl,'input', ()=> S.pulseFreqCP100=parseFloat(pulseFreqEl.value)||1.2);
-  _safeOn(pulseSpeedEl,'input', ()=> S.pulseSpeed=parseFloat(pulseSpeedEl.value)||0);
-  _safeOn(pulseQualityEl,'input', ()=> S.pulseSoft=parseFloat(pulseQualityEl.value)||0.18);
+  _on(shapeSel, 'change', setShapeFromSelect);
+  _on(reflectEl, 'input', updateReflect);
 
-  shuffleShapeBtn.addEventListener('click', ()=>{ if(S.polygonType==='circle') return; if(S.polygonType==='random' || S.polygonType==='blob') S.seed=(Math.random()*1e9)|0; buildShape(); randomizeEmitters(); });
+  _on(bouncesEl, 'input', () => { S.maxBounces = parseInt(bouncesEl.value, 10) || 1; bouncesNumEl.value = S.maxBounces; });
+  _on(bouncesNumEl, 'input', () => { S.maxBounces = parseInt(bouncesNumEl.value, 10) || 1; bouncesEl.value = S.maxBounces; });
+
+  _on(widthEl, 'input', () => S.beamWidth = parseFloat(widthEl.value) || 2);
+  _on(layerModeToggle, 'click', () => {
+    S.layerMode = (S.layerMode === 'depth') ? 'static' : 'depth';
+    layerModeToggle.textContent = S.layerMode === 'depth' ? 'Depth' : 'Static';
+  });
+
+  const syncCount = (v) => {
+    v = clamp(v, 1, 24) | 0;
+    S.beamCount = v;
+    beamCountValEl.textContent = v;
+    ensureSpeedArrays(v);
+    applySpeedPattern();
+    if (S.beamScheme !== 'custom') applySchemeToAllEmitters();
+    ensurePaletteSize(v);
+    rebuildBeamSwatches();
+  };
+  _on(beamCountUpBtn, 'click', () => syncCount(S.beamCount + 1));
+  _on(beamCountDownBtn, 'click', () => syncCount(S.beamCount - 1));
+
+  _on(emCountUpBtn, 'click', () => setEmitterCount(S.emitters.length + 1));
+  _on(emCountDownBtn, 'click', () => setEmitterCount(S.emitters.length - 1));
+
+  _on(emitterSymmetryEl, 'change', () => {
+    S.emitterSymmetry = emitterSymmetryEl.value === 'on';
+    if (S.emitterSymmetry && S.emitters.length > 1) {
+      computeSymmetryFromEmitters();
+      positionEmittersSymmetric();
+    }
+  });
+
+  _on(spreadEl, 'input', () => { S.spreadDeg = parseFloat(spreadEl.value) || 0; spreadNumEl.value = S.spreadDeg.toFixed(1); });
+  _on(spreadNumEl, 'input', () => { S.spreadDeg = clamp(parseFloat(spreadNumEl.value) || 0, 0, 180); spreadEl.value = S.spreadDeg; });
+
+  _on(angleEl, 'input', () => S.angleDeg = parseFloat(angleEl.value) || 0);
+
+  _on(rotSpeedEl, 'input', () => { S.rotationSpeed = parseFloat(rotSpeedEl.value) || 0; rotSpeedNum.value = S.rotationSpeed.toFixed(2); });
+  _on(rotSpeedNum, 'input', () => { S.rotationSpeed = clamp(parseFloat(rotSpeedNum.value) || 0, 0, S.speedMax); rotSpeedEl.value = S.rotationSpeed; });
+
+  _on(speedRangeEl, 'change', () => { setSpeedMax(parseFloat(speedRangeEl.value) || 5); rebuildBeamSpeedInputs(); });
+
+  _on(speedMultiplierEl, 'input', () => { S.speedMultiplier = clamp(parseFloat(speedMultiplierEl.value) || 0, 0, 2); speedMultiplierNumEl.value = S.speedMultiplier.toFixed(3); });
+  _on(speedMultiplierNumEl, 'input', () => { S.speedMultiplier = clamp(parseFloat(speedMultiplierNumEl.value) || 0, 0, 2); speedMultiplierEl.value = S.speedMultiplier; });
+  
+  // Speed step buttons
+  _on(speedStepDown, 'click', () => {
+    const step = parseFloat(speedStepSize.value) || 0.01;
+    S.speedMultiplier = clamp(S.speedMultiplier - step, 0, 2);
+    speedMultiplierEl.value = S.speedMultiplier;
+    speedMultiplierNumEl.value = S.speedMultiplier.toFixed(3);
+  });
+  _on(speedStepUp, 'click', () => {
+    const step = parseFloat(speedStepSize.value) || 0.01;
+    S.speedMultiplier = clamp(S.speedMultiplier + step, 0, 2);
+    speedMultiplierEl.value = S.speedMultiplier;
+    speedMultiplierNumEl.value = S.speedMultiplier.toFixed(3);
+  });
+
+  _on(beamSchemeEl, 'change', () => { S.beamScheme = beamSchemeEl.value; applySchemeToAllEmitters(); rebuildBeamSwatches(); });
+  _on(hueRotateSpeedEl, 'input', () => { S.hueRotateSpeed = parseFloat(hueRotateSpeedEl.value) || 0; hueRotateSpeedNumEl.value = S.hueRotateSpeed; });
+  _on(hueRotateSpeedNumEl, 'input', () => { S.hueRotateSpeed = clamp(parseFloat(hueRotateSpeedNumEl.value) || 0, 0, 360); hueRotateSpeedEl.value = Math.min(60, S.hueRotateSpeed); });
+  
+  _on(brightnessOscToggle, 'click', () => {
+    S.brightnessOsc.enabled = !S.brightnessOsc.enabled;
+    brightnessOscToggle.textContent = S.brightnessOsc.enabled ? 'On' : 'Off';
+  });
+  _on(brightnessOscAmpEl, 'input', () => S.brightnessOsc.amp = parseFloat(brightnessOscAmpEl.value) || 0.5);
+  _on(brightnessOscFreqEl, 'input', () => S.brightnessOsc.freq = parseFloat(brightnessOscFreqEl.value) || 1);
+  _on(shuffleSchemeBtn, 'click', () => { S.seed = (Math.random() * 1e9) | 0; if (S.beamScheme === 'custom') { S.beamScheme = 'random'; beamSchemeEl.value = 'random'; } applySchemeToAllEmitters(); rebuildBeamSwatches(); });
+
+  _on(speedPatternEl, 'change', () => { S.speedPattern = speedPatternEl.value; applySpeedPattern(); });
+  _on(patternBaseEl, 'input', () => { S.patternBase = parseFloat(patternBaseEl.value) || 2; patternBaseNumEl.value = S.patternBase.toFixed(1); applySpeedPattern(); });
+  _on(patternBaseNumEl, 'input', () => { S.patternBase = clamp(parseFloat(patternBaseNumEl.value) || 2, 0.1, 50); patternBaseEl.value = S.patternBase; applySpeedPattern(); });
+  _on(resetPhasesBtn, 'click', () => { for (let i = 0; i < S.perBeamPhase.length; i++) S.perBeamPhase[i] = 0; });
+
+  _on(pulseToggle, 'click', () => {
+    S.pulseOn = !S.pulseOn;
+    pulseToggle.textContent = S.pulseOn ? 'On' : 'Off';
+  });
+  _on(pulseShapeToggle, 'click', () => {
+    S.pulseShape = S.pulseShape === 'sine' ? 'square' : 'sine';
+    pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
+  });
+  _on(pulseAmpEl, 'input', () => S.pulseAmp = parseFloat(pulseAmpEl.value) || 0);
+  _on(pulseFreqEl, 'input', () => S.pulseFreqCP100 = parseFloat(pulseFreqEl.value) || 1.2);
+  _on(pulseSpeedEl, 'input', () => S.pulseSpeed = parseFloat(pulseSpeedEl.value) || 0);
+  _on(pulseQualityEl, 'input', () => S.pulseSoft = parseFloat(pulseQualityEl.value) || 0.18);
+  _on(pulseDutyEl, 'input', () => S.pulseDuty = parseFloat(pulseDutyEl.value) || 0.5);
+
+  // Trails handlers
+  _on(trailsToggle, 'click', () => {
+    S.trails.enabled = !S.trails.enabled;
+    trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
+  });
+  _on(trailsLengthEl, 'input', () => {
+    S.trails.length = parseInt(trailsLengthEl.value) || 20;
+    trailsLengthNumEl.value = S.trails.length;
+  });
+  _on(trailsLengthNumEl, 'input', () => {
+    S.trails.length = clamp(parseInt(trailsLengthNumEl.value) || 20, 1, 180);
+    trailsLengthEl.value = S.trails.length;
+  });
+  _on(trailsHueShiftEl, 'input', () => {
+    S.trails.hueShift = parseInt(trailsHueShiftEl.value) || 0;
+    trailsHueShiftNumEl.value = S.trails.hueShift;
+  });
+  _on(trailsHueShiftNumEl, 'input', () => {
+    S.trails.hueShift = clamp(parseInt(trailsHueShiftNumEl.value) || 0, 0, 360);
+    trailsHueShiftEl.value = S.trails.hueShift;
+  });
+  
+  // Blend mode handler
+  _on(blendModeEl, 'change', () => {
+    S.blendMode = blendModeEl.value;
+  });
+
+  // Thickness pulse handlers
+  _on(widthWaveToggle, 'click', () => {
+    S.widthWave.enabled = !S.widthWave.enabled;
+    widthWaveToggle.textContent = S.widthWave.enabled ? 'On' : 'Off';
+  });
+  _on(widthWaveAmountEl, 'input', () => {
+    S.widthWave.amount = parseFloat(widthWaveAmountEl.value) || 1;
+    widthWaveAmountNumEl.value = S.widthWave.amount;
+  });
+  _on(widthWaveAmountNumEl, 'input', () => {
+    S.widthWave.amount = clamp(parseFloat(widthWaveAmountNumEl.value) || 1, 0, 3);
+    widthWaveAmountEl.value = S.widthWave.amount;
+  });
+  _on(widthWaveFreqEl, 'input', () => S.widthWave.freq = parseFloat(widthWaveFreqEl.value) || 0.8);
+  _on(widthWaveSpeedEl, 'input', () => S.widthWave.speed = parseFloat(widthWaveSpeedEl.value) || 100);
+  _on(widthWaveDutyEl, 'input', () => S.widthWave.duty = parseFloat(widthWaveDutyEl.value) || 0.5);
 
   // Presets
-  function currentPreset(){
+  function currentPreset() {
     return {
-      polygonType:S.polygonType, sides:S.sides, beamWidth:S.beamWidth,
-      reflectSlider:S.reflectSlider, maxBounces:S.maxBounces,
-      beamCount:S.beamCount, spreadDeg:S.spreadDeg, angleDeg:S.angleDeg,
-      rotationSpeed:S.rotationSpeed, speedMax:S.speedMax,
-      emitters:S.emitters, beamScheme:S.beamScheme, beamPalette:S.beamPalette,
-      perBeamSpeed:S.perBeamSpeed, perBeamPhase:S.perBeamPhase,
-      pulse:{on:S.pulseOn, shape:S.pulseShape, amp:S.pulseAmp, freq:S.pulseFreqCP100, speed:S.pulseSpeed, soft:S.pulseSoft}
+      polygonType: S.polygonType, sides: S.sides, beamWidth: S.beamWidth,
+      reflectSlider: S.reflectSlider, maxBounces: S.maxBounces, beamCount: S.beamCount,
+      spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
+      speedMax: S.speedMax, emittersNorm: S.emittersNorm, beamScheme: S.beamScheme,
+      beamPalette: S.beamPalette, perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
+      speedPattern: S.speedPattern, patternBase: S.patternBase,
+      pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft }
     };
   }
-  function applyPreset(P){
+
+  function applyPreset(P) {
     Object.assign(S, {
-      polygonType:P.polygonType||'circle',
-      sides:P.sides||S.sides,
-      beamWidth:P.beamWidth||S.beamWidth,
-      reflectSlider:('reflectSlider' in P)?P.reflectSlider:S.reflectSlider,
-      maxBounces:P.maxBounces||S.maxBounces,
-      beamCount:P.beamCount||S.beamCount,
-      spreadDeg:('spreadDeg' in P)?P.spreadDeg:S.spreadDeg,
-      angleDeg:('angleDeg' in P)?P.angleDeg:S.angleDeg,
-      rotationSpeed:('rotationSpeed' in P)?P.rotationSpeed:S.rotationSpeed,
-      speedMax:('speedMax' in P)?P.speedMax:S.speedMax,
-      emitters:P.emitters||S.emitters,
-      beamScheme:P.beamScheme||S.beamScheme,
-      beamPalette:P.beamPalette||S.beamPalette,
-      perBeamSpeed:P.perBeamSpeed||S.perBeamSpeed,
-      perBeamPhase:P.perBeamPhase||S.perBeamPhase
+      polygonType: P.polygonType || 'circle', sides: P.sides || 5, beamWidth: P.beamWidth || 2,
+      reflectSlider: P.reflectSlider ?? 0.8, maxBounces: P.maxBounces || 8, beamCount: P.beamCount || 1,
+      spreadDeg: P.spreadDeg ?? 0, angleDeg: P.angleDeg ?? 0, rotationSpeed: P.rotationSpeed ?? 0,
+      speedMax: P.speedMax || 5, beamScheme: P.beamScheme || 'grayscale',
+      beamPalette: P.beamPalette || [], perBeamSpeed: P.perBeamSpeed || [], perBeamPhase: P.perBeamPhase || [],
+      speedPattern: P.speedPattern || 'prime', patternBase: P.patternBase || 2
     });
-    if(P.pulse){ S.pulseOn=!!P.pulse.on; S.pulseShape=P.pulse.shape||'sine'; S.pulseAmp=P.pulse.amp||0; S.pulseFreqCP100=P.pulse.freq||1; S.pulseSpeed=P.pulse.speed||0; S.pulseSoft=P.pulse.soft||0.18; }
-    // sync UI
-    shapeSel.value = S.polygonType==='circle' ? 'circle' : (S.polygonType==='random' ? 'random-'+(S.sides||5) : (S.polygonType==='blob' ? 'blob' : ('regular-'+(S.sides||5))));
+    if (P.emittersNorm) {
+      S.emittersNorm = P.emittersNorm;
+      S.emitters = P.emittersNorm.map(() => ({ x: 0, y: 0 }));
+    }
+    if (P.pulse) {
+      S.pulseOn = !!P.pulse.on; S.pulseShape = P.pulse.shape || 'sine';
+      S.pulseAmp = P.pulse.amp ?? 1; S.pulseFreqCP100 = P.pulse.freq ?? 1.2;
+      S.pulseSpeed = P.pulse.speed ?? 240; S.pulseSoft = P.pulse.soft ?? 0.18;
+    }
+    // Sync UI
+    shapeSel.value = S.polygonType === 'circle' ? 'circle' : (S.polygonType === 'random' ? 'random-5' : (S.polygonType === 'blob' ? 'blob' : 'regular-' + S.sides));
     reflectEl.value = S.reflectSlider; updateReflect();
     bouncesEl.value = bouncesNumEl.value = S.maxBounces;
     widthEl.value = S.beamWidth;
-    countEl.value = countNumEl.value = S.beamCount;
-    emCountEl.value = S.emitters.length;
+    beamCountValEl.textContent = S.beamCount;
+    emCountValEl.textContent = S.emittersNorm.length;
     spreadEl.value = S.spreadDeg; spreadNumEl.value = S.spreadDeg.toFixed(1);
     angleEl.value = S.angleDeg;
     setSpeedMax(S.speedMax);
     rotSpeedEl.value = rotSpeedNum.value = S.rotationSpeed;
+    speedMultiplierEl.value = speedMultiplierNumEl.value = S.speedMultiplier;
     beamSchemeEl.value = S.beamScheme;
-    rebuildBeamSwatches(); ensureSpeedArrays(S.beamCount); rebuildBeamSpeedInputs();
-    pulseEnableEl.value = S.pulseOn? 'on':'off';
-    pulseShapeEl.value = S.pulseShape; pulseAmpEl.value = S.pulseAmp; pulseFreqEl.value = S.pulseFreqCP100; pulseSpeedEl.value=S.pulseSpeed; pulseQualityEl.value=S.pulseSoft;
-    buildShape(); randomizeEmitters();
+    speedPatternEl.value = S.speedPattern;
+    patternBaseEl.value = patternBaseNumEl.value = S.patternBase;
+    pulseToggle.textContent = S.pulseOn ? 'On' : 'Off';
+    pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
+    pulseAmpEl.value = S.pulseAmp; pulseFreqEl.value = S.pulseFreqCP100;
+    pulseSpeedEl.value = S.pulseSpeed; pulseQualityEl.value = S.pulseSoft;
+    buildShape();
+    updateEmittersFromNorm();
+    ensurePaletteSize(S.beamCount);
+    rebuildBeamSwatches();
+    ensureSpeedArrays(S.beamCount);
+    rebuildBeamSpeedInputs();
   }
-  _on('savePreset','click', ()=>{
-    const blob = new Blob([JSON.stringify(currentPreset(),null,2)], {type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='laser-room-preset.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-  });
-  _on('loadPreset','click', ()=> presetFile.click());
-  presetFile.addEventListener('change', async ()=>{ const f=presetFile.files[0]; if(!f) return; const txt=await f.text(); try{ const P=JSON.parse(txt); applyPreset(P); }catch(e){ alert('Invalid preset JSON'); } });
 
-  // ---- Main loop ----
-  let last=performance.now(), fpsA=0, fpsN=0;
-  function loop(t){
-    const dt=t-last; last=t; fpsA+=dt; fpsN++; if(fpsA>=1000){ fpsTag.textContent='FPS: '+fpsN; fpsA=0; fpsN=0; }
-    if(S.rotationSpeed>0){ S.angleDeg=(S.angleDeg + S.rotationSpeed*dt/1000)%360; angleEl.value=S.angleDeg.toFixed(1); }
-    for(let i=0;i<S.perBeamPhase.length;i++){ S.perBeamPhase[i]=(S.perBeamPhase[i] + (S.perBeamSpeed[i]||0)*S.speedMultiplier*dt/1000)%360; }
-    renderBeamsGL(t/1000);
+  _on(savePresetBtn, 'click', () => {
+    const blob = new Blob([JSON.stringify(currentPreset(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'voidulator-preset.json'; a.click();
+  });
+  _on(loadPresetBtn, 'click', () => presetFile.click());
+  _on(presetFile, 'change', async () => {
+    const f = presetFile.files[0]; if (!f) return;
+    try { applyPreset(JSON.parse(await f.text())); } catch (e) { alert('Invalid preset'); }
+  });
+
+  // Keyboard controls
+  // Helper to check if user is typing in an input
+  function isTypingInInput() {
+    const el = document.activeElement;
+    if (!el) return false;
+    if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'number')) return true;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.isContentEditable) return true;
+    return false;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    // Ignore keyboard shortcuts when typing in inputs
+    if (isTypingInInput()) return;
+    
+    const key = e.key.toLowerCase();
+    if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+      S.keysDown[key] = true;
+      e.preventDefault();
+    }
+    if (key === 'f') {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+      e.preventDefault();
+    }
+  });
+
+  // Resize on fullscreen change
+  document.addEventListener('fullscreenchange', () => {
+    setTimeout(resize, 50);
+    setTimeout(resize, 200);
+  });
+
+  document.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+      S.keysDown[key] = false;
+    }
+  });
+
+  // Emitter speed UI bindings
+  _on(emitterSpeedEl, 'input', () => { S.emitterMoveSpeed = parseFloat(emitterSpeedEl.value) || 150; emitterSpeedNumEl.value = S.emitterMoveSpeed; });
+  _on(emitterSpeedNumEl, 'input', () => { S.emitterMoveSpeed = clamp(parseFloat(emitterSpeedNumEl.value) || 150, 50, 500); emitterSpeedEl.value = S.emitterMoveSpeed; });
+  _on(showEmitterToggle, 'click', () => { 
+    S.showEmitter = !S.showEmitter; 
+    showEmitterToggle.textContent = S.showEmitter ? 'Hide' : 'Show';
+  });
+
+  // Audio reactive UI bindings
+  _on(audioToggleBtn, 'click', () => {
+    if (S.audio.active) stopAudio();
+    else startAudio();
+  });
+  _on(audioSensitivityEl, 'input', () => { S.audio.sensitivity = parseFloat(audioSensitivityEl.value) || 1.5; audioSensitivityNumEl.value = S.audio.sensitivity.toFixed(1); });
+  _on(audioSensitivityNumEl, 'input', () => { S.audio.sensitivity = clamp(parseFloat(audioSensitivityNumEl.value) || 1.5, 0.1, 5); audioSensitivityEl.value = S.audio.sensitivity; });
+  _on(audioSmoothingEl, 'input', () => {
+    S.audio.smoothing = parseFloat(audioSmoothingEl.value) || 0.5;
+  });
+  _on(audioTargetEl, 'change', () => S.audio.target = audioTargetEl.value);
+  _on(audioStrengthEl, 'input', () => { S.audio.strength = parseFloat(audioStrengthEl.value) || 0.3; audioStrengthNumEl.value = S.audio.strength.toFixed(2); });
+  _on(audioStrengthNumEl, 'input', () => { S.audio.strength = clamp(parseFloat(audioStrengthNumEl.value) || 0.3, 0, 1); audioStrengthEl.value = S.audio.strength; });
+  _on(audioBandEl, 'change', () => S.audio.band = audioBandEl.value);
+
+  // Collapsible groups
+  document.querySelectorAll('.group.collapsible .group-title').forEach(title => {
+    title.addEventListener('click', () => {
+      title.parentElement.classList.toggle('collapsed');
+    });
+  });
+
+  // Scene UI bindings
+  _on(transitionDurationEl, 'input', () => { 
+    S.transitionDuration = parseFloat(transitionDurationEl.value) || 1.5; 
+    transitionDurationNumEl.value = S.transitionDuration.toFixed(1); 
+  });
+  _on(transitionDurationNumEl, 'input', () => { 
+    S.transitionDuration = clamp(parseFloat(transitionDurationNumEl.value) || 1.5, 0, 600); 
+    transitionDurationEl.value = Math.min(S.transitionDuration, 60); // Slider only goes to 60
+  });
+
+  _on(saveSceneBtn, 'click', () => {
+    const name = sceneNameEl.value.trim() || `Scene ${S.scenes.length + 1}`;
+    saveSceneToList(name);
+    sceneNameEl.value = '';
+  });
+
+  _on(goToSceneBtn, 'click', () => {
+    const idx = parseInt(sceneSelectEl.value);
+    if (!isNaN(idx) && S.scenes[idx]) {
+      goToScene(S.scenes[idx].data);
+    }
+  });
+
+  _on(deleteSceneBtn, 'click', () => {
+    const idx = parseInt(sceneSelectEl.value);
+    if (isNaN(idx) || !S.scenes[idx]) return;
+    if (confirm(`Delete "${S.scenes[idx].name}"?`)) {
+      S.scenes.splice(idx, 1);
+      saveScenes();
+      updateSceneUI();
+      // Select nearest remaining scene
+      if (S.scenes.length > 0) {
+        sceneSelectEl.value = Math.min(idx, S.scenes.length - 1);
+      }
+    }
+  });
+
+  // Scene slot buttons
+  document.querySelectorAll('.scene-slot').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const slot = parseInt(btn.dataset.slot) - 1;
+      // Visual feedback
+      btn.style.transform = 'scale(0.9)';
+      setTimeout(() => btn.style.transform = '', 100);
+      
+      if (e.shiftKey) {
+        // Save to slot
+        const name = sceneNameEl.value.trim() || `Slot ${slot + 1}`;
+        saveSceneToSlot(slot, name);
+        sceneNameEl.value = '';
+      } else {
+        // Go to slot
+        if (S.sceneSlots[slot]) {
+          goToScene(S.sceneSlots[slot].data);
+        }
+      }
+    });
+  });
+
+  // Keyboard shortcuts for scene slots (1-8)
+  document.addEventListener('keydown', (e) => {
+    // Ignore when typing in inputs
+    if (isTypingInInput()) return;
+    
+    const key = e.key;
+    if (key >= '1' && key <= '8' && !e.ctrlKey && !e.altKey) {
+      const slot = parseInt(key) - 1;
+      // Visual feedback on the button
+      const btn = document.querySelector(`.scene-slot[data-slot="${key}"]`);
+      if (btn) {
+        btn.style.transform = 'scale(0.9)';
+        setTimeout(() => btn.style.transform = '', 100);
+      }
+      
+      if (e.shiftKey) {
+        // Save to slot
+        const name = sceneNameEl.value.trim() || `Slot ${slot + 1}`;
+        saveSceneToSlot(slot, name);
+        sceneNameEl.value = '';
+      } else {
+        // Go to slot
+        if (S.sceneSlots[slot]) {
+          goToScene(S.sceneSlots[slot].data);
+        }
+      }
+      e.preventDefault();
+    }
+  });
+
+  // Main loop
+  let last = performance.now();
+  // ---- Audio Reactive ----
+  async function startAudio() {
+    const A = S.audio;
+    try {
+      A.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      A.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      A.source = A.ctx.createMediaStreamSource(A.stream);
+      A.analyser = A.ctx.createAnalyser();
+      A.analyser.fftSize = 128;
+      A.analyser.smoothingTimeConstant = 0;
+      A.source.connect(A.analyser);
+      A.dataArray = new Uint8Array(A.analyser.frequencyBinCount);
+      A.active = true;
+      audioToggleBtn.textContent = 'Stop listening';
+      audioToggleBtn.style.borderColor = 'var(--accent)';
+    } catch (e) {
+      console.warn('Audio failed:', e);
+      audioToggleBtn.textContent = 'Mic denied';
+    }
+  }
+
+  function stopAudio() {
+    const A = S.audio;
+    if (A.stream) A.stream.getTracks().forEach(t => t.stop());
+    if (A.ctx && A.ctx.state !== 'closed') A.ctx.close().catch(() => {});
+    A.active = false;
+    A.energy = 0;
+    A.rawEnergy = 0;
+    A.ctx = null;
+    A.analyser = null;
+    A.source = null;
+    A.stream = null;
+    audioToggleBtn.textContent = 'Start listening';
+    audioToggleBtn.style.borderColor = '';
+  }
+
+  function updateAudio(dtSec) {
+    const A = S.audio;
+    if (!A.active || !A.analyser) return;
+    A.analyser.getByteFrequencyData(A.dataArray);
+    const bins = A.dataArray;
+    const len = bins.length;
+
+    // Band selection
+    let start = 0, end = len;
+    if (A.band === 'bass') { start = 0; end = Math.floor(len * 0.15); }
+    else if (A.band === 'mid') { start = Math.floor(len * 0.15); end = Math.floor(len * 0.55); }
+    else if (A.band === 'high') { start = Math.floor(len * 0.55); end = len; }
+
+    // Use RMS + peak blend for snappier response
+    let sumSq = 0, peak = 0;
+    const count = Math.max(1, end - start);
+    for (let i = start; i < end; i++) {
+      const v = bins[i] / 255;
+      sumSq += v * v;
+      if (v > peak) peak = v;
+    }
+    const rms = Math.sqrt(sumSq / count);
+    // Blend RMS (stable) with peak (snappy) — 60/40
+    A.rawEnergy = Math.min((rms * 0.6 + peak * 0.4) * A.sensitivity, 1);
+
+    // Frame-rate-independent smoothing (attack fast, release slower)
+    const dt = Math.max(dtSec, 0.001);
+    const isRising = A.rawEnergy > A.energy;
+    // Attack: use (1 - smoothing) as speed base, but attack 3x faster
+    const attackSpeed = (1 - A.smoothing) * 3;
+    const releaseSpeed = (1 - A.smoothing);
+    const speed = isRising ? attackSpeed : releaseSpeed;
+    const factor = 1 - Math.exp(-speed * dt * 60);
+    A.energy += (A.rawEnergy - A.energy) * factor;
+  }
+
+  function applyAudioModulation() {
+    const A = S.audio;
+    if (!A.active || A.energy < 0.001) return;
+    const e = A.energy * A.strength;
+    
+    switch (A.target) {
+      case 'angle':
+        // Gentle angle drift proportional to energy
+        S.angleDeg = (S.angleDeg + e * 3) % 360;
+        break;
+      case 'spread':
+        // Modulate spread around its base value
+        S.spreadDeg = clamp((parseFloat(spreadEl.value) || 0) + e * 60, 0, 180);
+        break;
+      case 'width':
+        // Thicken beams with energy
+        S.beamWidth = clamp((parseFloat(widthEl.value) || 2) + e * 6, 0.5, 8);
+        break;
+      case 'pulse-speed':
+        // Pulse speed reacts to audio
+        S.pulseSpeed = clamp((parseFloat(pulseSpeedEl.value) || 240) + e * 400, 0, 900);
+        break;
+      case 'pulse-freq':
+        // Pulse frequency reacts to audio
+        S.pulseFreqCP100 = clamp((parseFloat(pulseFreqEl.value) || 1.2) + e * 3, 0.05, 6);
+        break;
+    }
+  }
+
+  // ---- Center Motion ----
+  // ---- Wave Ripple System ----
+  function spawnRipple(x, y) {
+    const W = S.waves;
+    if (W.ripples.length >= W.maxRipples) {
+      W.ripples.shift(); // Remove oldest
+    }
+    console.log('🌊 Spawning ripple at', x.toFixed(0), y.toFixed(0), 'amp:', W.amplitude, 'speed:', W.speed, 'enabled:', W.enabled);
+    W.ripples.push({
+      x: x,
+      y: y,
+      startTime: performance.now(),
+      speed: W.speed,
+      amplitude: W.amplitude,
+      wavelength: W.wavelength,
+      decay: W.decay,
+      age: 0,
+      maxRadius: S.isCircle ? S.circle.R * 2.5 : 800
+    });
+  }
+
+  function spawnRippleAtCenter() {
+    if (S.isCircle) {
+      spawnRipple(S.circle.cx, S.circle.cy);
+    } else if (S.vertices.length > 0) {
+      let cx = 0, cy = 0;
+      for (const v of S.vertices) { cx += v.x; cy += v.y; }
+      spawnRipple(cx / S.vertices.length, cy / S.vertices.length);
+    }
+  }
+
+  function updateWaves(dtSec) {
+    const W = S.waves;
+    if (!W.enabled) return;
+
+    // Auto-spawn
+    if (W.autoSpawn) {
+      W.lastSpawn += dtSec;
+      if (W.lastSpawn >= W.spawnInterval) {
+        W.lastSpawn = 0;
+        spawnRippleAtCenter();
+      }
+    }
+
+    // Update ripples
+    for (let i = W.ripples.length - 1; i >= 0; i--) {
+      const r = W.ripples[i];
+      r.age += dtSec;
+      r.amplitude *= Math.pow(W.damping, dtSec * 60);
+      
+      const currentRadius = r.age * r.speed;
+      if (r.amplitude < 0.1 || currentRadius > r.maxRadius) {
+        W.ripples.splice(i, 1);
+      }
+    }
+  }
+
+  // Calculate wave displacement at a point - returns {dx, dy} displacement
+  function getWaveDisplacement(x, y) {
+    const W = S.waves;
+    if (!W.enabled || W.ripples.length === 0) return { dx: 0, dy: 0 };
+
+    let totalDx = 0, totalDy = 0;
+    for (const r of W.ripples) {
+      const dx = x - r.x;
+      const dy = y - r.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 1) continue; // Avoid division by zero at center
+      
+      const currentRadius = r.age * r.speed;
+      const distFromWave = dist - currentRadius;
+      
+      // Wave affects points near the wave front (within a few wavelengths behind it)
+      // distFromWave < 0 means wave has passed this point
+      // distFromWave > 0 means wave hasn't reached yet
+      if (distFromWave > r.wavelength * 0.5) continue; // Wave hasn't reached yet
+      if (distFromWave < -r.wavelength * 4) continue; // Wave is too far past
+      
+      // Sine wave that travels outward
+      const phase = (distFromWave / r.wavelength) * Math.PI * 2;
+      
+      // Decay based on distance from ripple center (gentler decay)
+      const distanceDecay = 1 / (1 + dist * r.decay * 0.005);
+      
+      // Wave value - amplitude is now in pixels directly
+      const waveValue = Math.sin(phase) * r.amplitude * distanceDecay;
+      
+      // Displacement is perpendicular to radius (tangential) - makes beams wiggle sideways
+      const nx = dx / dist;
+      const ny = dy / dist;
+      // Perpendicular direction
+      const px = -ny;
+      const py = nx;
+      
+      totalDx += px * waveValue;
+      totalDy += py * waveValue;
+    }
+
+    // Debug log occasionally
+    if (Math.random() < 0.0001 && (totalDx !== 0 || totalDy !== 0)) {
+      console.log('🌊 Wave displacement:', totalDx.toFixed(2), totalDy.toFixed(2));
+    }
+
+    return { dx: totalDx, dy: totalDy };
+  }
+
+  // Get wave-displaced point
+  function waveDisplacePoint(x, y) {
+    const d = getWaveDisplacement(x, y);
+    return { x: x + d.dx, y: y + d.dy };
+  }
+
+  function updateCenterMotion(dtSec) {
+    const M = S.motion;
+    if (M.mode === 'off') return;
+
+    M.time += dtSec * M.speed;
+
+    // Get room dimensions for range scaling
+    const bounds = getRoomBounds();
+    const roomW = bounds.maxX - bounds.minX;
+    const roomH = bounds.maxY - bounds.minY;
+    const roomR = Math.min(roomW, roomH) * 0.5;
+
+    // Audio can modulate range
+    let range = M.range;
+    if (S.audio.active && S.audio.target === 'center-range') {
+      range = clamp(range + S.audio.energy * S.audio.strength * 0.5, 0, 0.8);
+    }
+    const r = range * roomR;
+
+    const t = M.time * Math.PI * 2;
+    const phaseRad = M.phaseOffset * Math.PI / 180;
+
+    for (let i = 0; i < S.emitters.length; i++) {
+      // Base position from norm
+      const baseX = bounds.minX + S.emittersNorm[i].nx * roomW;
+      const baseY = bounds.minY + S.emittersNorm[i].ny * roomH;
+
+      let ox = 0, oy = 0;
+
+      switch (M.mode) {
+        case 'orbit':
+          ox = Math.cos(t + i * phaseRad) * r;
+          oy = Math.sin(t + i * phaseRad) * r;
+          break;
+
+        case 'drift':
+          // Lissajous — ratio controls the curve shape
+          ox = Math.cos(t + i * phaseRad) * r;
+          oy = Math.sin(t * M.ratio + i * phaseRad * 0.7) * r;
+          break;
+
+        case 'wander': {
+          // Organic drift: sum of slow sine waves at incommensurate frequencies
+          const sx = M.wanderSeedsX;
+          const sy = M.wanderSeedsY;
+          const tt = M.time;
+          ox = (Math.sin(tt * 1.0 + sx[0]) * 0.4 +
+                Math.sin(tt * 1.7 + sx[1]) * 0.3 +
+                Math.sin(tt * 0.3 + sx[2]) * 0.2 +
+                Math.sin(tt * 2.3 + sx[3]) * 0.1) * r;
+          oy = (Math.sin(tt * 0.8 + sy[0]) * 0.4 +
+                Math.sin(tt * 1.3 + sy[1]) * 0.3 +
+                Math.sin(tt * 2.1 + sy[2]) * 0.2 +
+                Math.sin(tt * 0.5 + sy[3]) * 0.1) * r;
+          break;
+        }
+
+        case 'breathe': {
+          // Pulses in/out from center of room
+          const cx = (bounds.minX + bounds.maxX) * 0.5;
+          const cy = (bounds.minY + bounds.maxY) * 0.5;
+          const dirX = baseX - cx;
+          const dirY = baseY - cy;
+          const dist = Math.hypot(dirX, dirY) || 1;
+          const pulse = Math.sin(t + i * phaseRad) * 0.5 + 0.5; // 0-1
+          ox = (dirX / dist) * pulse * r;
+          oy = (dirY / dist) * pulse * r;
+          break;
+        }
+      }
+
+      S.emitters[i] = constrainToRoom({ x: baseX + ox, y: baseY + oy });
+    }
+  }
+
+  function loop(t) {
+    const dt = t - last; last = t;
+    const dtSec = dt / 1000;
+
+    // Update transition
+    updateTransition(t);
+
+    // Audio reactive
+    updateAudio(dtSec);
+    applyAudioModulation();
+
+    // Center motion (before WASD so WASD overrides when active)
+    updateCenterMotion(dtSec);
+
+    // Wave ripples
+    updateWaves(dtSec);
+
+    // WASD emitter movement — moves the home/base position (norm)
+    if (S.emitters.length > 0 && !S.transition.active) {
+      const speed = S.emitterMoveSpeed * dtSec;
+      let dx = 0, dy = 0;
+      if (S.keysDown.w) dy -= speed;
+      if (S.keysDown.s) dy += speed;
+      if (S.keysDown.a) dx -= speed;
+      if (S.keysDown.d) dx += speed;
+      
+      if (dx !== 0 || dy !== 0) {
+        // Move the base position directly via norm coordinates
+        const bounds = getRoomBounds();
+        const roomW = bounds.maxX - bounds.minX;
+        const roomH = bounds.maxY - bounds.minY;
+        const baseX = bounds.minX + S.emittersNorm[0].nx * roomW;
+        const baseY = bounds.minY + S.emittersNorm[0].ny * roomH;
+        const newBase = constrainToRoom({ x: baseX + dx, y: baseY + dy });
+        S.emittersNorm[0] = {
+          nx: (newBase.x - bounds.minX) / roomW,
+          ny: (newBase.y - bounds.minY) / roomH
+        };
+        // If no center motion, also update emitters directly
+        if (S.motion.mode === 'off') {
+          if (S.emitterSymmetry && S.emitters.length > 1) {
+            moveEmitterSymmetric(0, newBase);
+          } else {
+            S.emitters[0] = newBase;
+          }
+        }
+      }
+    }
+
+    if (S.rotationSpeed > 0) {
+      S.angleDeg = (S.angleDeg + S.rotationSpeed * dtSec) % 360;
+      angleEl.value = S.angleDeg.toFixed(1);
+    }
+    for (let i = 0; i < S.perBeamPhase.length; i++) {
+      S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i] || 0) * S.speedMultiplier * dtSec) % 360;
+    }
+    renderBeamsGL(t / 1000);
     drawOverlay();
     requestAnimationFrame(loop);
   }
 
-  // ---- Renderer (fixed res, high bitrate) ----
-  let recMedia=null, recChunks=[], recStream=null, renderRunning=false;
-  async function startRenderer(){
-    if(renderRunning) return;
-    const m = /^(\d+)\s*x\s*(\d+)$/i.exec(renSizeEl.value.trim());
-    const W = m ? parseInt(m[1],10) : 1920;
-    const H = m ? parseInt(m[2],10) : 1080;
-    const fps = clamp(parseInt(renFpsEl.value,10)||60,1,120);
-    const secs = clamp(parseInt(renSecsEl.value,10)||8,1,600);
-
-    const g = document.createElement('canvas'); g.width=W; g.height=H;
-    const o = document.createElement('canvas'); o.width=W; o.height=H;
-    const go = g.getContext('webgl2', {antialias:true, alpha:false});
-    const oo = o.getContext('2d');
-
-    function mkProg(gl, vsSrc, fsSrc){ const V=gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(V,vsSrc); gl.compileShader(V); const F=gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(F,fsSrc); gl.compileShader(F); const P=gl.createProgram(); gl.attachShader(P,V); gl.attachShader(P,F); gl.linkProgram(P); return {P,V,F}; }
-    const vsSrc = `#version 300 es\nprecision highp float; in vec2 a_pos; in float a_t; in vec3 a_col; in float a_alpha; uniform vec2 u_res; out float v_t; out vec3 v_col; out float v_alpha; void main(){ vec2 clip=(a_pos/u_res)*2.0-1.0; clip.y=-clip.y; gl_Position=vec4(clip,0.0,1.0); v_t=a_t; v_col=a_col; v_alpha=a_alpha; }`;
-    const fsSrc = `#version 300 es\nprecision highp float; in float v_t; in vec3 v_col; in float v_alpha; uniform float u_time,u_freqPx,u_speed,u_amp,u_shape,u_soft,u_pulseOn; out vec4 outColor; void main(){ float a=v_alpha; if(u_pulseOn>0.5){ float s=sin(6.2831853*u_freqPx*(v_t-u_speed*u_time)); float f=(u_shape<0.5)?(0.5+0.5*s):smoothstep(-u_soft,u_soft,s); a*=(1.0-u_amp)+u_amp*f; } outColor=vec4(v_col,a); }`;
-    const {P}=mkProg(go,vsSrc,fsSrc);
-    const loc = { a_pos: go.getAttribLocation(P,'a_pos'), a_t: go.getAttribLocation(P,'a_t'), a_col: go.getAttribLocation(P,'a_col'), a_alpha: go.getAttribLocation(P,'a_alpha'), u_res: go.getUniformLocation(P,'u_res'), u_time: go.getUniformLocation(P,'u_time'), u_freqPx: go.getUniformLocation(P,'u_freqPx'), u_speed: go.getUniformLocation(P,'u_speed'), u_amp: go.getUniformLocation(P,'u_amp'), u_shape: go.getUniformLocation(P,'u_shape'), u_soft: go.getUniformLocation(P,'u_soft'), u_pulseOn: go.getUniformLocation(P,'u_pulseOn') };
-    const bufR = go.createBuffer(); go.enable(go.BLEND); go.blendFunc(go.SRC_ALPHA, go.ONE_MINUS_SRC_ALPHA);
-
-    function pushQuadR(arr, x0,y0, x1,y1, halfW, t0, t1, rgb, alpha){
-      const dx=x1-x0, dy=y1-y0; const L=Math.hypot(dx,dy)||1; const nx=-dy/L, ny=dx/L;
-      const lx0=x0+nx*halfW, ly0=y0+ny*halfW, rx0=x0-nx*halfW, ry0=y0-ny*halfW;
-      const lx1=x1+nx*halfW, ly1=y1+ny*halfW, rx1=x1-nx*halfW, ry1=y1-ny*halfW;
-      const pushV=(x,y,t)=>{ arr.push(x,y,t, rgb[0],rgb[1],rgb[2], alpha); };
-      pushV(lx0,ly0,t0); pushV(lx1,ly1,t1); pushV(rx0,ry0,t0);
-      pushV(rx0,ry0,t0); pushV(lx1,ly1,t1); pushV(rx1,ry1,t1);
-    }
-
-    function drawFrameGL(timeSec){
-      go.useProgram(P);
-      go.viewport(0,0,W,H);
-      go.uniform2f(loc.u_res,W,H);
-      go.uniform1f(loc.u_time,timeSec);
-      go.uniform1f(loc.u_freqPx,S.pulseFreqCP100/100);
-      go.uniform1f(loc.u_speed,S.pulseSpeed);
-      go.uniform1f(loc.u_amp,S.pulseAmp);
-      go.uniform1f(loc.u_shape, S.pulseShape==='square'?1:0);
-      go.uniform1f(loc.u_soft,S.pulseSoft);
-      go.uniform1f(loc.u_pulseOn,S.pulseOn?1:0);
-
-      const verts=[];
-      const base=S.angleDeg*Math.PI/180, spread=(S.spreadDeg||0)*Math.PI/180, n=S.beamCount|0, half=(S.beamWidth||2)/2;
-      for(let em=0; em<S.emitters.length; em++){
-        const E=S.emitters[em];
-        for(let i=0;i<n;i++){
-          const off=(n===1)?0:(i/(n-1)-0.5);
-          const ang=base + off*spread + (S.perBeamPhase[i]||0)*Math.PI/180;
-          const dir={x:Math.cos(ang),y:Math.sin(ang)};
-          const segs=computePath(E,dir);
-          const col=S.beamPalette[i%S.beamPalette.length]; const adjH = (((col.h + (S.hueOffset||0) + (i/Math.max(1,(S.beamCount||1))) * (S.hueSpread||0)) % 360) + 360) % 360; const rgb=hslToRgb(adjH,col.s,col.l);
-          const kx=W/glCanvas.width, ky=H/glCanvas.height; const ks = W/glCanvas.width; // for t in px
-          for(const s of segs){
-  const baseA = s.intensity;
-const steps = 1;
-  const curve = 1.0;
-  const maxW = 1.0;
-  for(let gi=0; gi<steps; gi++){
-    const t = (steps<=1)? 0 : (gi/(steps-1));
-    const wMul = (gi===0)? 1.0 : 1.0 + Math.pow(t, curve) * (maxW - 1.0);
-    const a = baseA * (gi===0 ? 1.0 : Math.pow(Math.min(0.99, Math.max(0.01, (S.glowFalloffRatio||0.36))), gi));
-    const w = half*ks * wMul;
-    pushQuadR(verts, s.from.x*kx, s.from.y*ky, s.to.x*kx, s.to.y*ky, w, s.cum*ks, (s.cum+s.len)*ks, rgb, a);
-  }
-}
-        }
-      }
-      const data=new Float32Array(verts);
-      go.bindBuffer(go.ARRAY_BUFFER, bufR); go.bufferData(go.ARRAY_BUFFER, data, go.DYNAMIC_DRAW);
-      const stride=7*4;
-      go.enableVertexAttribArray(loc.a_pos); go.vertexAttribPointer(loc.a_pos,2,go.FLOAT,false,stride,0);
-      go.enableVertexAttribArray(loc.a_t); go.vertexAttribPointer(loc.a_t,1,go.FLOAT,false,stride,2*4);
-      go.enableVertexAttribArray(loc.a_col); go.vertexAttribPointer(loc.a_col,3,go.FLOAT,false,stride,3*4);
-      go.enableVertexAttribArray(loc.a_alpha); go.vertexAttribPointer(loc.a_alpha,1,go.FLOAT,false,stride,6*4);
-      go.clearColor(0,0,0,1); go.clear(go.COLOR_BUFFER_BIT);
-      go.drawArrays(go.TRIANGLES,0,data.length/7);
-    }
-    function drawOverlay2D(){
-      oo.setTransform(1,0,0,1,0,0); oo.clearRect(0,0,W,H); oo.strokeStyle='#2b2f36'; oo.lineWidth=2; oo.beginPath();
-      if(S.isCircle){ const kx=W/glCanvas.width, ky=H/glCanvas.height; const cx=S.circle.cx*kx, cy=S.circle.cy*ky; const R=S.circle.R*kx; oo.arc(cx,cy,R,0,Math.PI*2); }
-      else { const v=S.vertices; if(v.length){ const kx=W/glCanvas.width, ky=H/glCanvas.height; oo.moveTo(v[0].x*kx,v[0].y*ky); for(let i=1;i<v.length;i++) oo.lineTo(v[i].x*kx,v[i].y*ky); oo.closePath(); } }
-      oo.stroke();
-    }
-
-    const comp = document.createElement('canvas'); comp.width=W; comp.height=H; const cctx = comp.getContext('2d');
-    const fpsTrack = comp.captureStream(fps);
-    recStream = fpsTrack; recChunks = [];
-    const bitrate = Math.round(Math.max(4e6, Math.min(4e7, W*H*fps*0.07))); // 4–40 Mbps
-    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm;codecs=vp8';
-    recMedia = new MediaRecorder(recStream, {mimeType:mime, videoBitsPerSecond:bitrate});
-    recMedia.ondataavailable = e=>{ if(e.data && e.data.size) recChunks.push(e.data); };
-    recMedia.onstop = ()=>{ const blob = new Blob(recChunks, {type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='laser-room-render.webm'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); renderRunning=false; };
-    recMedia.start();
-
-    renderRunning=true;
-    const dt = 1/fps; let t = 0; const total = secs;
-    function step(){
-      if(!renderRunning){ recMedia.stop(); return; }
-      if(S.rotationSpeed>0) S.angleDeg=(S.angleDeg + S.rotationSpeed*dt)%360;
-      for(let i=0;i<S.perBeamPhase.length;i++) S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i]||0)*S.speedMultiplier*dt) % 360;
-      drawFrameGL(t); drawOverlay2D(); cctx.drawImage(g,0,0); cctx.drawImage(o,0,0);
-      t += dt; if(t<total) requestAnimationFrame(step); else { recMedia.stop(); }
-    }
-    requestAnimationFrame(step);
-  }
-  function stopRenderer(){ if(renderRunning && recMedia && recMedia.state==='recording'){ renderRunning=false; recMedia.stop(); } }
-  if(renderStartBtn) renderStartBtn.addEventListener('click', startRenderer);
-  if(renderStopBtn) renderStopBtn.addEventListener('click', stopRenderer);
-
-  // ---- Init ----
-  function init(){
+  // Init
+  function init() {
     glInit();
-    resize(); window.addEventListener('resize', resize);
+    resize();
+    window.addEventListener('resize', resize);
     updateReflect();
-    // Random emitter start each load
-    S.emitters = [{x:0,y:0}];
-    buildShape(); randomizeEmitters();
-    S.beamPalette = generatePalette(S.beamScheme); rebuildBeamSwatches();
-    ensureSpeedArrays(S.beamCount); applyPrimeSpeeds('raw'); // default raw primes; raises speedMax automatically
-    rebuildBeamSpeedInputs();
+    S.emitters = [randomPointInRoom()];
+    updateNormFromEmitters();
+    S.beamPalette = generatePalette(S.beamScheme);
+    S.emitterPalettes = [S.beamPalette];
+    ensureEmitterPalettes();
+    rebuildBeamSwatches();
+    ensureSpeedArrays(S.beamCount);
+    applySpeedPattern();
+    loadScenes();
+    // Initialize wander seeds with random phases
+    for (let i = 0; i < 4; i++) {
+      S.motion.wanderSeedsX[i] = Math.random() * 100;
+      S.motion.wanderSeedsY[i] = Math.random() * 100;
+    }
     requestAnimationFrame(loop);
   }
   init();
-
-  // Tiny self-tests
-  (function tests(){
-    const fails=[]; const expect=(ok,msg)=>{ if(!ok) fails.push(msg); };
-    try{
-      S.polygonType='circle'; buildShape(); expect(S.isCircle && S.circle.R>0,'Circle build');
-      const segs = computePath({x:S.circle.cx,y:S.circle.cy},{x:1,y:0}); expect(segs.length>0,'Path segments');
-      const primes = (function(n){const a=[];let x=2;while(a.length<n){let ok=true;for(const p of a){if(p*p>x)break;if(x%p===0){ok=false;break;}}if(ok)a.push(x);x++;}return a;})(7);
-      expect(JSON.stringify(primes)==='[2,3,5,7,11,13,17]','Prime gen');
-      // ensure raw primes lift speedMax
-      const _oldBC=S.beamCount; ensureSpeedArrays(10); setSpeedMax(5); applyPrimeSpeeds('raw'); expect(S.speedMax>=29,'speedMax raised for raw primes'); S.beamCount=_oldBC; ensureSpeedArrays(_oldBC);
-    }catch(e){ fails.push('Self-test crash: '+e.message); }
-    if(fails.length) console.error('❌ Tests:',fails); else console.log('✅ Tests passed');
-  })();
 })();
 </script>
 </body>
 </html>
-
-<script>
-// ---- Glow UI bridge (non-invasive; engine untouched) ----
-(function(){
-  function _el(id){ return document.getElementById(id); }
-  function linkResolution(){
-    const r=_el('glowResolution'), n=_el('glowResolutionExact');
-    if(!r||!n) return;
-    const clamp = v => Math.max(1, Math.min(64, v|0));
-    r.addEventListener('input', ()=>{ n.value=r.value; apply(); });
-    n.addEventListener('input', ()=>{ r.value=clamp(parseInt(n.value,10)||1); apply(); });
-    n.value = r.value;
-  }
-  function apply(){}
-    if (gs){ const v=parseFloat(gs.value); if(!Number.isNaN(v)) S.glowMaxWidth=Math.max(1, v*2); }
-    if (gc){ const v=parseFloat(gc.value); if(!Number.isNaN(v)) S.glowCurve=v; }
-  }
-  function wire(){ try{ linkResolution(); }catch(_){ /* no glow UI present; safe to ignore */ } });
-    apply();
-  }
-  function waitAndWire(){
-    if (window.S){ wire(); }
-    else { setTimeout(waitAndWire, 50); }
-  }
-  document.addEventListener('DOMContentLoaded', waitAndWire);
-})();
-</script>
-
-<script>
-}
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', link); else link();
-})();
-</script>

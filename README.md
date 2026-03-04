@@ -1,50 +1,86 @@
 # Voidulator
 
-A real-time laser beam simulation system built in HTML5/WebGL2 that renders animated laser beams bouncing within various geometric room shapes.
+A real-time laser beam simulation built with HTML5/WebGL2. Create mesmerizing visual patterns with bouncing laser beams, trails, pulse effects, and more.
+
+![Voidulator](https://img.shields.io/badge/version-0.7.0-orange) ![WebGL2](https://img.shields.io/badge/WebGL2-required-blue)
 
 ## Features
 
-- **Advanced Laser Physics**: Ray tracing with realistic reflection and attenuation
-- **Multiple Room Shapes**: Circle, polygons, random shapes, and organic blobs
-- **Multi-Emitter System**: Up to 4 draggable laser emitters
-- **Spectacular Glow Effects**: Multi-layer gradient shading with additive blending
-- **Advanced Rotation**: Individual beam speeds with prime number presets
-- **Pulse Effects**: Sine and square wave patterns with GPU shaders
-- **Color Management**: 8 built-in color schemes plus custom palettes
-- **Performance Optimized**: Path caching and adaptive frame rates
-- **Video Export**: High-quality WebM rendering at custom resolutions
-- **Preset System**: Built-in spectacular presets plus save/load functionality
+### Core Simulation
+- **Ray Tracing**: Realistic laser beam reflections with adjustable reflectivity and bounce limits
+- **Multiple Room Shapes**: Circle, triangle, square, pentagon, hexagon, random polygons, and organic blobs
+- **Multi-Emitter System**: Up to 4 draggable laser emitters with symmetric positioning options
+- **Per-Beam Rotation**: Individual beam speeds with prime number patterns
+
+### Visual Effects
+- **Pulse Effect** (GPU shader): Sine and square wave patterns along beams
+  - Adjustable amplitude, frequency, speed, softness
+  - Duty cycle control (0 = black, 1 = full brightness)
+- **Width Wave**: Beam thickness oscillates along its length
+  - Amount, frequency, speed controls
+  - Duty cycle for gaps/thick sections
+- **Trails**: Persistent afterglow with framebuffer ping-pong rendering
+  - Adjustable length (fade duration)
+  - Hue shift (0° = same color, 180° = complementary)
+- **Brightness Oscillation**: Global brightness pulsing over time
+- **Blend Modes**: Normal and Additive blending
+
+### Color System
+- **Color Schemes**: Rainbow, Triad, Analogous, Warm, Cool, Monochrome, Grayscale, Muted, Earth tones, Noir, Duotones, and more
+- **Custom Palettes**: Click any color swatch to customize
+- **Per-Emitter Colors**: Each emitter can have its own palette
+- **Hue Rotation**: Continuous color shifting over time
+- **Drag-to-Reorder**: Reorder beam layers by dragging swatches
+
+### Scenes & Presets
+- **8 Scene Slots**: Save and recall complete configurations
+- **Keyboard Shortcuts**: Keys 1-8 to trigger scenes, Shift+Click to save
+- **Smooth Transitions**: Adjustable crossfade between scenes
+- **File Presets**: Export/import JSON preset files
+
+### Controls
+- **WASD Keys**: Move emitter position
+- **Fullscreen**: F key or button
+- **Speed Multiplier**: Fine control with 0.01/0.001 step buttons
+- **Symmetric Emitters**: Auto-position emitters in circular pattern
 
 ## Quick Start
 
-1. Open `index.html` in a modern web browser with WebGL2 support
-2. Try the preset buttons: "✨ Spectacular glow", "🌈 Rainbow burst", "⚡ Cyberpunk"
-3. Drag emitters around the room
-4. Adjust glow settings for stunning visual effects
-
-## Controls
-
-- **Room Shape**: Choose from circle, polygons, or organic shapes
-- **Beam Count**: 1-24 beams per emitter
-- **Glow Layers**: 0-3 layers with gradient shading
-- **Speed Multiplier**: Global control for all beam rotation speeds
-- **Pulse Effects**: GPU-accelerated wave patterns
-- **Video Rendering**: Export high-quality animations
-
-## Technology
-
-- Pure HTML5/CSS3/JavaScript - no external dependencies
-- WebGL2 with custom vertex and fragment shaders
-- Hardware-accelerated GPU rendering
-- Advanced mathematical ray tracing algorithms
-- Real-time performance optimization
+1. Open `index.html` in a modern browser (Chrome, Firefox, Safari, Edge)
+2. Adjust beam count, enable some effects (Pulse, Width Wave, Trails)
+3. Drag the emitter dot around
+4. Experiment with color schemes and rotation patterns
+5. Save your favorite looks to scene slots
 
 ## Browser Requirements
 
-- WebGL2 support (Chrome 56+, Firefox 51+, Safari 15+)
+- WebGL2 support (Chrome 56+, Firefox 51+, Safari 15+, Edge 79+)
 - Modern JavaScript (ES6+)
-- MediaRecorder API for video export
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| W/A/S/D | Move emitter |
+| F | Toggle fullscreen |
+| 1-8 | Load scene slot |
+| Shift + 1-8 | Save to scene slot |
+
+## Technology
+
+- Pure HTML5/CSS3/JavaScript — no dependencies
+- WebGL2 with custom GLSL shaders
+- Framebuffer ping-pong for trail rendering
+- Real-time ray tracing
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## License
+
+MIT License - feel free to use, modify, and share.
 
 ---
 
-*Developed with advanced AI assistance using Claude Code*
+*Built with Claude AI assistance*
