@@ -1,86 +1,127 @@
 # Voidulator
 
-A real-time laser beam simulation built with HTML5/WebGL2. Create mesmerizing visual patterns with bouncing laser beams, trails, pulse effects, and more.
+A mesmerizing WebGL2 laser room simulator with reflections, shapes, and visual effects. Create stunning generative visual art in your browser.
 
-![Voidulator](https://img.shields.io/badge/version-0.7.0-orange) ![WebGL2](https://img.shields.io/badge/WebGL2-required-blue)
+🔗 **[Try it live](https://ollxor.github.io/Voidulator/)** (if hosted on GitHub Pages)
 
 ## Features
 
-### Core Simulation
-- **Ray Tracing**: Realistic laser beam reflections with adjustable reflectivity and bounce limits
-- **Multiple Room Shapes**: Circle, triangle, square, pentagon, hexagon, random polygons, and organic blobs
-- **Multi-Emitter System**: Up to 4 draggable laser emitters with symmetric positioning options
-- **Per-Beam Rotation**: Individual beam speeds with prime number patterns
-
-### Visual Effects
-- **Pulse Effect** (GPU shader): Sine and square wave patterns along beams
-  - Adjustable amplitude, frequency, speed, softness
-  - Duty cycle control (0 = black, 1 = full brightness)
-- **Width Wave**: Beam thickness oscillates along its length
-  - Amount, frequency, speed controls
-  - Duty cycle for gaps/thick sections
-- **Trails**: Persistent afterglow with framebuffer ping-pong rendering
-  - Adjustable length (fade duration)
-  - Hue shift (0° = same color, 180° = complementary)
-- **Brightness Oscillation**: Global brightness pulsing over time
-- **Blend Modes**: Normal and Additive blending
+### Core Controls
+- **Reflectivity** — How much light bounces off walls (gamma-eased for intuitive control)
+- **Max Bounces** — Up to 300 reflections per beam
+- **Beam Width** — Thickness of laser beams (0.5–8)
+- **Beam Count** — Multiple beams per emitter (1–24)
+- **Layer Mode** — Depth or Flat rendering
+- **Blend Mode** — Normal or Additive blending
 
 ### Color System
-- **Color Schemes**: Rainbow, Triad, Analogous, Warm, Cool, Monochrome, Grayscale, Muted, Earth tones, Noir, Duotones, and more
-- **Custom Palettes**: Click any color swatch to customize
-- **Per-Emitter Colors**: Each emitter can have its own palette
-- **Hue Rotation**: Continuous color shifting over time
-- **Drag-to-Reorder**: Reorder beam layers by dragging swatches
+- **16+ Color Schemes** — Rainbow, Grayscale, Warm, Cool, Noir, Duotone, and more
+- **Per-emitter Palettes** — Each emitter can have its own color scheme
+- **Drag-to-reorder** — Rearrange beam layer order by dragging swatches
 
-### Scenes & Presets
-- **8 Scene Slots**: Save and recall complete configurations
-- **Keyboard Shortcuts**: Keys 1-8 to trigger scenes, Shift+Click to save
-- **Smooth Transitions**: Adjustable crossfade between scenes
-- **File Presets**: Export/import JSON preset files
+### Per-beam Rotation
+- **Speed Patterns** — Prime, Linear, Exponential, Fibonacci, Alternating, Random
+- **Base Speed** — Control rotation intensity
+- **Individual Speeds** — Fine-tune each beam's rotation
 
-### Controls
-- **WASD Keys**: Move emitter position
-- **Fullscreen**: F key or button
-- **Speed Multiplier**: Fine control with 0.01/0.001 step buttons
-- **Symmetric Emitters**: Auto-position emitters in circular pattern
+### Pulse Effect (Shader)
+- **Shape** — Sine or Square wave
+- **Amplitude, Frequency, Speed** — Full control over pulse animation
+- **Softness** — Edge smoothness for square waves
+- **Duty Cycle** — Control light/dark ratio
 
-## Quick Start
+### Shape Flow (Width Wave)
+- **Shapes** — Circle, Triangle, Square, Pentagon, Hexagon patterns
+- **Density** — Pattern frequency along beams
+- **Size** — Shape size (duty cycle)
+- **Flow** — Animation direction (inward/outward)
+- **Spin** — Rotation of the pattern
 
-1. Open `index.html` in a modern browser (Chrome, Firefox, Safari, Edge)
-2. Adjust beam count, enable some effects (Pulse, Width Wave, Trails)
-3. Drag the emitter dot around
-4. Experiment with color schemes and rotation patterns
-5. Save your favorite looks to scene slots
+### Shader Effects
+- **Edge Fade** — Beams fade near room boundary
+- **Glow** — Soft halo around shapes
 
-## Browser Requirements
+### Trails
+- **Length** — Trail persistence (1–180 frames)
+- **Hue Shift** — Color rotation over trail length
 
-- WebGL2 support (Chrome 56+, Firefox 51+, Safari 15+, Edge 79+)
-- Modern JavaScript (ES6+)
+### Scene System
+- **8 Quick Slots** — Save/recall with Shift+Click or keys 1-8
+- **Named Scenes** — Organize with custom names
+- **Smooth Transitions** — Configurable crossfade duration
+- **Screensaver Mode** — Auto-cycle through saved scenes
+
+### Emitters
+- **Multiple Emitters** — Up to 4 independent light sources
+- **Symmetry Mode** — Mirror emitter movements
+- **Draggable** — Position emitters by dragging on canvas
+- **Movement Speed** — Control wander/orbit speed
+
+### Room Shapes
+- Circle, Triangle, Square, Pentagon, Hexagon
+- Randomgon (random polygon)
+- Blob (smooth organic shape)
+
+### Audio Reactive
+- **Mic Input** — React to ambient sound
+- **Targets** — Map audio to angle, spread, width, pulse speed/freq, center range
+- **Band Selection** — Full spectrum, bass, mids, or highs
+- **Sensitivity & Smoothing** — Fine-tune responsiveness
+
+### UI Themes
+- **Classic** — Orange/teal monospace aesthetic
+- **Coral** — Bioluminescent deep-sea theme with chromatic gradient sliders
+
+### Additional Features
+- **Fullscreen Mode** — Press F or click ⛶
+- **Hide UI** — Press H for clean view
+- **Share** — Generate URL with encoded state
+- **Export/Import** — Save presets as JSON files
+- **Autosave** — State saved every 5 seconds
+- **PWA Support** — Install as standalone app
+- **Keyboard Shortcuts** — 1-8 for scenes, F for fullscreen, H for hide UI
 
 ## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| W/A/S/D | Move emitter |
-| F | Toggle fullscreen |
-| 1-8 | Load scene slot |
-| Shift + 1-8 | Save to scene slot |
+| `1`–`8` | Go to scene slot |
+| `Shift+1`–`8` | Save to scene slot |
+| `F` | Toggle fullscreen |
+| `H` | Toggle UI visibility |
 
-## Technology
+## Technical Details
 
-- Pure HTML5/CSS3/JavaScript — no dependencies
-- WebGL2 with custom GLSL shaders
-- Framebuffer ping-pong for trail rendering
-- Real-time ray tracing
+- **Single HTML file** — No build step, no dependencies
+- **WebGL2** — Hardware-accelerated rendering
+- **~4700 lines** — Complete implementation in one file
+- **LocalStorage** — Persistent state and scenes
 
-## Changelog
+## Browser Support
 
-See [CHANGELOG.md](CHANGELOG.md) for version history.
+Requires WebGL2 support:
+- Chrome 56+
+- Firefox 51+
+- Safari 15+
+- Edge 79+
+
+## Development
+
+This project was developed using AI-assisted "vibe coding" — iterative development through conversation with Claude.
+
+### Running Locally
+
+Simply open `index.html` in a modern browser. No server required for basic functionality.
+
+For PWA features, serve over HTTPS:
+```bash
+npx serve .
+```
 
 ## License
 
-MIT License - feel free to use, modify, and share.
+MIT License — feel free to use, modify, and share.
 
----
+## Credits
 
-*Built with Claude AI assistance*
+Created by [Ollxor](https://github.com/Ollxor) with AI assistance from Claude (Anthropic).

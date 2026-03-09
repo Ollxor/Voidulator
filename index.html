@@ -1,12 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<html lang="en" data-theme="classic"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Voidulator – Laser Room Simulator</title>
+
+<!-- PWA Support -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff9f1c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Voidulator">
+
+<!-- SEO & Social -->
+<meta name="description" content="Mesmerizing laser room simulator with reflections, shapes, and visual effects. Create stunning visual art.">
+<meta name="keywords" content="laser, visualizer, art, generative, WebGL, animation, screensaver">
+
 <style>
-  :root {
-    --bg: #08090b;
+  /* === THEME: CLASSIC === */
+  :root, [data-theme="classic"] {
+    --bg: #000000;
     --panel: #1a1e24;
     --panel-top: #22272f;
     --stroke: #2a2f38;
@@ -17,12 +28,35 @@
     --text: #ffffff;
     --text-dim: #c8c0b8;
     --input-bg: #0e1014;
+    --slider-track: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
+    --slider-track-border: #4a8595;
+    --slider-thumb: var(--accent);
+    --slider-thumb-border: var(--accent-dim);
+  }
+
+  /* === THEME: CORAL (Bioluminescent Deep Sea) === */
+  [data-theme="coral"] {
+    --bg: #050a10;
+    --panel: #0a1218;
+    --panel-top: #0d1820;
+    --stroke: rgba(80, 180, 220, 0.12);
+    --stroke-glow: rgba(80, 220, 180, 0.2);
+    --accent: #60e0c0;
+    --accent-dim: #40b090;
+    --accent-glow: rgba(80, 220, 180, 0.4);
+    --text: #c0e8ff;
+    --text-dim: #80b8d8;
+    --input-bg: rgba(60, 140, 180, 0.08);
+    --slider-track: linear-gradient(90deg, #20a0a0, #40c0b0, #80b0d0, #c080c0, #e080a0);
+    --slider-track-border: rgba(80, 180, 220, 0.1);
+    --slider-thumb: #60e0c0;
+    --slider-thumb-border: #40c0a0;
   }
 
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
-    background: var(--bg);
+    background: #000;
     color: var(--text);
     font: 16px/1.4 'Consolas', 'Monaco', 'Courier New', monospace;
     text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 0 8px rgba(0,0,0,0.4);
@@ -31,9 +65,10 @@
   .app {
     display: grid;
     grid-template-columns: 1fr 480px;
-    gap: 12px;
+    gap: 8px;
     min-height: 100svh;
-    padding: 12px;
+    padding: 8px;
+    background: #000;
   }
   @media (max-width: 900px) {
     .app { grid-template-columns: 1fr; grid-auto-rows: min-content; }
@@ -42,20 +77,21 @@
   /* Stage */
   .stage {
     position: relative;
-    border: 1px solid var(--stroke);
-    border-radius: 6px;
+    border: none;
+    border-radius: 0;
     overflow: hidden;
     min-height: 50vh;
     background: #000;
-    box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 0 1px var(--accent-glow);
+    box-shadow: none;
     aspect-ratio: 1 / 1;
-    max-height: calc(100vh - 24px);
+    max-height: calc(100vh - 16px);
     justify-self: center;
     width: 100%;
-    max-width: calc(100vh - 24px);
+    max-width: calc(100vh - 16px);
+    outline: none;
   }
-  canvas { display: block; width: 100%; height: 100%; }
-  #gl { position: absolute; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; border: none; outline: none; }
+  #gl { position: absolute; inset: 0; background: #000; }
   #overlay { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
 
   /* Panel */
@@ -130,46 +166,46 @@
   }
   input[type="range"]::-webkit-slider-runnable-track {
     height: 6px;
-    background: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
+    background: var(--slider-track);
     border-radius: 3px;
-    border: 1px solid #4a8595;
+    border: 1px solid var(--slider-track-border);
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 14px;
     height: 14px;
-    background: var(--accent);
+    background: var(--slider-thumb);
     border-radius: 3px;
     margin-top: -5px;
     box-shadow: 0 0 8px var(--accent-glow);
-    border: 1px solid #cc7a10;
+    border: 1px solid var(--slider-thumb-border);
   }
   input[type="range"]::-moz-range-track {
     height: 6px;
-    background: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
+    background: var(--slider-track);
     border-radius: 3px;
-    border: 1px solid #4a8595;
+    border: 1px solid var(--slider-track-border);
   }
   input[type="range"]::-moz-range-thumb {
     width: 14px;
     height: 14px;
-    background: var(--accent);
+    background: var(--slider-thumb);
     border-radius: 3px;
-    border: 1px solid #cc7a10;
+    border: 1px solid var(--slider-thumb-border);
     box-shadow: 0 0 8px var(--accent-glow);
   }
   input[type="range"]::-ms-track {
     height: 6px;
-    background: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
+    background: var(--slider-track);
     border-radius: 3px;
-    border: 1px solid #4a8595;
+    border: 1px solid var(--slider-track-border);
   }
   input[type="range"]::-ms-thumb {
     width: 14px;
     height: 14px;
-    background: var(--accent);
+    background: var(--slider-thumb);
     border-radius: 3px;
-    border: 1px solid #cc7a10;
+    border: 1px solid var(--slider-thumb-border);
   }
 
   /* Select dropdowns */
@@ -458,17 +494,527 @@
     .stage { position: sticky; top: 0; z-index: 5; max-height: 100vh; }
     .panel { max-height: 100vh; overflow: auto; }
   }
+  
+  /* Clickable labels to reset sliders */
+  label.clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  label.clickable:hover {
+    color: #f5a623;
+  }
+
+  /* === Fullscreen mode === */
+  body.fullscreen-mode {
+    overflow: hidden;
+    background: #000 !important;
+  }
+  body.fullscreen-mode .app {
+    grid-template-columns: 1fr;
+    padding: 0;
+    gap: 0;
+    background: #000;
+  }
+  body.fullscreen-mode .stage {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    border-radius: 0;
+    border: none;
+    min-height: 100vh;
+    max-height: none !important;
+    background: #000;
+  }
+  body.fullscreen-mode .panel {
+    display: none;
+  }
+  body.fullscreen-mode .fullscreen-hint {
+    display: block;
+  }
+  body.fullscreen-mode .header-buttons {
+    display: none;
+  }
+  .fullscreen-hint {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 10001;
+    opacity: 0;
+    animation: fadeHint 3s forwards;
+  }
+  @keyframes fadeHint {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* === Hide UI mode === */
+  body.hide-ui {
+    background: #000 !important;
+  }
+  body.hide-ui .panel {
+    display: none;
+  }
+  body.hide-ui .app {
+    grid-template-columns: 1fr;
+    padding: 0;
+    gap: 0;
+    background: #000;
+  }
+  body.hide-ui .stage {
+    border: none;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+  body.hide-ui .header-buttons {
+    display: none;
+  }
+
+  /* === Loading spinner === */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    transition: opacity 0.5s;
+  }
+  .loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid #333;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .loading-text {
+    margin-top: 16px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  /* === Fallback message === */
+  .fallback-message {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #000;
+    color: #fff;
+    z-index: 99998;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+  }
+  .fallback-message.visible {
+    display: flex;
+  }
+  .fallback-message h1 {
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+  .fallback-message p {
+    max-width: 400px;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  /* === Portrait warning (mobile) === */
+  .portrait-warning {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 99990;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+  }
+  .portrait-warning.visible {
+    display: flex;
+  }
+  .rotate-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: rotateHint 2s ease-in-out infinite;
+  }
+  @keyframes rotateHint {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(90deg); }
+  }
+
+  /* === Panel header with buttons === */
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .panel-header h2 {
+    margin: 0;
+  }
+  .header-buttons {
+    display: flex;
+    gap: 6px;
+  }
+  .toolbar-btn {
+    background: var(--input-bg);
+    border: 1px solid var(--stroke);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .toolbar-btn:hover {
+    background: rgba(255,159,28,0.3);
+    border-color: var(--accent);
+  }
+  .toolbar-btn.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* === Screensaver indicator === */
+  .screensaver-indicator {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    background: rgba(0,0,0,0.6);
+    color: var(--accent);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 10000;
+    display: none;
+  }
+  .screensaver-indicator.visible {
+    display: block;
+  }
+
+  /* === Share modal === */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.visible {
+    display: flex;
+  }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--stroke);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+  }
+  .modal h2 {
+    margin: 0 0 16px;
+    color: var(--accent);
+  }
+  .modal-url {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--stroke);
+    color: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  .modal-buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .modal-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    border: 1px solid var(--stroke);
+    background: var(--input-bg);
+    color: #fff;
+    transition: all 0.2s;
+  }
+  .modal-btn:hover {
+    border-color: var(--accent);
+  }
+  .modal-btn.primary {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+
+  /* ============================================
+     CORAL THEME OVERRIDES
+     ============================================ */
+  
+  /* Panel styling */
+  [data-theme="coral"] .panel {
+    background: linear-gradient(180deg, #0d1820 0%, #080e14 100%);
+    border: 1px solid rgba(80, 180, 220, 0.1);
+    box-shadow: 
+      inset 0 1px 0 rgba(100, 200, 255, 0.05),
+      0 0 60px rgba(60, 140, 180, 0.08);
+  }
+
+  /* Group containers */
+  [data-theme="coral"] .group {
+    background: rgba(60, 140, 180, 0.04);
+    border: 1px solid rgba(80, 180, 220, 0.08);
+    border-radius: 12px;
+  }
+
+  /* Group titles */
+  [data-theme="coral"] .group-title {
+    color: #60d0e0;
+    text-shadow: 0 0 12px rgba(80, 200, 220, 0.4);
+  }
+
+  /* Labels */
+  [data-theme="coral"] label {
+    color: #80b8d8;
+    text-shadow: 0 0 8px rgba(80, 180, 220, 0.15);
+  }
+
+  /* Chromatic gradient slider tracks */
+  [data-theme="coral"] input[type="range"] {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background: transparent !important;
+  }
+  [data-theme="coral"] input[type="range"]::-webkit-slider-runnable-track {
+    height: 8px !important;
+    background: linear-gradient(90deg, 
+      #20a0a0 0%, 
+      #40c0b0 25%, 
+      #80b0d0 50%, 
+      #c080c0 75%, 
+      #e080a0 100%
+    ) !important;
+    border-radius: 8px !important;
+    border: none !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3), 0 0 10px rgba(80, 180, 180, 0.15) !important;
+  }
+  [data-theme="coral"] input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    background: radial-gradient(circle at 30% 30%, #a0fff0, #60e0c0) !important;
+    border-radius: 50% !important;
+    margin-top: -5px !important;
+    box-shadow: 0 0 12px rgba(80, 220, 180, 0.6), 0 2px 4px rgba(0,0,0,0.3) !important;
+    border: 2px solid rgba(255,255,255,0.3) !important;
+    cursor: pointer !important;
+  }
+  [data-theme="coral"] input[type="range"]::-moz-range-track {
+    height: 8px !important;
+    background: linear-gradient(90deg, 
+      #20a0a0 0%, 
+      #40c0b0 25%, 
+      #80b0d0 50%, 
+      #c080c0 75%, 
+      #e080a0 100%
+    ) !important;
+    border-radius: 8px !important;
+    border: none !important;
+  }
+  [data-theme="coral"] input[type="range"]::-moz-range-thumb {
+    width: 18px !important;
+    height: 18px !important;
+    background: radial-gradient(circle at 30% 30%, #a0fff0, #60e0c0) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 0 12px rgba(80, 220, 180, 0.6), 0 2px 4px rgba(0,0,0,0.3) !important;
+    border: 2px solid rgba(255,255,255,0.3) !important;
+    cursor: pointer !important;
+  }
+
+  /* Buttons */
+  [data-theme="coral"] .btn {
+    background: rgba(60, 140, 180, 0.12);
+    border: 1px solid rgba(80, 180, 220, 0.2);
+    border-radius: 8px;
+    color: #80c8e8;
+  }
+  [data-theme="coral"] .btn:hover {
+    background: rgba(80, 180, 220, 0.18);
+    border-color: rgba(80, 220, 180, 0.4);
+    color: #a0e8ff;
+    box-shadow: 0 0 15px rgba(80, 220, 180, 0.2);
+  }
+
+  /* Select dropdowns */
+  [data-theme="coral"] select {
+    background: rgba(60, 140, 180, 0.1);
+    border: 1px solid rgba(80, 180, 220, 0.15);
+    border-radius: 8px;
+    color: #a0d8f0;
+  }
+  [data-theme="coral"] select option {
+    background: #0a1218;
+    color: #a0d8f0;
+  }
+
+  /* Number inputs */
+  [data-theme="coral"] input[type="number"] {
+    background: rgba(60, 140, 180, 0.08);
+    border: 1px solid rgba(80, 180, 220, 0.12);
+    border-radius: 6px;
+    color: #80e0c0;
+    text-shadow: 0 0 8px rgba(80, 220, 180, 0.3);
+  }
+
+  /* Text inputs */
+  [data-theme="coral"] input[type="text"] {
+    background: rgba(60, 140, 180, 0.08);
+    border: 1px solid rgba(80, 180, 220, 0.12);
+    border-radius: 8px;
+    color: #a0d8f0;
+  }
+
+  /* H2 title */
+  [data-theme="coral"] h2 {
+    color: #a0e0ff;
+    text-shadow: 0 0 20px rgba(100, 200, 255, 0.3);
+    border-bottom-color: rgba(80, 180, 220, 0.15);
+  }
+
+  /* Stepper value */
+  [data-theme="coral"] .step-val {
+    color: #60e0c0;
+    text-shadow: 0 0 10px rgba(80, 220, 180, 0.4);
+  }
+
+  /* Scene slots */
+  [data-theme="coral"] .scene-slot.has-scene {
+    background: rgba(60, 180, 160, 0.15);
+    border-color: rgba(80, 220, 180, 0.3);
+    color: #60e0c0;
+  }
+  [data-theme="coral"] .scene-slot.active {
+    background: rgba(80, 220, 180, 0.2);
+    border-color: #60e0c0;
+    color: #a0fff0;
+    box-shadow: 0 0 15px rgba(80, 220, 180, 0.3);
+  }
+
+  /* Hint text */
+  [data-theme="coral"] .hint {
+    color: #5090a8;
+  }
+
+  /* Toolbar buttons */
+  [data-theme="coral"] .toolbar-btn {
+    background: rgba(60, 140, 180, 0.1);
+    border-color: rgba(80, 180, 220, 0.15);
+  }
+  [data-theme="coral"] .toolbar-btn:hover {
+    background: rgba(80, 220, 180, 0.15);
+    border-color: rgba(80, 220, 180, 0.4);
+  }
+  [data-theme="coral"] .toolbar-btn.active {
+    background: rgba(80, 220, 180, 0.25);
+    color: #a0fff0;
+  }
+
+  /* Collapsible arrow color */
+  [data-theme="coral"] .group.collapsible .group-title::after {
+    color: #60e0c0;
+  }
+
+  /* Color swatches */
+  [data-theme="coral"] input[type="color"] {
+    border-color: rgba(80, 180, 220, 0.2);
+  }
 </style>
 </head>
 <body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Initializing Voidulator...</div>
+</div>
+
+<!-- Fallback message for no WebGL2 -->
+<div class="fallback-message" id="fallbackMessage">
+  <h1>⚠️ WebGL2 Required</h1>
+  <p>Your browser or device doesn't support WebGL2, which is required for Voidulator to run.</p>
+  <p style="margin-top:12px;">Try using a modern browser like Chrome, Firefox, Edge, or Safari on a desktop or recent mobile device.</p>
+</div>
+
+<!-- Portrait warning -->
+<div class="portrait-warning" id="portraitWarning">
+  <div class="rotate-icon">📱</div>
+  <h2>Rotate Your Device</h2>
+  <p>Voidulator works best in landscape mode</p>
+</div>
+
+<!-- Share modal -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <h2>Share Voidulator</h2>
+    <input type="text" class="modal-url" id="shareUrl" readonly>
+    <div class="modal-buttons">
+      <button class="modal-btn" id="copyShareUrl">📋 Copy Link</button>
+      <button class="modal-btn" id="closeShareModal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen hint -->
+<div class="fullscreen-hint" id="fullscreenHint">Press F to exit fullscreen, H to toggle UI</div>
+
+<!-- Screensaver indicator -->
+<div class="screensaver-indicator" id="screensaverIndicator">🌙 Screensaver Mode</div>
+
 <div class="app">
   <div class="stage">
-    <canvas id="gl"></canvas>
-    <canvas id="overlay"></canvas>
+    <canvas id="gl" width="921" height="921" style="width: 921px; height: 921px;"></canvas>
+    <canvas id="overlay" width="921" height="921" style="width: 921px; height: 921px;"></canvas>
   </div>
 
   <div class="panel">
-    <h2>Voidulator</h2>
+    <div class="panel-header">
+      <h2>Voidulator</h2>
+      <div class="header-buttons">
+        <button class="toolbar-btn" id="btnTheme" title="Toggle Theme">🎨</button>
+        <button class="toolbar-btn" id="btnFullscreen" title="Fullscreen (F)">⛶</button>
+        <button class="toolbar-btn" id="btnScreensaver" title="Screensaver Mode">🌙</button>
+        <button class="toolbar-btn" id="btnShare" title="Share">🔗</button>
+        <button class="toolbar-btn" id="btnCast" title="Cast to TV">📺</button>
+      </div>
+    </div>
     <div class="grid">
       <div class="row"><label>Reflectivity</label>
         <input id="reflect" type="range" min="0" max="1" step="0.001" value="0.80">
@@ -491,7 +1037,7 @@
 
       <div class="row"><label>Blend mode</label>
         <select id="blendMode">
-          <option value="normal" selected>Normal</option>
+          <option value="normal" selected="">Normal</option>
           <option value="additive">Additive</option>
         </select>
       </div>
@@ -518,7 +1064,7 @@
         <div class="btn-row" style="gap:4px;">
           <button class="btn" id="speedStepDown">−</button>
           <select id="speedStepSize" style="flex:1;">
-            <option value="0.01" selected>0.01</option>
+            <option value="0.01" selected="">0.01</option>
             <option value="0.001">0.001</option>
           </select>
           <button class="btn" id="speedStepUp">+</button>
@@ -526,12 +1072,13 @@
       </div>
     </div>
 
-    <div class="group">
+    <div class="group collapsible">
       <div class="group-title">Colors</div>
+      <div class="group-content">
       <div class="subgrid">
         <label>Scheme</label>
         <select id="beamScheme">
-          <option value="custom" selected>Custom</option>
+          <option value="custom" selected="">Custom</option>
           <option value="grayscale">Greyscale</option>
           <option value="rainbow">Rainbow</option>
           <option value="triad">Triad</option>
@@ -548,31 +1095,22 @@
           <option value="pantone-soft">Pantone</option>
           <option value="random">Random</option>
         </select>
-        <label>Hue rotate</label>
-        <div class="ctrl-row">
-          <input id="hueRotateSpeed" type="range" min="0" max="60" step="0.5" value="0">
-          <input id="hueRotateSpeedNum" type="number" min="0" max="360" step="0.5" value="0">
-        </div>
-        <label>Brightness</label>
-        <button class="btn" id="brightnessOscToggle">Off</button>
-        <label>Bright amp</label>
-        <input id="brightnessOscAmp" type="range" min="0" max="1" step="0.05" value="0.5">
-        <label>Bright freq</label>
-        <input id="brightnessOscFreq" type="range" min="0.1" max="5" step="0.1" value="1">
       </div>
-      <div id="beamColors"></div>
+      <div id="beamColors"><div class="color-row" data-emitter="0"><div class="sw" draggable="true" data-beam-idx="0" data-order-idx="0" data-emitter="0"><label></label><input type="color"></div></div></div>
       <div class="btn-row">
         <button class="btn" id="shuffleScheme">Shuffle</button>
       </div>
-      <div class="hint">Hue rotate: °/s shift. Brightness: oscillate light/dark. Drag swatches for layer order.</div>
+      <div class="hint">Drag swatches to reorder layers.</div>
+      </div>
     </div>
 
-    <div class="group">
+    <div class="group collapsible">
       <div class="group-title">Per-beam Rotation</div>
+      <div class="group-content">
       <div class="subgrid">
         <label>Pattern</label>
         <select id="speedPattern">
-          <option value="prime" selected>Prime</option>
+          <option value="prime" selected="">Prime</option>
           <option value="linear">Linear</option>
           <option value="exponential">Exponential</option>
           <option value="fibonacci">Fibonacci</option>
@@ -586,14 +1124,16 @@
           <input id="patternBaseNum" type="number" min="0.1" max="50" step="0.1" value="2">
         </div>
       </div>
-      <div id="beamSpeeds"></div>
+      <div id="beamSpeeds"><div class="sw"><label>1</label><input type="number" step="0.1" min="-5" max="5"></div></div>
       <div class="btn-row">
         <button class="btn" id="resetPhases">Reset phases</button>
       </div>
+      </div>
     </div>
 
-    <div class="group">
+    <div class="group collapsible">
       <div class="group-title">Pulse Effect</div>
+      <div class="group-content">
       <div class="subgrid">
         <label>Enable</label>
         <button class="btn" id="pulseToggle">On</button>
@@ -611,27 +1151,46 @@
         <input id="pulseDuty" type="range" min="0" max="1" step="0.01" value="0.5">
       </div>
       <div class="hint">Duty: left = mostly dark, right = mostly light.</div>
+      </div>
     </div>
 
     <div class="group collapsible">
-      <div class="group-title">Width Wave</div>
+      <div class="group-title">Shape Flow</div>
       <div class="group-content">
         <div class="subgrid">
           <label>Enable</label>
           <button class="btn" id="widthWaveToggle">Off</button>
-          <label>Amount</label>
-          <div class="ctrl-row">
-            <input id="widthWaveAmount" type="range" min="0" max="3" step="0.1" value="1">
-            <input id="widthWaveAmountNum" type="number" min="0" max="3" step="0.1" value="1">
-          </div>
-          <label>Frequency</label>
-          <input id="widthWaveFreq" type="range" min="0.1" max="20" step="0.1" value="0.8">
-          <label>Speed</label>
-          <input id="widthWaveSpeed" type="range" min="0" max="400" step="1" value="100">
-          <label>Duty cycle</label>
-          <input id="widthWaveDuty" type="range" min="0" max="1" step="0.01" value="0.5">
+          <label>Shape</label>
+          <select id="widthWaveShape">
+            <option value="circle" selected>Circle</option>
+            <option value="triangle">Triangle</option>
+            <option value="square">Square</option>
+            <option value="pentagon">Pentagon</option>
+            <option value="hexagon">Hexagon</option>
+          </select>
+          <label id="lblDensity" class="clickable">Density</label>
+          <input id="widthWaveFreq" type="range" min="0.02" max="8" step="0.02" value="0.5">
+          <label id="lblSize" class="clickable">Size</label>
+          <input id="widthWaveDuty" type="range" min="0.01" max="1" step="0.01" value="0.5">
+          <label id="lblFlow" class="clickable">Flow</label>
+          <input id="widthWaveSpeed" type="range" min="-400" max="400" step="1" value="0">
+          <label id="lblSpin" class="clickable">Spin</label>
+          <input id="widthWaveRotation" type="range" min="-2" max="2" step="0.1" value="0">
         </div>
-        <div class="hint">Duty: 0=thin/gaps, 0.5=normal, 1=thick. Amount controls wave depth.</div>
+        <div class="hint">Click labels to reset. Flow: left=in, right=out.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible">
+      <div class="group-title">Shader Effects</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Edge Fade</label>
+          <input id="edgeFade" type="range" min="0" max="1" step="0.01" value="0">
+          <label>Glow</label>
+          <input id="shapeGlow" type="range" min="0" max="1" step="0.01" value="0">
+        </div>
+        <div class="hint">Edge Fade: fade near room boundary. Glow: soft halo around shapes.</div>
       </div>
     </div>
 
@@ -656,13 +1215,12 @@
       </div>
     </div>
 
-    <div class="group">
+    <div class="group collapsible">
       <div class="group-title">Scenes</div>
+      <div class="group-content">
       <div class="subgrid">
         <label>Scene</label>
-        <select id="sceneSelect">
-          <option value="">-- Select scene --</option>
-        </select>
+        <select id="sceneSelect"><option value="">-- Select scene --</option><option value="0">Scene 1</option><option value="1">Scene 2</option><option value="2">Scene 3</option><option value="3">Scene 4</option><option value="4">Scene 5</option><option value="5">Scene 6</option></select>
         <label>Name</label>
         <input type="text" id="sceneName" placeholder="Scene name..." style="padding:4px 6px;">
       </div>
@@ -679,24 +1237,35 @@
         </div>
       </div>
       <div class="scene-slots">
-        <button class="btn scene-slot" data-slot="1">1</button>
-        <button class="btn scene-slot" data-slot="2">2</button>
-        <button class="btn scene-slot" data-slot="3">3</button>
-        <button class="btn scene-slot" data-slot="4">4</button>
-        <button class="btn scene-slot" data-slot="5">5</button>
-        <button class="btn scene-slot" data-slot="6">6</button>
-        <button class="btn scene-slot" data-slot="7">7</button>
-        <button class="btn scene-slot" data-slot="8">8</button>
+        <button class="btn scene-slot" data-slot="1" title="Empty">1</button>
+        <button class="btn scene-slot" data-slot="2" title="Empty">2</button>
+        <button class="btn scene-slot" data-slot="3" title="Empty">3</button>
+        <button class="btn scene-slot" data-slot="4" title="Empty">4</button>
+        <button class="btn scene-slot" data-slot="5" title="Empty">5</button>
+        <button class="btn scene-slot" data-slot="6" title="Empty">6</button>
+        <button class="btn scene-slot" data-slot="7" title="Empty">7</button>
+        <button class="btn scene-slot" data-slot="8" title="Empty">8</button>
       </div>
       <div class="hint">Click slot to go, Shift+Click to save. Keys 1-8 trigger slots.</div>
+      <div class="subgrid" style="margin-top:8px;">
+        <label>Screensaver</label>
+        <div class="ctrl-row">
+          <input id="screensaverDuration" type="range" min="1" max="120" step="1" value="1">
+          <input id="screensaverDurationNum" type="number" min="1" max="120" step="1" value="1">
+        </div>
+      </div>
+      <div class="hint">Minutes per scene in screensaver mode (🌙 button).</div>
+      </div>
     </div>
 
-    <div class="group">
+    <div class="group collapsible">
       <div class="group-title">File Presets</div>
+      <div class="group-content">
       <div class="btn-row">
         <button class="btn" id="savePreset">Export</button>
         <button class="btn" id="loadPreset">Import</button>
         <input id="presetFile" type="file" accept="application/json" style="display:none">
+      </div>
       </div>
     </div>
 
@@ -717,7 +1286,7 @@
           <input id="audioSmoothing" type="range" min="0" max="0.98" step="0.01" value="0.5">
           <label>Target</label>
           <select id="audioTarget">
-            <option value="angle" selected>Angle drift</option>
+            <option value="angle" selected="">Angle drift</option>
             <option value="spread">Spread</option>
             <option value="width">Beam width</option>
             <option value="pulse-speed">Pulse speed</option>
@@ -731,7 +1300,7 @@
           </div>
           <label>Band</label>
           <select id="audioBand">
-            <option value="all" selected>Full spectrum</option>
+            <option value="all" selected="">Full spectrum</option>
             <option value="bass">Bass (low)</option>
             <option value="mid">Mids</option>
             <option value="high">Highs</option>
@@ -747,7 +1316,7 @@
         <div class="subgrid">
           <label>Shape</label>
           <select id="shape">
-            <option value="circle" selected>Circle</option>
+            <option value="circle" selected="">Circle</option>
             <option value="regular-3">Triangle</option>
             <option value="regular-4">Square</option>
             <option value="regular-5">Pentagon</option>
@@ -765,7 +1334,7 @@
 
           <label>Symmetry</label>
           <select id="emitterSymmetry">
-            <option value="on" selected>On</option>
+            <option value="on" selected="">On</option>
             <option value="off">Off</option>
           </select>
 
@@ -792,7 +1361,7 @@
 
           <label>Speed range</label>
           <select id="speedRange">
-            <option value="5" selected>Ultra slow</option>
+            <option value="5" selected="">Ultra slow</option>
             <option value="30">Slow</option>
             <option value="360">Normal</option>
             <option value="720">Fast</option>
@@ -869,11 +1438,14 @@
   const trailsHueShiftNumEl = _el('trailsHueShiftNum');
   // Thickness pulse
   const widthWaveToggle = _el('widthWaveToggle');
-  const widthWaveAmountEl = _el('widthWaveAmount');
-  const widthWaveAmountNumEl = _el('widthWaveAmountNum');
+  const widthWaveShapeEl = _el('widthWaveShape');
   const widthWaveFreqEl = _el('widthWaveFreq');
   const widthWaveSpeedEl = _el('widthWaveSpeed');
   const widthWaveDutyEl = _el('widthWaveDuty');
+  const widthWaveRotationEl = _el('widthWaveRotation');
+  // Shader effects
+  const edgeFadeEl = _el('edgeFade');
+  const shapeGlowEl = _el('shapeGlow');
   // Blend mode
   const blendModeEl = _el('blendMode');
   const savePresetBtn = _el('savePreset');
@@ -953,11 +1525,15 @@
     // Width wave effect (sine wave along beam width)
     widthWave: {
       enabled: false,
-      amount: 1,       // amplitude (0-3)
-      freq: 0.8,       // cycles per 100 pixels
-      speed: 100,      // pixels per second
-      duty: 0.5        // 0=thin/gaps, 0.5=normal, 1=thick
+      shape: 'circle',  // circle, triangle, square, pentagon, hexagon
+      freq: 0.5,        // cycles per 100 pixels (density)
+      speed: 0,         // pixels per second (-400 to +400, negative = towards emitter)
+      duty: 0.5,        // size (0-1)
+      rotation: 0       // rotations per second (-2 to +2)
     },
+    // Shader effects
+    edgeFade: 0,        // 0-1: fade opacity near room boundary
+    shapeGlow: 0,       // 0-1: glow intensity around shapes
     blendMode: 'normal', // normal, additive
     dpr: 1,
     lastSegments: 0,
@@ -1503,9 +2079,9 @@
       S.perBeamSpeed[i] = lerp(fromSpd, toSpd, t);
     }
     
-    // Update UI periodically during transition
-    if (Math.random() < 0.1) {
-      syncUIFromState();
+    // Sync slider values during transition, but only rebuild DOM at the end
+    syncUIFromState();
+    if (t >= 1) {
       rebuildBeamSwatches();
       rebuildBeamSpeedInputs();
     }
@@ -1661,12 +2237,19 @@
 
   function loadScenes() {
     try {
-      const data = JSON.parse(localStorage.getItem('voidulator-scenes'));
-      if (data) {
-        S.scenes = data.scenes || [];
-        S.sceneSlots = data.slots || [null, null, null, null, null, null, null, null];
+      const raw = localStorage.getItem('voidulator-scenes');
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data) {
+          S.scenes = data.scenes || [];
+          S.sceneSlots = data.slots || [null, null, null, null, null, null, null, null];
+          console.log('Loaded scenes:', S.scenes.length, 'scenes,', 
+            S.sceneSlots.filter(s => s !== null).length, 'slots filled');
+        }
       }
-    } catch (e) { }
+    } catch (e) { 
+      console.warn('Failed to load scenes:', e);
+    }
     updateSceneUI();
   }
 
@@ -1705,6 +2288,15 @@
 
   function goToScene(sceneData) {
     startTransition(sceneData);
+  }
+
+  function goToSceneSlot(slotNum) {
+    const slotIndex = slotNum - 1;
+    if (S.sceneSlots[slotIndex] && S.sceneSlots[slotIndex].data) {
+      goToScene(S.sceneSlots[slotIndex].data);
+      return true;
+    }
+    return false;
   }
 
   // Speed patterns
@@ -2078,6 +2670,26 @@
     return { point: { x: o.x + d.x * t, y: o.y + d.y * t }, t };
   }
 
+  function findNearestEdge(p, verts) {
+    let best = null, bestDist = Infinity;
+    for (let i = 0; i < verts.length; i++) {
+      const a = verts[i], b = verts[(i + 1) % verts.length];
+      // Distance from point to line segment
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len2 = dx * dx + dy * dy;
+      if (len2 < 1e-9) continue;
+      let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const cx = a.x + t * dx, cy = a.y + t * dy;
+      const dist = Math.hypot(p.x - cx, p.y - cy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { a, b };
+      }
+    }
+    return best;
+  }
+
   function computePath(origin, dir, maxBounces) {
     let o = { ...origin }, d = norm(dir), intensity = 1;
     const segs = []; let cum = 0;
@@ -2344,100 +2956,186 @@ void main() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
+  // Helper: draw a polygon (circle or n-gon) at a point
+  function pushShape(arr, cx, cy, radius, sides, rotation, t, rgb, alpha) {
+    // Apply edge fade - reduce alpha based on distance from room center
+    let edgeAlpha = alpha;
+    if (S.edgeFade > 0 && S.isCircle) {
+      const dist = Math.hypot(cx - S.circle.cx, cy - S.circle.cy);
+      const maxDist = S.circle.R;
+      const fadeStart = maxDist * (1 - S.edgeFade);
+      if (dist > fadeStart) {
+        const fadeFactor = 1 - (dist - fadeStart) / (maxDist - fadeStart);
+        edgeAlpha = alpha * Math.max(0, fadeFactor);
+      }
+    }
+    
+    const pv = (x, y, a) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], a);
+    
+    // For circles, use 16 sides (good balance of smoothness vs performance)
+    const n = (sides === 0) ? 16 : sides;
+    
+    // Draw main shape
+    for (let i = 0; i < n; i++) {
+      const a0 = rotation + (i / n) * Math.PI * 2;
+      const a1 = rotation + ((i + 1) / n) * Math.PI * 2;
+      
+      const x0 = cx + Math.cos(a0) * radius;
+      const y0 = cy + Math.sin(a0) * radius;
+      const x1 = cx + Math.cos(a1) * radius;
+      const y1 = cy + Math.sin(a1) * radius;
+      
+      // Triangle from center to edge
+      pv(cx, cy, edgeAlpha);
+      pv(x0, y0, edgeAlpha);
+      pv(x1, y1, edgeAlpha);
+    }
+    
+    // Draw glow ring if enabled
+    if (S.shapeGlow > 0) {
+      const glowRadius = radius * (1 + S.shapeGlow * 0.5);
+      const glowAlpha = edgeAlpha * S.shapeGlow * 0.4;
+      
+      for (let i = 0; i < n; i++) {
+        const a0 = rotation + (i / n) * Math.PI * 2;
+        const a1 = rotation + ((i + 1) / n) * Math.PI * 2;
+        
+        // Inner edge (solid)
+        const ix0 = cx + Math.cos(a0) * radius;
+        const iy0 = cy + Math.sin(a0) * radius;
+        const ix1 = cx + Math.cos(a1) * radius;
+        const iy1 = cy + Math.sin(a1) * radius;
+        
+        // Outer edge (faded)
+        const ox0 = cx + Math.cos(a0) * glowRadius;
+        const oy0 = cy + Math.sin(a0) * glowRadius;
+        const ox1 = cx + Math.cos(a1) * glowRadius;
+        const oy1 = cy + Math.sin(a1) * glowRadius;
+        
+        // Two triangles for glow quad
+        pv(ix0, iy0, glowAlpha);
+        pv(ox0, oy0, 0);
+        pv(ix1, iy1, glowAlpha);
+        
+        pv(ix1, iy1, glowAlpha);
+        pv(ox0, oy0, 0);
+        pv(ox1, oy1, 0);
+      }
+    }
+  }
+
   function pushQuad(arr, x0, y0, x1, y1, halfW, t0, t1, rgb, alpha, timeSec) {
     const dx = x1 - x0, dy = y1 - y0;
     const segLen = Math.hypot(dx, dy) || 1;
     const nx = -dy / segLen, ny = dx / segLen;
+    const dirX = dx / segLen, dirY = dy / segLen;
     
-    // If width wave enabled, subdivide segment for smooth sine variation
-    if (S.widthWave.enabled && S.widthWave.amount > 0) {
+    // If width wave enabled, draw shapes along the beam
+    if (S.widthWave.enabled) {
       const ww = S.widthWave;
-      // Frequency: cycles per 100 pixels
-      const cyclesPerPx = ww.freq / 100;
-      // Speed: pixels per second the wave travels
+      // Density: wavelength in pixels (lower freq = more spread out)
+      const wavelength = 100 / ww.freq;
+      // Size: radius of shape
+      const radius = wavelength * ww.duty * 0.5;
+      // Flow: pixels per second (positive = away from emitter, negative = towards)
       const speed = ww.speed;
-      // Amount: how much the width varies (0 = none, 1 = ±100%, 2 = ±200%)
-      const amt = ww.amount;
-      // Duty cycle: 0=thin/gaps, 0.5=normal, 1=thick
-      const duty = ww.duty || 0.5;
+      // Spin: rotations per second
+      const rotSpeed = ww.rotation * Math.PI * 2;
+      // Shape sides (0 = circle)
+      let sides = 0;
+      if (ww.shape === 'triangle') sides = 3;
+      else if (ww.shape === 'square') sides = 4;
+      else if (ww.shape === 'pentagon') sides = 5;
+      else if (ww.shape === 'hexagon') sides = 6;
       
-      // Calculate how many wave cycles are in this segment
-      const wavesInSeg = segLen * cyclesPerPx;
+      // Skip if too small
+      if (radius < 0.5) return;
       
-      // Need at least 12 points per wave cycle for smooth sine
-      const pointsPerWave = 12;
-      const subdivs = Math.max(2, Math.ceil(wavesInSeg * pointsPerWave));
+      // Find shape center positions along this segment
+      // Phase offset based on time and speed (negative speed = towards emitter)
+      const phaseOffset = (-speed * timeSec) % wavelength;
+      const adjustedOffset = phaseOffset < 0 ? phaseOffset + wavelength : phaseOffset;
       
-      for (let i = 0; i < subdivs; i++) {
-        const frac0 = i / subdivs;
-        const frac1 = (i + 1) / subdivs;
+      // First shape center position relative to segment start
+      const startDist = t0;
+      const firstCenter = wavelength - ((startDist + adjustedOffset) % wavelength);
+      
+      // Draw shapes at each center along this segment
+      for (let d = firstCenter; d < segLen; d += wavelength) {
+        const frac = d / segLen;
+        const cx = x0 + dx * frac;
+        const cy = y0 + dy * frac;
+        const t = t0 + (t1 - t0) * frac;
         
-        const px0 = x0 + dx * frac0, py0 = y0 + dy * frac0;
-        const px1 = x0 + dx * frac1, py1 = y0 + dy * frac1;
-        
-        // Use cumulative distance for phase (consistent across all segments)
-        const pt0 = t0 + (t1 - t0) * frac0;
-        const pt1 = t0 + (t1 - t0) * frac1;
-        
-        // Phase calculation: freq cycles per 100px, speed px/s
-        const phase0 = 2 * Math.PI * cyclesPerPx * (pt0 - speed * timeSec);
-        const phase1 = 2 * Math.PI * cyclesPerPx * (pt1 - speed * timeSec);
-        
-        // Sine wave: -1 to 1
-        const sin0 = Math.sin(phase0);
-        const sin1 = Math.sin(phase1);
-        
-        // Apply duty cycle to shift the wave
-        // duty=0 → completely invisible
-        // duty=0.5 → normal sine (-1 to 1 centered at 0)  
-        // duty=1 → always at maximum
-        let modSin0, modSin1;
-        if (duty < 0.02) {
-          modSin0 = -1;
-          modSin1 = -1;
-        } else if (duty > 0.98) {
-          modSin0 = 1;
-          modSin1 = 1;
-        } else {
-          // Shift sine wave based on duty
-          // duty=0.5 → no shift (sin ranges -1 to 1)
-          // duty=0.2 → shift down (sin ranges -1.6 to 0.4, clamp to -1 to 0.4)
-          // duty=0.8 → shift up (sin ranges -0.4 to 1.6, clamp to -0.4 to 1)
-          const shift = (duty - 0.5) * 2; // -1 to 1
-          modSin0 = Math.max(-1, Math.min(1, sin0 + shift));
-          modSin1 = Math.max(-1, Math.min(1, sin1 + shift));
+        // Clip to room boundary
+        let inside = false;
+        if (S.isCircle) {
+          // Circle room: check distance from center
+          const distSq = (cx - S.circle.cx) ** 2 + (cy - S.circle.cy) ** 2;
+          inside = distSq <= (S.circle.R - radius) ** 2;
+        } else if (S.vertices.length > 2) {
+          // Polygon room: point-in-polygon test
+          // Simple check: use the centroid distance as approximation
+          // For proper clipping, check if point is inside polygon
+          let windingNumber = 0;
+          const n = S.vertices.length;
+          for (let j = 0; j < n; j++) {
+            const v1 = S.vertices[j];
+            const v2 = S.vertices[(j + 1) % n];
+            if (v1.y <= cy) {
+              if (v2.y > cy) {
+                const cross = (v2.x - v1.x) * (cy - v1.y) - (cx - v1.x) * (v2.y - v1.y);
+                if (cross > 0) windingNumber++;
+              }
+            } else {
+              if (v2.y <= cy) {
+                const cross = (v2.x - v1.x) * (cy - v1.y) - (cx - v1.x) * (v2.y - v1.y);
+                if (cross < 0) windingNumber--;
+              }
+            }
+          }
+          inside = windingNumber !== 0;
         }
         
-        // Width calculation:
-        // modSin ranges from -1 to 1
-        // At modSin=-1: width = halfW * (1 - amt) → can be 0 or negative (clamped)
-        // At modSin=0: width = halfW * 1 = halfW (base width)
-        // At modSin=1: width = halfW * (1 + amt) → wider than base
-        const w0 = halfW * Math.max(0, 1 + modSin0 * amt);
-        const w1 = halfW * Math.max(0, 1 + modSin1 * amt);
+        if (!inside) continue;
         
-        // Skip if both widths are effectively zero
-        if (w0 < 0.1 && w1 < 0.1) continue;
+        // Spin angle based on time
+        const rotation = rotSpeed * timeSec;
         
-        const lx0 = px0 + nx * w0, ly0 = py0 + ny * w0;
-        const rx0 = px0 - nx * w0, ry0 = py0 - ny * w0;
-        const lx1 = px1 + nx * w1, ly1 = py1 + ny * w1;
-        const rx1 = px1 - nx * w1, ry1 = py1 - ny * w1;
-        
-        const pv = (x, y, t) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], alpha);
-        pv(lx0, ly0, pt0); pv(lx1, ly1, pt1); pv(rx0, ry0, pt0);
-        pv(rx0, ry0, pt0); pv(lx1, ly1, pt1); pv(rx1, ry1, pt1);
+        pushShape(arr, cx, cy, radius, sides, rotation, t, rgb, alpha);
       }
-    } else {
-      // No width wave - single quad
-      const lx0 = x0 + nx * halfW, ly0 = y0 + ny * halfW;
-      const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
-      const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
-      const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
-      const pv = (x, y, t) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], alpha);
-      pv(lx0, ly0, t0); pv(lx1, ly1, t1); pv(rx0, ry0, t0);
-      pv(rx0, ry0, t0); pv(lx1, ly1, t1); pv(rx1, ry1, t1);
+      
+      // Skip beam when shapes are enabled
+      return;
     }
+    
+    // No width wave - single quad (normal beam)
+    // Calculate edge fade for each endpoint
+    let alpha0 = alpha, alpha1 = alpha;
+    if (S.edgeFade > 0 && S.isCircle) {
+      const maxDist = S.circle.R;
+      const fadeStart = maxDist * (1 - S.edgeFade);
+      
+      const dist0 = Math.hypot(x0 - S.circle.cx, y0 - S.circle.cy);
+      if (dist0 > fadeStart) {
+        const fadeFactor = 1 - (dist0 - fadeStart) / (maxDist - fadeStart);
+        alpha0 = alpha * Math.max(0, fadeFactor);
+      }
+      
+      const dist1 = Math.hypot(x1 - S.circle.cx, y1 - S.circle.cy);
+      if (dist1 > fadeStart) {
+        const fadeFactor = 1 - (dist1 - fadeStart) / (maxDist - fadeStart);
+        alpha1 = alpha * Math.max(0, fadeFactor);
+      }
+    }
+    
+    const lx0 = x0 + nx * halfW, ly0 = y0 + ny * halfW;
+    const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
+    const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
+    const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
+    const pv = (x, y, t, a) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], a);
+    pv(lx0, ly0, t0, alpha0); pv(lx1, ly1, t1, alpha1); pv(rx0, ry0, t0, alpha0);
+    pv(rx0, ry0, t0, alpha0); pv(lx1, ly1, t1, alpha1); pv(rx1, ry1, t1, alpha1);
   }
 
   function renderBeamsGL(timeSec) {
@@ -2755,11 +3453,11 @@ void main() {
     octx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
     octx.clearRect(0, 0, W, H);
 
-    // Skip boundary and emitters in fullscreen for clean look
-    if (document.fullscreenElement) return;
+    // Skip boundary and emitters in fullscreen or hide-ui mode for clean look
+    if (document.fullscreenElement || document.body.classList.contains('fullscreen-mode') || document.body.classList.contains('hide-ui')) return;
 
-    // Boundary
-    octx.strokeStyle = '#1a1d24';
+    // Boundary - invisible on black background (pure black stroke)
+    octx.strokeStyle = '#000';
     octx.lineWidth = 1;
     octx.beginPath();
     if (S.isCircle) {
@@ -2815,7 +3513,11 @@ void main() {
     }
   });
 
-  ovCanvas.addEventListener('pointerup', () => {
+  // Use window to catch pointer release anywhere (fixes sticky dragging)
+  window.addEventListener('pointerup', () => {
+    S.draggingIdx = -1;
+  });
+  window.addEventListener('pointercancel', () => {
     S.draggingIdx = -1;
   });
 
@@ -2922,7 +3624,10 @@ void main() {
   _on(pulseFreqEl, 'input', () => S.pulseFreqCP100 = parseFloat(pulseFreqEl.value) || 1.2);
   _on(pulseSpeedEl, 'input', () => S.pulseSpeed = parseFloat(pulseSpeedEl.value) || 0);
   _on(pulseQualityEl, 'input', () => S.pulseSoft = parseFloat(pulseQualityEl.value) || 0.18);
-  _on(pulseDutyEl, 'input', () => S.pulseDuty = parseFloat(pulseDutyEl.value) || 0.5);
+  _on(pulseDutyEl, 'input', () => {
+    const val = parseFloat(pulseDutyEl.value);
+    S.pulseDuty = isNaN(val) ? 0.5 : val;
+  });
 
   // Trails handlers
   _on(trailsToggle, 'click', () => {
@@ -2951,22 +3656,58 @@ void main() {
     S.blendMode = blendModeEl.value;
   });
 
-  // Thickness pulse handlers
+  // Width wave handlers
   _on(widthWaveToggle, 'click', () => {
     S.widthWave.enabled = !S.widthWave.enabled;
     widthWaveToggle.textContent = S.widthWave.enabled ? 'On' : 'Off';
   });
-  _on(widthWaveAmountEl, 'input', () => {
-    S.widthWave.amount = parseFloat(widthWaveAmountEl.value) || 1;
-    widthWaveAmountNumEl.value = S.widthWave.amount;
+  _on(widthWaveShapeEl, 'change', () => {
+    S.widthWave.shape = widthWaveShapeEl.value;
   });
-  _on(widthWaveAmountNumEl, 'input', () => {
-    S.widthWave.amount = clamp(parseFloat(widthWaveAmountNumEl.value) || 1, 0, 3);
-    widthWaveAmountEl.value = S.widthWave.amount;
+  _on(widthWaveFreqEl, 'input', () => {
+    const val = parseFloat(widthWaveFreqEl.value);
+    S.widthWave.freq = Math.max(0.02, isNaN(val) ? 0.5 : val);
   });
-  _on(widthWaveFreqEl, 'input', () => S.widthWave.freq = parseFloat(widthWaveFreqEl.value) || 0.8);
-  _on(widthWaveSpeedEl, 'input', () => S.widthWave.speed = parseFloat(widthWaveSpeedEl.value) || 100);
-  _on(widthWaveDutyEl, 'input', () => S.widthWave.duty = parseFloat(widthWaveDutyEl.value) || 0.5);
+  _on(widthWaveSpeedEl, 'input', () => {
+    const val = parseFloat(widthWaveSpeedEl.value);
+    S.widthWave.speed = isNaN(val) ? 0 : val;
+  });
+  _on(widthWaveDutyEl, 'input', () => {
+    const val = parseFloat(widthWaveDutyEl.value);
+    S.widthWave.duty = isNaN(val) ? 0.5 : val;
+  });
+  _on(widthWaveRotationEl, 'input', () => {
+    const val = parseFloat(widthWaveRotationEl.value);
+    S.widthWave.rotation = isNaN(val) ? 0 : val;
+  });
+
+  // Label click handlers - reset to default/center values
+  _on(_el('lblDensity'), 'click', () => {
+    S.widthWave.freq = 0.5;
+    widthWaveFreqEl.value = 0.5;
+  });
+  _on(_el('lblSize'), 'click', () => {
+    S.widthWave.duty = 0.5;
+    widthWaveDutyEl.value = 0.5;
+  });
+  _on(_el('lblFlow'), 'click', () => {
+    S.widthWave.speed = 0;
+    widthWaveSpeedEl.value = 0;
+  });
+  _on(_el('lblSpin'), 'click', () => {
+    S.widthWave.rotation = 0;
+    widthWaveRotationEl.value = 0;
+  });
+
+  // Shader effects handlers
+  _on(edgeFadeEl, 'input', () => {
+    const val = parseFloat(edgeFadeEl.value);
+    S.edgeFade = isNaN(val) ? 0 : val;
+  });
+  _on(shapeGlowEl, 'input', () => {
+    const val = parseFloat(shapeGlowEl.value);
+    S.shapeGlow = isNaN(val) ? 0 : val;
+  });
 
   // Presets
   function currentPreset() {
@@ -3550,8 +4291,375 @@ void main() {
     requestAnimationFrame(loop);
   }
 
+  // === FULLSCREEN MODE ===
+  let isFullscreen = false;
+  function toggleFullscreen() {
+    isFullscreen = !isFullscreen;
+    document.body.classList.toggle('fullscreen-mode', isFullscreen);
+    const btn = document.getElementById('btnFullscreen');
+    if (btn) btn.classList.toggle('active', isFullscreen);
+    
+    // Show hint
+    if (isFullscreen) {
+      const hint = document.getElementById('fullscreenHint');
+      if (hint) {
+        hint.style.animation = 'none';
+        hint.offsetHeight; // trigger reflow
+        hint.style.animation = 'fadeHint 3s forwards';
+      }
+    }
+    
+    // Request browser fullscreen
+    if (isFullscreen) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+    
+    setTimeout(resize, 100);
+  }
+  
+  // === HIDE UI MODE ===
+  let uiHidden = false;
+  function toggleUI() {
+    uiHidden = !uiHidden;
+    document.body.classList.toggle('hide-ui', uiHidden);
+    setTimeout(resize, 100);
+  }
+
+  // === KEYBOARD SHORTCUTS ===
+  document.addEventListener('keydown', (e) => {
+    // Don't trigger if typing in input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      toggleFullscreen();
+    } else if (e.key === 'h' || e.key === 'H') {
+      e.preventDefault();
+      toggleUI();
+    } else if (e.key === 'Escape' && isFullscreen) {
+      isFullscreen = false;
+      document.body.classList.remove('fullscreen-mode');
+      const btn = document.getElementById('btnFullscreen');
+      if (btn) btn.classList.remove('active');
+      setTimeout(resize, 100);
+    }
+  });
+  
+  // === AUTOSAVE ===
+  const AUTOSAVE_KEY = 'voidulator_autosave';
+  const AUTOSAVE_INTERVAL = 5000; // 5 seconds
+  
+  function autosave() {
+    try {
+      const state = currentPreset();
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Autosave failed:', e);
+    }
+  }
+  
+  function loadAutosave() {
+    try {
+      const saved = localStorage.getItem(AUTOSAVE_KEY);
+      if (saved) {
+        const P = JSON.parse(saved);
+        applyPreset(P);
+        console.log('Loaded autosaved state');
+        return true;
+      }
+    } catch (e) {
+      console.warn('Failed to load autosave:', e);
+    }
+    return false;
+  }
+  
+  // Autosave every 5 seconds
+  setInterval(autosave, AUTOSAVE_INTERVAL);
+  
+  // === SHARE FUNCTIONALITY ===
+  function generateShareUrl() {
+    try {
+      const state = currentPreset();
+      // Compress state to base64
+      const json = JSON.stringify(state);
+      const encoded = btoa(encodeURIComponent(json));
+      const url = window.location.origin + window.location.pathname + '?state=' + encoded;
+      return url;
+    } catch (e) {
+      console.error('Failed to generate share URL:', e);
+      return window.location.href;
+    }
+  }
+  
+  function loadFromUrl() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const stateParam = params.get('state');
+      if (stateParam) {
+        const json = decodeURIComponent(atob(stateParam));
+        const P = JSON.parse(json);
+        applyPreset(P);
+        // Clear URL params after loading
+        window.history.replaceState({}, '', window.location.pathname);
+        console.log('Loaded state from URL');
+        return true;
+      }
+    } catch (e) {
+      console.warn('Failed to load from URL:', e);
+    }
+    return false;
+  }
+  
+  function showShareModal() {
+    const modal = document.getElementById('shareModal');
+    const urlInput = document.getElementById('shareUrl');
+    if (modal && urlInput) {
+      urlInput.value = generateShareUrl();
+      modal.classList.add('visible');
+    }
+  }
+  
+  function hideShareModal() {
+    const modal = document.getElementById('shareModal');
+    if (modal) modal.classList.remove('visible');
+  }
+  
+  function copyShareUrl() {
+    const urlInput = document.getElementById('shareUrl');
+    if (urlInput) {
+      urlInput.select();
+      document.execCommand('copy');
+      // Flash feedback
+      const btn = document.getElementById('copyShareUrl');
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = orig, 1500);
+      }
+    }
+  }
+  
+  // === SCREENSAVER MODE ===
+  let screensaverActive = false;
+  let screensaverInterval = null;
+  
+  function getScreensaverDuration() {
+    const el = document.getElementById('screensaverDuration');
+    return (el ? parseInt(el.value, 10) : 1) * 60000; // Convert minutes to ms
+  }
+  
+  // Sync screensaver duration inputs
+  const screensaverDurationEl = document.getElementById('screensaverDuration');
+  const screensaverDurationNumEl = document.getElementById('screensaverDurationNum');
+  if (screensaverDurationEl && screensaverDurationNumEl) {
+    screensaverDurationEl.addEventListener('input', () => {
+      screensaverDurationNumEl.value = screensaverDurationEl.value;
+    });
+    screensaverDurationNumEl.addEventListener('input', () => {
+      const v = Math.max(1, Math.min(120, parseInt(screensaverDurationNumEl.value, 10) || 1));
+      screensaverDurationEl.value = v;
+      screensaverDurationNumEl.value = v;
+    });
+  }
+  
+  function startScreensaver() {
+    screensaverActive = true;
+    document.getElementById('screensaverIndicator')?.classList.add('visible');
+    document.getElementById('btnScreensaver')?.classList.add('active');
+    
+    // Enter fullscreen
+    if (!isFullscreen) toggleFullscreen();
+    
+    // Reload scenes from storage first to ensure we have latest
+    loadScenes();
+    
+    // Find all saved scene slots
+    const savedSlots = [];
+    for (let i = 0; i < 8; i++) {
+      if (S.sceneSlots[i] !== null && S.sceneSlots[i] !== undefined) {
+        // Verify the slot has actual data
+        if (S.sceneSlots[i].data || typeof S.sceneSlots[i] === 'object') {
+          savedSlots.push(i + 1); // slot numbers are 1-indexed
+        }
+      }
+    }
+    
+    console.log('Screensaver: Found', savedSlots.length, 'saved scenes in slots:', savedSlots);
+    
+    if (savedSlots.length === 0) {
+      alert('No saved scenes! Save some scenes first (Shift+Click on slot numbers)');
+      stopScreensaver();
+      return;
+    }
+    
+    let currentIdx = 0;
+    const duration = getScreensaverDuration();
+    
+    function cycleScene() {
+      if (!screensaverActive) return;
+      const slot = savedSlots[currentIdx];
+      console.log('Screensaver: Cycling to slot', slot);
+      goToSceneSlot(slot);
+      currentIdx = (currentIdx + 1) % savedSlots.length;
+    }
+    
+    cycleScene(); // Start immediately
+    screensaverInterval = setInterval(cycleScene, duration);
+  }
+  
+  function stopScreensaver() {
+    screensaverActive = false;
+    document.getElementById('screensaverIndicator')?.classList.remove('visible');
+    document.getElementById('btnScreensaver')?.classList.remove('active');
+    if (screensaverInterval) {
+      clearInterval(screensaverInterval);
+      screensaverInterval = null;
+    }
+  }
+  
+  function toggleScreensaver() {
+    if (screensaverActive) stopScreensaver();
+    else startScreensaver();
+  }
+  
+  // Stop screensaver on any interaction
+  document.addEventListener('click', (e) => {
+    if (screensaverActive && !e.target.closest('.header-buttons')) {
+      stopScreensaver();
+    }
+  });
+  document.addEventListener('keydown', () => {
+    if (screensaverActive) stopScreensaver();
+  });
+  
+  // === CAST FUNCTIONALITY ===
+  function showCastOptions() {
+    // Check if browser supports casting
+    if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
+      const choice = confirm(
+        'Cast Options:\n\n' +
+        '• Chromecast: Use your browser\'s built-in cast (click the three dots menu → Cast)\n' +
+        '• AirPlay: On Safari, click the AirPlay icon in the video controls\n' +
+        '• HDMI: Connect your device directly to your TV\n\n' +
+        'Tip: Press F for fullscreen mode before casting!\n\n' +
+        'Click OK to open fullscreen mode now.'
+      );
+      if (choice && !isFullscreen) {
+        toggleFullscreen();
+      }
+    } else {
+      alert(
+        'Cast to TV:\n\n' +
+        '• Chromecast: Use your browser\'s built-in cast feature\n' +
+        '• AirPlay: Available on Safari/Mac\n' +
+        '• HDMI: Connect directly to your TV\n' +
+        '• Screen Mirror: Use your device\'s screen mirroring feature\n\n' +
+        'Tip: Press F for fullscreen mode before casting!'
+      );
+    }
+  }
+  
+  // === PORTRAIT/LANDSCAPE HANDLING ===
+  function checkOrientation() {
+    const warning = document.getElementById('portraitWarning');
+    if (!warning) return;
+    
+    // Only show on mobile
+    const isMobile = window.innerWidth <= 900 || /Mobi|Android/i.test(navigator.userAgent);
+    const isPortrait = window.innerHeight > window.innerWidth;
+    
+    if (isMobile && isPortrait && !isFullscreen) {
+      warning.classList.add('visible');
+    } else {
+      warning.classList.remove('visible');
+    }
+  }
+  
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 100));
+  
+  // === LOADING SPINNER ===
+  function hideLoadingSpinner() {
+    const loader = document.getElementById('loadingOverlay');
+    if (loader) {
+      loader.classList.add('hidden');
+      setTimeout(() => loader.remove(), 500);
+    }
+  }
+  
+  // === WEBGL2 CHECK ===
+  function checkWebGL2() {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl2');
+    if (!gl) {
+      document.getElementById('fallbackMessage')?.classList.add('visible');
+      document.getElementById('loadingOverlay')?.classList.add('hidden');
+      return false;
+    }
+    return true;
+  }
+
+  // === THEME TOGGLE ===
+  const THEMES = ['classic', 'coral'];
+  let currentThemeIndex = 0;
+  
+  function loadTheme() {
+    try {
+      const saved = localStorage.getItem('voidulator-theme');
+      if (saved && THEMES.includes(saved)) {
+        currentThemeIndex = THEMES.indexOf(saved);
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    } catch (e) { }
+  }
+  
+  function saveTheme(theme) {
+    try {
+      localStorage.setItem('voidulator-theme', theme);
+    } catch (e) { }
+  }
+  
+  function toggleTheme() {
+    currentThemeIndex = (currentThemeIndex + 1) % THEMES.length;
+    const newTheme = THEMES[currentThemeIndex];
+    document.documentElement.setAttribute('data-theme', newTheme);
+    saveTheme(newTheme);
+    
+    // Show visual feedback
+    const btn = document.getElementById('btnTheme');
+    if (btn) {
+      btn.style.transform = 'scale(1.2)';
+      setTimeout(() => btn.style.transform = '', 150);
+    }
+  }
+  
+  // Load theme on startup
+  loadTheme();
+
+  // === BUTTON EVENT LISTENERS ===
+  document.getElementById('btnTheme')?.addEventListener('click', toggleTheme);
+  document.getElementById('btnFullscreen')?.addEventListener('click', toggleFullscreen);
+  document.getElementById('btnScreensaver')?.addEventListener('click', toggleScreensaver);
+  document.getElementById('btnShare')?.addEventListener('click', showShareModal);
+  document.getElementById('btnCast')?.addEventListener('click', showCastOptions);
+  document.getElementById('copyShareUrl')?.addEventListener('click', copyShareUrl);
+  document.getElementById('closeShareModal')?.addEventListener('click', hideShareModal);
+  document.getElementById('shareModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'shareModal') hideShareModal();
+  });
+
   // Init
   function init() {
+    // Check WebGL2 first
+    if (!checkWebGL2()) return;
+    
     glInit();
     resize();
     window.addEventListener('resize', resize);
@@ -3565,15 +4673,37 @@ void main() {
     ensureSpeedArrays(S.beamCount);
     applySpeedPattern();
     loadScenes();
+    
     // Initialize wander seeds with random phases
     for (let i = 0; i < 4; i++) {
       S.motion.wanderSeedsX[i] = Math.random() * 100;
       S.motion.wanderSeedsY[i] = Math.random() * 100;
     }
+    
+    // Try to load from URL first, then autosave
+    if (!loadFromUrl()) {
+      loadAutosave();
+    }
+    
+    // Check orientation
+    checkOrientation();
+    
+    // Hide loading spinner
+    hideLoadingSpinner();
+    
     requestAnimationFrame(loop);
   }
   init();
 })();
 </script>
-</body>
-</html>
+
+<!-- Service Worker Registration (only on production HTTPS) -->
+<script>
+if ('serviceWorker' in navigator && location.protocol === 'https:' && !location.hostname.includes('claudeusercontent')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+
+</body></html>
