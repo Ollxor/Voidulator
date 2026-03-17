@@ -1,127 +1,117 @@
 # Voidulator
 
-A mesmerizing WebGL2 laser room simulator with reflections, shapes, and visual effects. Create stunning generative visual art in your browser.
+**A mesmerizing WebGL laser room simulator** — create stunning visual art with bouncing beams, reflections, and hypnotic effects.
 
-🔗 **[Try it live](https://ollxor.github.io/Voidulator/)** (if hosted on GitHub Pages)
+🌐 **Live demo:** [voidulator.ollebjerkas.se](https://voidulator.ollebjerkas.se)
 
-## Features
+![Voidulator Screenshot](screenshot.png)
 
-### Core Controls
-- **Reflectivity** — How much light bounces off walls (gamma-eased for intuitive control)
-- **Max Bounces** — Up to 300 reflections per beam
-- **Beam Width** — Thickness of laser beams (0.5–8)
-- **Beam Count** — Multiple beams per emitter (1–24)
-- **Layer Mode** — Depth or Flat rendering
-- **Blend Mode** — Normal or Additive blending
+## ✨ Features
 
-### Color System
-- **16+ Color Schemes** — Rainbow, Grayscale, Warm, Cool, Noir, Duotone, and more
-- **Per-emitter Palettes** — Each emitter can have its own color scheme
-- **Drag-to-reorder** — Rearrange beam layer order by dragging swatches
+### Core Simulation
+- **Multiple room shapes** — Circle, triangle, square, pentagon, hexagon, randomgon, organic blob
+- **Realistic reflections** — Adjustable reflectivity with up to 375 bounces
+- **Multiple emitters** — Up to 4 draggable laser emitters with WASD movement
+- **Beam spread** — Fan beams from focused to wide angles
 
-### Per-beam Rotation
-- **Speed Patterns** — Prime, Linear, Exponential, Fibonacci, Alternating, Random
-- **Base Speed** — Control rotation intensity
-- **Individual Speeds** — Fine-tune each beam's rotation
+### Visual Effects
+- **Pulse animation** — Sine/square wave patterns traveling along beams with adjustable frequency, speed, amplitude, softness, and duty cycle
+- **Shape effects** — Animated circles/ellipses flowing along beams
+- **Trails** — Persistent afterglow with hue shifting
+- **Blend modes** — Normal or additive blending
 
-### Pulse Effect (Shader)
-- **Shape** — Sine or Square wave
-- **Amplitude, Frequency, Speed** — Full control over pulse animation
-- **Softness** — Edge smoothness for square waves
-- **Duty Cycle** — Control light/dark ratio
+### Color & Style
+- **30+ color schemes** — From rainbow and neon to nature-inspired palettes (Aurora Borealis, Coral Reef, Northern Lights, etc.)
+- **Per-beam colors** — Custom color picker for each beam
+- **2 UI themes** — Classic (amber) and Coral (bioluminescent)
 
-### Shape Flow (Width Wave)
-- **Shapes** — Circle, Triangle, Square, Pentagon, Hexagon patterns
-- **Density** — Pattern frequency along beams
-- **Size** — Shape size (duty cycle)
-- **Flow** — Animation direction (inward/outward)
-- **Spin** — Rotation of the pattern
-
-### Shader Effects
-- **Edge Fade** — Beams fade near room boundary
-- **Glow** — Soft halo around shapes
-
-### Trails
-- **Length** — Trail persistence (1–180 frames)
-- **Hue Shift** — Color rotation over trail length
-
-### Scene System
-- **8 Quick Slots** — Save/recall with Shift+Click or keys 1-8
-- **Named Scenes** — Organize with custom names
-- **Smooth Transitions** — Configurable crossfade duration
-- **Screensaver Mode** — Auto-cycle through saved scenes
-
-### Emitters
-- **Multiple Emitters** — Up to 4 independent light sources
-- **Symmetry Mode** — Mirror emitter movements
-- **Draggable** — Position emitters by dragging on canvas
-- **Movement Speed** — Control wander/orbit speed
-
-### Room Shapes
-- Circle, Triangle, Square, Pentagon, Hexagon
-- Randomgon (random polygon)
-- Blob (smooth organic shape)
+### Scenes & Automation
+- **8 scene slots** — Save and recall your favorite configurations
+- **Smooth transitions** — Morphing between scenes with adjustable duration
+- **Screensaver mode** — Auto-cycle through saved scenes
+- **Export/Import** — Share presets as JSON files
 
 ### Audio Reactive
-- **Mic Input** — React to ambient sound
-- **Targets** — Map audio to angle, spread, width, pulse speed/freq, center range
-- **Band Selection** — Full spectrum, bass, mids, or highs
-- **Sensitivity & Smoothing** — Fine-tune responsiveness
+- **Microphone input** — Beams react to sound
+- **Multiple targets** — Control width, pulse speed, or pulse frequency
+- **Adjustable sensitivity** — Fine-tune the audio response
 
-### UI Themes
-- **Classic** — Orange/teal monospace aesthetic
-- **Coral** — Bioluminescent deep-sea theme with chromatic gradient sliders
+### Accessibility
+- **4 languages** — English, Spanish, Portuguese, French
+- **Simple/Advanced modes** — Beginner-friendly or full control
+- **Interactive tutorial** — Learn the basics step by step
+- **Mobile optimized** — Works on phones and tablets
 
-### Additional Features
-- **Fullscreen Mode** — Press F or click ⛶
-- **Hide UI** — Press H for clean view
-- **Share** — Generate URL with encoded state
-- **Export/Import** — Save presets as JSON files
-- **Autosave** — State saved every 5 seconds
-- **PWA Support** — Install as standalone app
-- **Keyboard Shortcuts** — 1-8 for scenes, F for fullscreen, H for hide UI
-
-## Keyboard Shortcuts
+## ⌨️ Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| `1`–`8` | Go to scene slot |
-| `Shift+1`–`8` | Save to scene slot |
-| `F` | Toggle fullscreen |
-| `H` | Toggle UI visibility |
+| **F** | Toggle fullscreen |
+| **U** | Toggle UI visibility (fullscreen only) |
+| **N** | Next saved scene |
+| **W/A/S/D** | Move emitter(s) |
+| **1-8** | Load scene slot |
 
-## Technical Details
+## 🚀 Getting Started
 
-- **Single HTML file** — No build step, no dependencies
-- **WebGL2** — Hardware-accelerated rendering
-- **~4700 lines** — Complete implementation in one file
-- **LocalStorage** — Persistent state and scenes
+### Online
+Just visit [voidulator.ollebjerkas.se](https://voidulator.ollebjerkas.se) — no installation needed!
 
-## Browser Support
+### Self-hosted
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Ollxor/Voidulator.git
+   ```
+2. Serve with any static file server:
+   ```bash
+   # Python
+   python -m http.server 8000
+   
+   # Node.js
+   npx serve
+   ```
+3. Open `http://localhost:8000` in your browser
 
-Requires WebGL2 support:
-- Chrome 56+
-- Firefox 51+
-- Safari 15+
-- Edge 79+
+### Single File
+The entire app is contained in `index.html` — just open it in a modern browser!
 
-## Development
+## 🖥️ Browser Support
 
-This project was developed using AI-assisted "vibe coding" — iterative development through conversation with Claude.
+- **Chrome/Edge** 80+ (recommended)
+- **Firefox** 75+
+- **Safari** 14+
+- **Mobile browsers** — iOS Safari, Chrome for Android
 
-### Running Locally
+Requires WebGL2 support.
 
-Simply open `index.html` in a modern browser. No server required for basic functionality.
+## 📁 Project Structure
 
-For PWA features, serve over HTTPS:
-```bash
-npx serve .
+```
+Voidulator/
+├── index.html      # Complete app (single file)
+├── manifest.json   # PWA manifest
+├── README.md       # This file
+└── LICENSE         # MIT License
 ```
 
-## License
+## 🛠️ Technical Details
 
-MIT License — feel free to use, modify, and share.
+- **Pure WebGL2** — No frameworks, no dependencies
+- **Single HTML file** — Complete app in ~6000 lines
+- **60 FPS** — Smooth animations with requestAnimationFrame
+- **Framebuffer effects** — Ping-pong rendering for trails
+- **Responsive** — Adapts to any screen size
 
-## Credits
+## 📝 License
 
-Created by [Ollxor](https://github.com/Ollxor) with AI assistance from Claude (Anthropic).
+MIT License — see [LICENSE](LICENSE) for details.
+
+## 🙏 Credits
+
+Created by **Olle Bjerkås**
+
+Built with WebGL, creativity, and lots of iterating.
+
+---
+
+*"Stare into the void, and the void stares back... beautifully."*

@@ -70,9 +70,6 @@
     padding: 8px;
     background: #000;
   }
-  @media (max-width: 900px) {
-    .app { grid-template-columns: 1fr; grid-auto-rows: min-content; }
-  }
 
   /* Stage */
   .stage {
@@ -233,6 +230,31 @@
     grid-template-columns: 1fr 44px;
     gap: 6px;
     align-items: center;
+  }
+  
+  /* Speed control: Option E - label+value above, full slider below */
+  .speed-control {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0;
+  }
+  .speed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .speed-header label {
+    color: var(--text-dim);
+  }
+  .speed-value {
+    color: var(--text);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .speed-control input[type="range"] {
+    width: 100%;
   }
 
   /* Buttons */
@@ -463,18 +485,44 @@
   }
   .two .btn { flex: 1; }
 
-  /* Mobile */
+  /* Mobile - stage stays fixed, panel scrolls */
   @media (max-width: 800px) {
-    .stage { position: sticky; top: 0; z-index: 10; height: 45svh; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 100svh;
+      overflow: hidden;
+      padding: 0;
+      gap: 0;
+    }
+    .stage {
+      flex-shrink: 0;
+      position: relative;
+      height: 40svh;
+      min-height: 200px;
+      max-height: 50svh;
+      aspect-ratio: auto;
+      max-width: 100%;
+      z-index: 10;
+    }
+    .panel {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 6px 6px 0 0;
+      margin-top: -6px;
+      padding-bottom: 60px; /* Extra padding for bottom content */
+    }
   }
 
   /* Fullscreen mode: hide panel, stage fills viewport */
-  :fullscreen .app {
-    grid-template-columns: 1fr !important;
-    padding: 0 !important;
-    gap: 0 !important;
-  }
-  :fullscreen .panel { display: none !important; }
+  /* Browser fullscreen - UI visible by default, hide-ui class controls visibility */
   :fullscreen .stage {
     min-height: 100vh !important;
     max-height: 100vh !important;
@@ -483,8 +531,6 @@
     border-radius: 0 !important;
   }
   /* Webkit prefix for Safari */
-  :-webkit-full-screen .app { grid-template-columns: 1fr !important; padding: 0 !important; gap: 0 !important; }
-  :-webkit-full-screen .panel { display: none !important; }
   :-webkit-full-screen .stage { min-height: 100vh !important; max-height: 100vh !important; height: 100vh !important; border: none !important; border-radius: 0 !important; }
 
   /* Desktop */
@@ -511,30 +557,66 @@
     background: #000 !important;
   }
   body.fullscreen-mode .app {
-    grid-template-columns: 1fr;
-    padding: 0;
-    gap: 0;
+    grid-template-columns: 1fr 480px;
+    padding: 8px;
+    gap: 8px;
     background: #000;
+    height: 100vh;
   }
   body.fullscreen-mode .stage {
-    position: fixed;
-    inset: 0;
+    position: relative;
     z-index: 9999;
     border-radius: 0;
     border: none;
     min-height: 100vh;
-    max-height: none !important;
+    max-height: 100vh !important;
     background: #000;
   }
   body.fullscreen-mode .panel {
-    display: none;
+    display: block;
+    max-height: 100vh;
+    overflow: auto;
   }
   body.fullscreen-mode .fullscreen-hint {
     display: block;
   }
-  body.fullscreen-mode .header-buttons {
+  
+  /* Fullscreen on mobile: always hide UI */
+  @media (max-width: 800px) {
+    body.fullscreen-mode .app {
+      grid-template-columns: 1fr;
+      padding: 0;
+      gap: 0;
+    }
+    body.fullscreen-mode .stage {
+      position: fixed;
+      inset: 0;
+    }
+    body.fullscreen-mode .panel {
+      display: none;
+    }
+    body.fullscreen-mode .fullscreen-hint {
+      display: none; /* No keyboard hint on mobile */
+    }
+  }
+  
+  /* When UI is explicitly hidden (U key) */
+  body.fullscreen-mode.hide-ui .app {
+    grid-template-columns: 1fr;
+    padding: 0;
+    gap: 0;
+  }
+  body.fullscreen-mode.hide-ui .stage {
+    position: fixed;
+    inset: 0;
+  }
+  body.fullscreen-mode.hide-ui .panel {
     display: none;
   }
+  body.fullscreen-mode.hide-ui .header-buttons {
+    display: none;
+  }
+  
   .fullscreen-hint {
     display: none;
     position: fixed;
@@ -554,28 +636,6 @@
     0% { opacity: 1; }
     70% { opacity: 1; }
     100% { opacity: 0; }
-  }
-
-  /* === Hide UI mode === */
-  body.hide-ui {
-    background: #000 !important;
-  }
-  body.hide-ui .panel {
-    display: none;
-  }
-  body.hide-ui .app {
-    grid-template-columns: 1fr;
-    padding: 0;
-    gap: 0;
-    background: #000;
-  }
-  body.hide-ui .stage {
-    border: none;
-    border-radius: 0;
-    min-height: 100vh;
-  }
-  body.hide-ui .header-buttons {
-    display: none;
   }
 
   /* === Loading spinner === */
@@ -636,32 +696,6 @@
     max-width: 400px;
     line-height: 1.6;
     color: var(--text-dim);
-  }
-
-  /* === Portrait warning (mobile) === */
-  .portrait-warning {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.95);
-    z-index: 99990;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 20px;
-  }
-  .portrait-warning.visible {
-    display: flex;
-  }
-  .rotate-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    animation: rotateHint 2s ease-in-out infinite;
-  }
-  @keyframes rotateHint {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(90deg); }
   }
 
   /* === Panel header with buttons === */
@@ -764,9 +798,14 @@
     background: var(--input-bg);
     color: #fff;
     transition: all 0.2s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   .modal-btn:hover {
     border-color: var(--accent);
+  }
+  .modal-btn:active {
+    transform: scale(0.98);
   }
   .modal-btn.primary {
     background: var(--accent);
@@ -956,6 +995,380 @@
   [data-theme="coral"] input[type="color"] {
     border-color: rgba(80, 180, 220, 0.2);
   }
+
+  /* ============================================
+     SETTINGS MODAL
+     ============================================ */
+  .settings-modal-content {
+    min-width: 300px;
+  }
+  .settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--stroke);
+  }
+  .settings-row:last-of-type {
+    border-bottom: none;
+  }
+  .settings-row label {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .settings-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--input-bg);
+    padding: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--stroke);
+  }
+  .toggle-btn {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .toggle-btn:hover {
+    color: var(--text);
+  }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+  
+  /* Settings select (language dropdown) */
+  .settings-select {
+    padding: 8px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--stroke);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    min-width: 120px;
+  }
+  
+  /* Version number */
+  .settings-version {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    opacity: 0.5;
+    margin-top: 16px;
+    font-family: monospace;
+  }
+
+  /* Coral theme settings */
+  [data-theme="coral"] .settings-toggle {
+    background: rgba(60, 140, 180, 0.1);
+    border-color: rgba(80, 180, 220, 0.15);
+  }
+  [data-theme="coral"] .toggle-btn.active {
+    background: var(--accent);
+    color: #000;
+  }
+  [data-theme="coral"] .settings-select {
+    background: rgba(60, 140, 180, 0.1);
+    border-color: rgba(80, 180, 220, 0.15);
+  }
+
+  /* ============================================
+     FEEDBACK MODAL
+     ============================================ */
+  .feedback-modal-content {
+    min-width: 320px;
+    max-width: 400px;
+  }
+  .feedback-intro {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .feedback-textarea {
+    width: 100%;
+    padding: 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    resize: vertical;
+    min-height: 80px;
+    margin-bottom: 10px;
+  }
+  .feedback-email {
+    width: 100%;
+    padding: 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .feedback-textarea:focus, .feedback-email:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .feedback-success {
+    text-align: center;
+    padding: 20px;
+    color: var(--accent);
+  }
+
+  /* ============================================
+     WELCOME MODAL
+     ============================================ */
+  .welcome-modal-content {
+    text-align: center;
+    max-width: 320px;
+    padding: 30px 40px;
+  }
+  .welcome-modal-content h2 {
+    font-size: 28px;
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .welcome-modal-content p {
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin: 8px 0;
+  }
+  .welcome-language {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .lang-btn {
+    padding: 6px 10px;
+    border: 1px solid var(--stroke);
+    background: var(--input-bg);
+    color: var(--text-dim);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .lang-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .lang-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+  .welcome-subtitle {
+    margin-top: 8px !important;
+    margin-bottom: 16px !important;
+    color: var(--text) !important;
+    font-weight: 400;
+    font-size: 15px;
+  }
+
+  /* ============================================
+     TUTORIAL OVERLAY
+     ============================================ */
+  .tutorial-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    pointer-events: none;
+  }
+  .tutorial-overlay.active {
+    display: block;
+  }
+  /* Dim only the panel during tutorial, NOT the stage */
+  .tutorial-overlay.active ~ .app .panel {
+    position: relative;
+  }
+  .tutorial-overlay.active ~ .app .panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    z-index: 1;
+    border-radius: 14px;
+    pointer-events: none;
+  }
+  /* Current element being highlighted */
+  .tutorial-overlay.active ~ .app .panel .tutorial-current {
+    position: relative;
+    z-index: 3;
+    background: var(--panel);
+    border-radius: 6px;
+    box-shadow: 0 0 0 3px var(--accent), 0 0 15px var(--accent-glow);
+  }
+  /* Elements already visited stay visible */
+  .tutorial-overlay.active ~ .app .panel .tutorial-visited {
+    position: relative;
+    z-index: 2;
+  }
+  /* Also keep parent rows visible */
+  .tutorial-overlay.active ~ .app .panel .row.tutorial-visited,
+  .tutorial-overlay.active ~ .app .panel .row.tutorial-current {
+    position: relative;
+    z-index: 3;
+  }
+  .tutorial-backdrop {
+    display: none;
+  }
+  .tutorial-highlight {
+    position: absolute;
+    border: 3px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4px rgba(255, 159, 28, 0.3), 0 0 20px var(--accent-glow);
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 100002;
+    background: transparent;
+  }
+  .tutorial-tooltip {
+    position: absolute;
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 16px;
+    max-width: 300px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 15px var(--accent-glow);
+    z-index: 100002;
+    pointer-events: auto;
+  }
+  .tutorial-content {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .tutorial-content strong {
+    color: var(--accent);
+  }
+  .tutorial-content .try-it {
+    display: block;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 159, 28, 0.1);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 13px;
+  }
+  .tutorial-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--stroke);
+  }
+  .tutorial-progress {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .tutorial-buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .tutorial-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--stroke);
+    background: var(--input-bg);
+    color: var(--text-dim);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tutorial-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .tutorial-btn:active {
+    transform: scale(0.98);
+  }
+  .tutorial-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+  .tutorial-btn.primary:hover {
+    filter: brightness(1.1);
+  }
+
+  /* Tutorial pointer arrow */
+  .tutorial-tooltip::before {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-right: none;
+    border-bottom: none;
+    transform: rotate(45deg);
+  }
+  .tutorial-tooltip.arrow-left::before {
+    left: -7px;
+    top: 20px;
+    transform: rotate(-45deg);
+  }
+  .tutorial-tooltip.arrow-right::before {
+    right: -7px;
+    top: 20px;
+    transform: rotate(135deg);
+  }
+  .tutorial-tooltip.arrow-top::before {
+    top: -7px;
+    left: 20px;
+    transform: rotate(45deg);
+  }
+  .tutorial-tooltip.arrow-bottom::before {
+    bottom: -7px;
+    left: 20px;
+    transform: rotate(-135deg);
+  }
+
+  /* Coral theme tutorial */
+  [data-theme="coral"] .tutorial-highlight {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.8), 0 0 25px var(--accent-glow);
+  }
+  [data-theme="coral"] .tutorial-tooltip {
+    background: linear-gradient(180deg, #0d1820 0%, #080e14 100%);
+    border-color: var(--accent);
+  }
+  [data-theme="coral"] .tutorial-content .try-it {
+    background: rgba(80, 220, 180, 0.1);
+    color: var(--accent);
+  }
+
+  /* ============================================
+     SIMPLE / ADVANCED MODE
+     ============================================ */
+  /* In Simple mode, hide elements with data-advanced attribute */
+  body.mode-simple [data-advanced] {
+    display: none !important;
+  }
+  
+  /* Mark groups and rows as advanced-only */
+  body.mode-simple .group.advanced-only {
+    display: none !important;
+  }
+  body.mode-simple .row.advanced-only {
+    display: none !important;
+  }
 </style>
 </head>
 <body>
@@ -973,13 +1386,6 @@
   <p style="margin-top:12px;">Try using a modern browser like Chrome, Firefox, Edge, or Safari on a desktop or recent mobile device.</p>
 </div>
 
-<!-- Portrait warning -->
-<div class="portrait-warning" id="portraitWarning">
-  <div class="rotate-icon">📱</div>
-  <h2>Rotate Your Device</h2>
-  <p>Voidulator works best in landscape mode</p>
-</div>
-
 <!-- Share modal -->
 <div class="modal-overlay" id="shareModal">
   <div class="modal">
@@ -992,11 +1398,108 @@
   </div>
 </div>
 
+<!-- Settings modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal settings-modal-content">
+    <h2 data-i18n="settings">⚙️ Settings</h2>
+    
+    <div class="settings-row">
+      <label data-i18n="mode">Mode</label>
+      <div class="settings-toggle">
+        <button class="toggle-btn active" id="modeSimple" data-i18n="simple">Simple</button>
+        <button class="toggle-btn" id="modeAdvanced" data-i18n="advanced">Advanced</button>
+      </div>
+    </div>
+    
+    <div class="settings-row">
+      <label data-i18n="theme">Theme</label>
+      <div class="settings-toggle">
+        <button class="toggle-btn active" id="themeClassic">Classic</button>
+        <button class="toggle-btn" id="themeCoral">Coral</button>
+      </div>
+    </div>
+    
+    <div class="settings-row">
+      <label data-i18n="language">Language</label>
+      <select id="languageSelect" class="settings-select">
+        <option value="en" selected>English</option>
+        <option value="es">Español</option>
+        <option value="pt">Português</option>
+        <option value="fr">Français</option>
+      </select>
+    </div>
+    
+    <div class="settings-row">
+      <label data-i18n="help">Help</label>
+      <button class="modal-btn" id="btnReplayTutorial" data-i18n="tutorial">▶️ Tutorial</button>
+    </div>
+    
+    <div class="settings-row">
+      <label data-i18n="feedback">Feedback</label>
+      <button class="modal-btn" id="btnFeedback" data-i18n="sendFeedback">💬 Send Feedback</button>
+    </div>
+    
+    <div class="modal-buttons">
+      <button class="modal-btn primary" id="closeSettingsModal" data-i18n="done">Done</button>
+    </div>
+    <div class="settings-version" id="appVersion">v1.0.0-beta</div>
+  </div>
+</div>
+
+<!-- Feedback modal -->
+<div class="modal-overlay" id="feedbackModal">
+  <div class="modal feedback-modal-content">
+    <h2>💬 Send Feedback</h2>
+    <p class="feedback-intro">Bug reports, feature requests, or just say hi!</p>
+    <textarea id="feedbackText" class="feedback-textarea" placeholder="Your feedback..." rows="4"></textarea>
+    <input type="email" id="feedbackEmail" class="feedback-email" placeholder="Email (optional)">
+    <div class="modal-buttons">
+      <button class="modal-btn" id="closeFeedbackModal">Cancel</button>
+      <button class="modal-btn primary" id="submitFeedback">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tutorial overlay -->
+<div class="tutorial-overlay" id="tutorialOverlay">
+  <div class="tutorial-backdrop" id="tutorialBackdrop"></div>
+  <div class="tutorial-highlight" id="tutorialHighlight"></div>
+  <div class="tutorial-tooltip" id="tutorialTooltip">
+    <div class="tutorial-content" id="tutorialContent"></div>
+    <div class="tutorial-nav">
+      <span class="tutorial-progress" id="tutorialProgress">1 / 5</span>
+      <div class="tutorial-buttons">
+        <button class="tutorial-btn" id="tutorialBack" data-i18n="back">Back</button>
+        <button class="tutorial-btn" id="tutorialSkip" data-i18n="skip">Skip</button>
+        <button class="tutorial-btn primary" id="tutorialNext" data-i18n="next">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Welcome modal -->
+<div class="modal-overlay" id="welcomeModal">
+  <div class="modal welcome-modal-content">
+    <h2>Voidulator</h2>
+    <div class="welcome-language">
+      <button class="lang-btn active" data-lang="en">English</button>
+      <button class="lang-btn" data-lang="es">Español</button>
+      <button class="lang-btn" data-lang="pt">Português</button>
+      <button class="lang-btn" data-lang="fr">Français</button>
+    </div>
+    <p class="welcome-subtitle" data-i18n="welcomeQuestion">Would you like a quick tour?</p>
+    <div class="modal-buttons">
+      <button class="modal-btn" id="welcomeSkip" data-i18n="skip">Skip</button>
+      <button class="modal-btn primary" id="welcomeStart" data-i18n="start">Start</button>
+    </div>
+  </div>
+</div>
+
 <!-- Fullscreen hint -->
-<div class="fullscreen-hint" id="fullscreenHint">Press F to exit fullscreen, H to toggle UI</div>
+<div class="fullscreen-hint" id="fullscreenHint" data-i18n="fullscreenHint">F = exit fullscreen · U = toggle UI · N = next scene</div>
 
 <!-- Screensaver indicator -->
-<div class="screensaver-indicator" id="screensaverIndicator">🌙 Screensaver Mode</div>
+<div class="screensaver-indicator" id="screensaverIndicator" data-i18n="screensaverMode">🌙 Screensaver Mode</div>
 
 <div class="app">
   <div class="stage">
@@ -1008,11 +1511,11 @@
     <div class="panel-header">
       <h2>Voidulator</h2>
       <div class="header-buttons">
+        <button class="toolbar-btn" id="btnSettings" title="Settings">⚙️</button>
         <button class="toolbar-btn" id="btnTheme" title="Toggle Theme">🎨</button>
         <button class="toolbar-btn" id="btnFullscreen" title="Fullscreen (F)">⛶</button>
         <button class="toolbar-btn" id="btnScreensaver" title="Screensaver Mode">🌙</button>
-        <button class="toolbar-btn" id="btnShare" title="Share">🔗</button>
-        <button class="toolbar-btn" id="btnCast" title="Cast to TV">📺</button>
+        <button class="toolbar-btn" id="btnShare" title="Share" data-advanced>🔗</button>
       </div>
     </div>
     <div class="grid">
@@ -1021,21 +1524,18 @@
       </div>
 
       <div class="row"><label>Max bounces</label>
-        <div class="ctrl-row">
-          <input id="bounces" type="range" min="1" max="300" step="1" value="236">
-          <input id="bouncesNum" type="number" min="1" max="300" value="236">
-        </div>
+        <input id="bounces" type="range" min="1" max="375" step="1" value="234">
       </div>
 
       <div class="row"><label>Beam width</label>
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
-      <div class="row"><label>Layer mode</label>
+      <div class="row advanced-only"><label>Layer mode</label>
         <button class="btn" id="layerModeToggle">Depth</button>
       </div>
 
-      <div class="row"><label>Blend mode</label>
+      <div class="row advanced-only"><label>Blend mode</label>
         <select id="blendMode">
           <option value="normal" selected="">Normal</option>
           <option value="additive">Additive</option>
@@ -1054,61 +1554,83 @@
         <button class="btn" id="showEmitterToggle">Hide</button>
       </div>
 
-      <div class="row"><label>Speed mult.</label>
-        <div class="ctrl-row">
-          <input id="speedMultiplier" type="range" min="0" max="2" step="0.01" value="0.01">
-          <input id="speedMultiplierNum" type="number" min="0" max="2" step="0.01" value="0.01">
+      <div class="speed-control">
+        <div class="speed-header">
+          <label>Speed</label>
+          <span id="speedMultiplierNum" class="speed-value">0.1000</span>
         </div>
-      </div>
-      <div class="row"><label>Step size</label>
-        <div class="btn-row" style="gap:4px;">
-          <button class="btn" id="speedStepDown">−</button>
-          <select id="speedStepSize" style="flex:1;">
-            <option value="0.01" selected="">0.01</option>
-            <option value="0.001">0.001</option>
-          </select>
-          <button class="btn" id="speedStepUp">+</button>
-        </div>
+        <input id="speedMultiplier" type="range" min="0" max="1" step="0.0005" value="0.675">
       </div>
     </div>
 
     <div class="group collapsible">
-      <div class="group-title">Colors</div>
+      <div class="group-title" data-i18n="colors">Colors</div>
       <div class="group-content">
       <div class="subgrid">
         <label>Scheme</label>
         <select id="beamScheme">
-          <option value="custom" selected="">Custom</option>
+          <option value="custom">Custom</option>
           <option value="grayscale">Greyscale</option>
           <option value="rainbow">Rainbow</option>
-          <option value="triad">Triad</option>
           <option value="analogous">Analogous</option>
           <option value="warm">Warm</option>
           <option value="cool">Cool</option>
           <option value="monochrome">Monochrome</option>
-          <option value="muted">Muted</option>
           <option value="earth">Earth</option>
           <option value="noir">Noir</option>
-          <option value="duotone-amber-teal">Amber/Teal</option>
-          <option value="duotone-rose-ink">Rose/Ink</option>
-          <option value="film-bleach">Bleach</option>
           <option value="pantone-soft">Pantone</option>
-          <option value="random">Random</option>
+          <optgroup label="Americas">
+            <option value="ara-macao">Ara macao (Macaw)</option>
+            <option value="pharomachrus-mocinno">Pharomachrus mocinno (Quetzal)</option>
+            <option value="danaus-plexippus">Danaus plexippus (Monarch)</option>
+            <option value="dendrobates-azureus">Dendrobates azureus (Dart frog)</option>
+            <option value="agalychnis-callidryas">Agalychnis callidryas (Tree frog)</option>
+            <option value="sialia-sialis">Sialia sialis (Bluebird)</option>
+          </optgroup>
+          <optgroup label="Africa">
+            <option value="coracias-caudatus">Coracias caudatus (Lilac roller)</option>
+            <option value="mandrillus-sphinx">Mandrillus sphinx (Mandrill)</option>
+            <option value="protea-cynaroides">Protea cynaroides (King Protea)</option>
+          </optgroup>
+          <optgroup label="Asia">
+            <option value="pavo-cristatus">Pavo cristatus (Peacock)</option>
+            <option value="aix-galericulata">Aix galericulata (Mandarin duck)</option>
+          </optgroup>
+          <optgroup label="Oceania">
+            <option value="trichoglossus-moluccanus">Trichoglossus moluccanus (Lorikeet)</option>
+            <option value="papilio-ulysses">Papilio ulysses (Blue butterfly)</option>
+          </optgroup>
+          <optgroup label="Europe &amp; Arctic">
+            <option value="picus-viridis">Picus viridis (Woodpecker)</option>
+            <option value="fratercula-arctica">Fratercula arctica (Puffin)</option>
+            <option value="papilio-machaon">Papilio machaon (Swallowtail)</option>
+          </optgroup>
+          <optgroup label="Ocean">
+            <option value="flabellina-iodinea">Flabellina iodinea (Nudibranch)</option>
+            <option value="glaucus-atlanticus">Glaucus atlanticus (Sea slug)</option>
+            <option value="chromodoris-lochi">Chromodoris lochi (Nudibranch)</option>
+            <option value="physalia-physalis">Physalia physalis (Man o' war)</option>
+          </optgroup>
+          <optgroup label="Flowers">
+            <option value="strelitzia-reginae">Strelitzia reginae (Bird of paradise)</option>
+            <option value="dendrobium-nobile">Dendrobium nobile (Orchid)</option>
+          </optgroup>
+          <option value="random" selected>Random</option>
         </select>
       </div>
-      <div id="beamColors"><div class="color-row" data-emitter="0"><div class="sw" draggable="true" data-beam-idx="0" data-order-idx="0" data-emitter="0"><label></label><input type="color"></div></div></div>
-      <div class="btn-row">
+      <div id="beamColors" data-advanced><div class="color-row" data-emitter="0"><div class="sw" draggable="true" data-beam-idx="0" data-order-idx="0" data-emitter="0"><label></label><input type="color"></div></div></div>
+      <div class="btn-row" data-advanced>
         <button class="btn" id="shuffleScheme">Shuffle</button>
       </div>
-      <div class="hint">Drag swatches to reorder layers.</div>
+      <div class="hint" data-advanced data-i18n="hintDragSwatches">Drag swatches to reorder layers.</div>
       </div>
     </div>
 
-    <div class="group collapsible">
-      <div class="group-title">Per-beam Rotation</div>
+    <div class="group collapsible advanced-only">
+      <div class="group-title" data-i18n="perBeamRotation">Per-beam Rotation</div>
       <div class="group-content">
       <div class="subgrid">
-        <label>Pattern</label>
+        <label data-i18n="pattern">Pattern</label>
         <select id="speedPattern">
           <option value="prime" selected="">Prime</option>
           <option value="linear">Linear</option>
@@ -1118,49 +1640,44 @@
           <option value="random">Random</option>
           <option value="zero">Zero (manual)</option>
         </select>
-        <label>Base speed</label>
-        <div class="ctrl-row">
-          <input id="patternBase" type="range" min="0.1" max="10" step="0.1" value="2">
-          <input id="patternBaseNum" type="number" min="0.1" max="50" step="0.1" value="2">
-        </div>
       </div>
       <div id="beamSpeeds"><div class="sw"><label>1</label><input type="number" step="0.1" min="-5" max="5"></div></div>
       <div class="btn-row">
-        <button class="btn" id="resetPhases">Reset phases</button>
+        <button class="btn" id="resetPhases" data-i18n="resetPhases">Reset phases</button>
       </div>
       </div>
     </div>
 
-    <div class="group collapsible">
-      <div class="group-title">Pulse Effect</div>
+    <div class="group collapsible advanced-only">
+      <div class="group-title" data-i18n="pulse">Pulse</div>
       <div class="group-content">
       <div class="subgrid">
-        <label>Enable</label>
-        <button class="btn" id="pulseToggle">On</button>
-        <label>Shape</label>
+        <label data-i18n="enable">Enable</label>
+        <button class="btn" id="pulseToggle">Off</button>
+        <label data-i18n="shape">Shape</label>
         <button class="btn" id="pulseShapeToggle">Sine</button>
-        <label>Amplitude</label>
+        <label data-i18n="amplitude">Amplitude</label>
         <input id="pulseAmp" type="range" min="0" max="1" step="0.01" value="1">
-        <label>Frequency</label>
-        <input id="pulseFreq" type="range" min="0.05" max="6" step="0.05" value="1.2">
-        <label>Speed</label>
+        <label data-i18n="frequency">Frequency</label>
+        <input id="pulseFreq" type="range" min="0" max="1" step="0.001" value="0.5">
+        <label data-i18n="speed">Speed</label>
         <input id="pulseSpeed" type="range" min="0" max="450" step="1" value="60">
-        <label>Softness</label>
+        <label data-i18n="softness">Softness</label>
         <input id="pulseQuality" type="range" min="0" max="1" step="0.01" value="0.18">
-        <label>Duty cycle</label>
+        <label data-i18n="dutyCycle">Duty cycle</label>
         <input id="pulseDuty" type="range" min="0" max="1" step="0.01" value="0.5">
       </div>
-      <div class="hint">Duty: left = mostly dark, right = mostly light.</div>
+      <div class="hint" data-i18n="hintDuty">Duty: left = mostly dark, right = mostly light.</div>
       </div>
     </div>
 
-    <div class="group collapsible">
-      <div class="group-title">Shape Flow</div>
+    <div class="group collapsible advanced-only">
+      <div class="group-title" data-i18n="shapeTitle">Shape</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Enable</label>
+          <label data-i18n="enable">Enable</label>
           <button class="btn" id="widthWaveToggle">Off</button>
-          <label>Shape</label>
+          <label data-i18n="shape">Shape</label>
           <select id="widthWaveShape">
             <option value="circle" selected>Circle</option>
             <option value="triangle">Triangle</option>
@@ -1168,137 +1685,107 @@
             <option value="pentagon">Pentagon</option>
             <option value="hexagon">Hexagon</option>
           </select>
-          <label id="lblDensity" class="clickable">Density</label>
+          <label id="lblDensity" class="clickable" data-i18n="density">Density</label>
           <input id="widthWaveFreq" type="range" min="0.02" max="8" step="0.02" value="0.5">
-          <label id="lblSize" class="clickable">Size</label>
+          <label id="lblSize" class="clickable" data-i18n="size">Size</label>
           <input id="widthWaveDuty" type="range" min="0.01" max="1" step="0.01" value="0.5">
-          <label id="lblFlow" class="clickable">Flow</label>
-          <input id="widthWaveSpeed" type="range" min="-400" max="400" step="1" value="0">
-          <label id="lblSpin" class="clickable">Spin</label>
+          <label id="lblFlow" class="clickable" data-i18n="flow">Flow</label>
+          <input id="widthWaveSpeed" type="range" min="-200" max="200" step="1" value="0">
+          <label id="lblSpin" class="clickable" data-i18n="spin">Spin</label>
           <input id="widthWaveRotation" type="range" min="-2" max="2" step="0.1" value="0">
         </div>
-        <div class="hint">Click labels to reset. Flow: left=in, right=out.</div>
+        <div class="hint" data-i18n="hintShape">Click labels to reset. Flow: left=in, right=out.</div>
       </div>
     </div>
 
-    <div class="group collapsible">
-      <div class="group-title">Shader Effects</div>
+    <div class="group collapsible advanced-only">
+      <div class="group-title" data-i18n="trails">Trails</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Edge Fade</label>
-          <input id="edgeFade" type="range" min="0" max="1" step="0.01" value="0">
-          <label>Glow</label>
-          <input id="shapeGlow" type="range" min="0" max="1" step="0.01" value="0">
-        </div>
-        <div class="hint">Edge Fade: fade near room boundary. Glow: soft halo around shapes.</div>
-      </div>
-    </div>
-
-    <div class="group collapsible">
-      <div class="group-title">Trails</div>
-      <div class="group-content">
-        <div class="subgrid">
-          <label>Enable</label>
+          <label data-i18n="enable">Enable</label>
           <button class="btn" id="trailsToggle">Off</button>
-          <label>Length</label>
-          <div class="ctrl-row">
-            <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
-            <input id="trailsLengthNum" type="number" min="1" max="180" value="20">
-          </div>
-          <label>Hue shift</label>
-          <div class="ctrl-row">
-            <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
-            <input id="trailsHueShiftNum" type="number" min="0" max="360" value="0">
-          </div>
+          <label data-i18n="length">Length</label>
+          <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
+          <label data-i18n="hueShift">Hue shift</label>
+          <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
         </div>
-        <div class="hint">Length: trail duration. Hue shift: 0=same color, 180=complementary.</div>
+        <div class="hint" data-i18n="hintTrails">Length: trail duration. Hue shift: 0=same color, 180=complementary.</div>
       </div>
     </div>
 
-    <div class="group collapsible">
-      <div class="group-title">Scenes</div>
+    <div class="group collapsible advanced-only">
+      <div class="group-title" data-i18n="scenes">Scenes</div>
       <div class="group-content">
       <div class="subgrid">
-        <label>Scene</label>
+        <label data-i18n="scene">Scene</label>
         <select id="sceneSelect"><option value="">-- Select scene --</option><option value="0">Scene 1</option><option value="1">Scene 2</option><option value="2">Scene 3</option><option value="3">Scene 4</option><option value="4">Scene 5</option><option value="5">Scene 6</option></select>
-        <label>Name</label>
+        <label data-i18n="name">Name</label>
         <input type="text" id="sceneName" placeholder="Scene name..." style="padding:4px 6px;">
       </div>
       <div class="btn-row">
-        <button class="btn" id="saveScene">Save</button>
-        <button class="btn" id="goToScene">Go</button>
-        <button class="btn" id="deleteScene">Delete</button>
+        <button class="btn" id="saveScene" data-i18n="save">Save</button>
+        <button class="btn" id="goToScene" data-i18n="go">Go</button>
+        <button class="btn" id="deleteScene" data-i18n="delete">Delete</button>
       </div>
       <div class="subgrid" style="margin-top:6px;">
-        <label>Transition</label>
+        <label data-i18n="transition">Transition</label>
         <div class="ctrl-row">
-          <input id="transitionDuration" type="range" min="0" max="60" step="0.1" value="1.5">
-          <input id="transitionDurationNum" type="number" min="0" max="600" step="0.1" value="1.5">
+          <input id="transitionDuration" type="range" min="0" max="60" step="0.1" value="6">
+          <input id="transitionDurationNum" type="number" min="0" max="600" step="0.1" value="6">
         </div>
       </div>
-      <div class="scene-slots">
-        <button class="btn scene-slot" data-slot="1" title="Empty">1</button>
-        <button class="btn scene-slot" data-slot="2" title="Empty">2</button>
-        <button class="btn scene-slot" data-slot="3" title="Empty">3</button>
-        <button class="btn scene-slot" data-slot="4" title="Empty">4</button>
-        <button class="btn scene-slot" data-slot="5" title="Empty">5</button>
-        <button class="btn scene-slot" data-slot="6" title="Empty">6</button>
-        <button class="btn scene-slot" data-slot="7" title="Empty">7</button>
-        <button class="btn scene-slot" data-slot="8" title="Empty">8</button>
-      </div>
-      <div class="hint">Click slot to go, Shift+Click to save. Keys 1-8 trigger slots.</div>
       <div class="subgrid" style="margin-top:8px;">
-        <label>Screensaver</label>
+        <label data-i18n="screensaver">Screensaver</label>
         <div class="ctrl-row">
-          <input id="screensaverDuration" type="range" min="1" max="120" step="1" value="1">
-          <input id="screensaverDurationNum" type="number" min="1" max="120" step="1" value="1">
+          <input id="screensaverDuration" type="range" min="1" max="120" step="1" value="12">
+          <input id="screensaverDurationNum" type="number" min="1" max="120" step="1" value="12">
         </div>
       </div>
-      <div class="hint">Minutes per scene in screensaver mode (🌙 button).</div>
+      <div class="hint" data-i18n="hintScreensaver">Minutes per scene in screensaver mode (🌙 button).</div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn" id="factoryResetScenes" data-i18n="factoryReset">Factory Reset Scenes</button>
+      </div>
       </div>
     </div>
 
-    <div class="group collapsible">
-      <div class="group-title">File Presets</div>
+    <div class="group collapsible advanced-only">
+      <div class="group-title" data-i18n="filePresets">File Presets</div>
       <div class="group-content">
       <div class="btn-row">
-        <button class="btn" id="savePreset">Export</button>
-        <button class="btn" id="loadPreset">Import</button>
+        <button class="btn" id="savePreset" data-i18n="export">Export</button>
+        <button class="btn" id="loadPreset" data-i18n="import">Import</button>
         <input id="presetFile" type="file" accept="application/json" style="display:none">
       </div>
       </div>
     </div>
 
-    <div class="group collapsible collapsed" id="audioGroup">
-      <div class="group-title">Audio Reactive</div>
+    <div class="group collapsible collapsed advanced-only" id="audioGroup">
+      <div class="group-title" data-i18n="audio">Audio Reactive</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Mic input</label>
+          <label data-i18n="micInput">Mic input</label>
           <div class="btn-row">
-            <button class="btn" id="audioToggle">Start listening</button>
+            <button class="btn" id="audioToggle" data-i18n="startListening">Start listening</button>
           </div>
-          <label>Sensitivity</label>
+          <label data-i18n="sensitivity">Sensitivity</label>
           <div class="ctrl-row">
-            <input id="audioSensitivity" type="range" min="0.1" max="5" step="0.1" value="1.5">
-            <input id="audioSensitivityNum" type="number" min="0.1" max="5" step="0.1" value="1.5">
+            <input id="audioSensitivity" type="range" min="0.1" max="5" step="0.1" value="4">
+            <input id="audioSensitivityNum" type="number" min="0.1" max="5" step="0.1" value="4">
           </div>
-          <label>Smoothing</label>
+          <label data-i18n="smoothing">Smoothing</label>
           <input id="audioSmoothing" type="range" min="0" max="0.98" step="0.01" value="0.5">
-          <label>Target</label>
+          <label data-i18n="target">Target</label>
           <select id="audioTarget">
-            <option value="angle" selected="">Angle drift</option>
-            <option value="spread">Spread</option>
-            <option value="width">Beam width</option>
+            <option value="width" selected="">Beam width</option>
             <option value="pulse-speed">Pulse speed</option>
             <option value="pulse-freq">Pulse freq</option>
-            <option value="center-range">Center range</option>
           </select>
-          <label>Strength</label>
+          <label data-i18n="strength">Strength</label>
           <div class="ctrl-row">
             <input id="audioStrength" type="range" min="0" max="1" step="0.01" value="0.3">
             <input id="audioStrengthNum" type="number" min="0" max="1" step="0.01" value="0.3">
           </div>
-          <label>Band</label>
+          <label data-i18n="band">Band</label>
           <select id="audioBand">
             <option value="all" selected="">Full spectrum</option>
             <option value="bass">Bass (low)</option>
@@ -1306,12 +1793,12 @@
             <option value="high">Highs</option>
           </select>
         </div>
-        <div class="hint">Uses mic/system audio. Press F for clean fullscreen.</div>
+        <div class="hint" data-i18n="hintAudio">Uses mic/system audio. Press F for clean fullscreen.</div>
       </div>
     </div>
 
-    <div class="group collapsible collapsed">
-      <div class="group-title">Bonus</div>
+    <div class="group collapsible collapsed advanced-only">
+      <div class="group-title" data-i18n="bonus">Bonus</div>
       <div class="group-content">
         <div class="subgrid">
           <label>Shape</label>
@@ -1376,6 +1863,11 @@
 
 <script>
 (() => {
+  // === CONFIGURATION ===
+  // Change this URL to your Google Form for collecting feedback
+  const FEEDBACK_FORM_URL = 'https://forms.gle/YOUR_FORM_ID_HERE';
+  const APP_VERSION = 'v1.0.0-beta';
+  
   const _el = id => document.getElementById(id);
   const _on = (el, evt, fn) => { if (el) el.addEventListener(evt, fn); };
 
@@ -1387,7 +1879,6 @@
   const shapeSel = _el('shape');
   const reflectEl = _el('reflect');
   const bouncesEl = _el('bounces');
-  const bouncesNumEl = _el('bouncesNum');
   const widthEl = _el('beamWidth');
   const beamCountUpBtn = _el('beamCountUp');
   const beamCountDownBtn = _el('beamCountDown');
@@ -1404,20 +1895,10 @@
   const speedRangeEl = _el('speedRange');
   const speedMultiplierEl = _el('speedMultiplier');
   const speedMultiplierNumEl = _el('speedMultiplierNum');
-  const speedStepDown = _el('speedStepDown');
-  const speedStepUp = _el('speedStepUp');
-  const speedStepSize = _el('speedStepSize');
   const beamSchemeEl = _el('beamScheme');
-  const hueRotateSpeedEl = _el('hueRotateSpeed');
-  const hueRotateSpeedNumEl = _el('hueRotateSpeedNum');
-  const brightnessOscToggle = _el('brightnessOscToggle');
-  const brightnessOscAmpEl = _el('brightnessOscAmp');
-  const brightnessOscFreqEl = _el('brightnessOscFreq');
   const shuffleSchemeBtn = _el('shuffleScheme');
   const beamColorsDiv = _el('beamColors');
   const speedPatternEl = _el('speedPattern');
-  const patternBaseEl = _el('patternBase');
-  const patternBaseNumEl = _el('patternBaseNum');
   const resetPhasesBtn = _el('resetPhases');
   const beamSpeedsDiv = _el('beamSpeeds');
   const layerModeToggle = _el('layerModeToggle');
@@ -1431,11 +1912,9 @@
   // Trails
   const trailsToggle = _el('trailsToggle');
   const trailsLengthEl = _el('trailsLength');
-  const trailsLengthNumEl = _el('trailsLengthNum');
   const trailsOpacityEl = _el('trailsOpacity');
   const trailsFadeEl = _el('trailsFade');
   const trailsHueShiftEl = _el('trailsHueShift');
-  const trailsHueShiftNumEl = _el('trailsHueShiftNum');
   // Thickness pulse
   const widthWaveToggle = _el('widthWaveToggle');
   const widthWaveShapeEl = _el('widthWaveShape');
@@ -1443,9 +1922,6 @@
   const widthWaveSpeedEl = _el('widthWaveSpeed');
   const widthWaveDutyEl = _el('widthWaveDuty');
   const widthWaveRotationEl = _el('widthWaveRotation');
-  // Shader effects
-  const edgeFadeEl = _el('edgeFade');
-  const shapeGlowEl = _el('shapeGlow');
   // Blend mode
   const blendModeEl = _el('blendMode');
   const savePresetBtn = _el('savePreset');
@@ -1480,14 +1956,14 @@
     vertices: [],
     reflectSlider: 0.8,
     reflectivity: 0.8,
-    maxBounces: 236,
+    maxBounces: 234,
     beamWidth: 2,
     beamCount: 1,
     spreadDeg: 0,
     angleDeg: 0,
     rotationSpeed: 0,
     speedMax: 5,
-    speedMultiplier: 0.01,
+    speedMultiplier: 0.1,
     // Emitters stored as normalized positions (0-1 range relative to room)
     emittersNorm: [{ nx: 0.5, ny: 0.5 }],
     emitters: [{ x: 0, y: 0 }],
@@ -1495,20 +1971,14 @@
     emitterSymmetry: true,
     symRadius: 0.15, // normalized radius for symmetric positioning
     symAngle: 0,     // angle of first emitter in formation
-    beamScheme: 'custom',
-    hueRotateSpeed: 0, // degrees per second for color cycling
-    brightnessOsc: {
-      enabled: false,
-      amp: 0.5,    // 0-1 amplitude of brightness variation
-      freq: 1      // Hz - oscillations per second
-    },
+    beamScheme: 'random',
     beamPalette: [],           // Legacy: palette for emitter 0
     emitterPalettes: [[]],     // Per-emitter palettes: emitterPalettes[emIdx][beamIdx]
     perBeamSpeed: [],
     perBeamPhase: [],
     speedPattern: 'prime',
-    patternBase: 2,
-    pulseOn: true,
+    patternBase: 1,
+    pulseOn: false,
     pulseShape: 'sine',
     pulseAmp: 1,
     pulseFreqCP100: 1.2,
@@ -1531,9 +2001,6 @@
       duty: 0.5,        // size (0-1)
       rotation: 0       // rotations per second (-2 to +2)
     },
-    // Shader effects
-    edgeFade: 0,        // 0-1: fade opacity near room boundary
-    shapeGlow: 0,       // 0-1: glow intensity around shapes
     blendMode: 'normal', // normal, additive
     dpr: 1,
     lastSegments: 0,
@@ -1545,7 +2012,7 @@
     // Scenes
     scenes: [], // Array of {name, slot, data}
     sceneSlots: [null, null, null, null, null, null, null, null], // 8 slots
-    transitionDuration: 1.5,
+    transitionDuration: 6,
     // Transition state
     transition: {
       active: false,
@@ -1567,9 +2034,9 @@
       dataArray: null,
       energy: 0,
       rawEnergy: 0,
-      sensitivity: 1.5,
+      sensitivity: 4,
       smoothing: 0.5,
-      target: 'angle',
+      target: 'width',
       strength: 0.3,
       band: 'all'
     },
@@ -1611,6 +2078,57 @@
 
   // Utils
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  
+  // Logarithmic speed slider: first 50% = 0-0.02 (linear), last 50% = 0.02-2 (exponential)
+  function sliderToSpeed(pos) {
+    pos = clamp(pos, 0, 1);
+    if (pos <= 0.5) {
+      // First half: linear 0 to 0.02 for fine control in sweet spot
+      return pos * 0.04;
+    } else {
+      // Second half: exponential 0.02 to 2
+      const t = (pos - 0.5) * 2; // normalize to 0-1
+      return 0.02 * Math.pow(100, t);
+    }
+  }
+  
+  function speedToSlider(speed) {
+    speed = clamp(speed, 0, 2);
+    if (speed <= 0.02) {
+      return speed / 0.04;
+    } else {
+      // Inverse of exponential: t = log(speed/0.02) / log(100)
+      const t = Math.log(speed / 0.02) / Math.log(100);
+      return 0.5 + t * 0.5;
+    }
+  }
+  
+  // Pulse frequency: logarithmic slider for fine control at low frequencies
+  // First 62.5% (0-0.625) → 0.05 to 0.5 (linear, fine control - 25% more range)
+  // Last 37.5% (0.625-1) → 0.5 to 6 (exponential, compressed high range)
+  function sliderToPulseFreq(pos) {
+    pos = clamp(pos, 0, 1);
+    if (pos <= 0.625) {
+      // First 62.5%: linear 0.05 to 0.5
+      return 0.05 + pos * 0.72; // 0.05 + 0.625*0.72 = 0.5
+    } else {
+      // Last 37.5%: exponential 0.5 to 6
+      const t = (pos - 0.625) / 0.375; // normalize to 0-1
+      return 0.5 * Math.pow(12, t); // 0.5 * 12^1 = 6
+    }
+  }
+  
+  function pulseFreqToSlider(freq) {
+    freq = clamp(freq, 0.05, 6);
+    if (freq <= 0.5) {
+      return (freq - 0.05) / 0.72;
+    } else {
+      // Inverse of exponential: t = log(freq/0.5) / log(12)
+      const t = Math.log(freq / 0.5) / Math.log(12);
+      return 0.625 + t * 0.375;
+    }
+  }
+  
   function rand() {
     S.seed = (1664525 * S.seed + 1013904223) >>> 0;
     return S.seed / 0x100000000;
@@ -1663,11 +2181,52 @@
     return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
   }
 
-  // Palette
+  // Palette - generate scheme-appropriate color for a given index
+  function getSchemeColorForIndex(scheme, i) {
+    const golden = 137.508;
+    // Use a fixed base (no randomness) for predictable colors
+    const base = 0;
+    
+    if (scheme === 'rainbow') return { h: (base + i * golden) % 360, s: 80, l: 55 };
+    else if (scheme === 'analogous') return { h: (base - 30 + i * 5) % 360, s: 80, l: 55 };
+    else if (scheme === 'monochrome') return { h: base, s: 35 + (i % 8) * 5, l: 35 + (i % 8) * 5 };
+    else if (scheme === 'warm') return { h: (10 + (i % 12) * 5) % 60 + 10, s: 85, l: 55 };
+    else if (scheme === 'cool') return { h: 190 + (i % 12) * 6, s: 75, l: 55 };
+    else if (scheme === 'earth') { const a = [30, 45, 60, 20, 100]; return { h: a[i % 5], s: 55, l: 45 }; }
+    else if (scheme === 'grayscale') return { h: 0, s: 0, l: 25 + (i % 10) * 6 };
+    else if (scheme === 'noir') return { h: base, s: 6, l: 22 + (i % 3) * 6 };
+    else if (scheme === 'pantone-soft') { const t = [{ h: 10, s: 30, l: 72 }, { h: 35, s: 25, l: 74 }, { h: 200, s: 22, l: 70 }, { h: 300, s: 18, l: 72 }, { h: 120, s: 20, l: 68 }, { h: 260, s: 20, l: 70 }]; return { ...t[i % t.length] }; }
+    else if (scheme === 'dendrobates-azureus') { const a = [210, 210, 55, 210, 0]; const s = [90, 80, 90, 85, 0]; const l = [55, 45, 55, 60, 15]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'flabellina-iodinea') { const a = [280, 25, 345, 280, 15]; const s = [75, 90, 85, 65, 95]; const l = [45, 55, 50, 55, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'ara-macao') { const a = [0, 50, 220, 0, 45, 210]; const s = [85, 95, 85, 90, 90, 80]; const l = [50, 55, 50, 45, 58, 55]; return { h: a[i % 6], s: s[i % 6], l: l[i % 6] }; }
+    else if (scheme === 'papilio-machaon') { const a = [55, 0, 210, 55, 0]; const s = [90, 0, 70, 85, 0]; const l = [55, 10, 45, 60, 15]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'glaucus-atlanticus') { const a = [210, 220, 200, 0, 215]; const s = [80, 70, 60, 0, 85]; const l = [55, 45, 70, 85, 40]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'agalychnis-callidryas') { const a = [120, 200, 25, 0, 130]; const s = [75, 80, 95, 85, 70]; const l = [45, 50, 55, 50, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'strelitzia-reginae') { const a = [25, 220, 120, 30, 215]; const s = [95, 85, 60, 90, 80]; const l = [55, 45, 40, 50, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'sialia-sialis') { const a = [215, 25, 0, 210, 30]; const s = [75, 80, 0, 70, 75]; const l = [55, 60, 95, 50, 55]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'chromodoris-lochi') { const a = [220, 55, 0, 215, 50]; const s = [80, 90, 0, 75, 85]; const l = [55, 55, 15, 50, 60]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'physalia-physalis') { const a = [220, 280, 330, 210, 290]; const s = [70, 60, 70, 75, 55]; const l = [50, 50, 65, 55, 55]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'dendrobium-nobile') { const a = [310, 320, 0, 300, 330]; const s = [50, 60, 0, 45, 55]; const l = [70, 65, 98, 72, 68]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'picus-viridis') { const a = [100, 0, 55, 110, 5]; const s = [55, 85, 80, 50, 80]; const l = [40, 45, 55, 45, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    // Indigenous sacred & culturally significant species
+    else if (scheme === 'pharomachrus-mocinno') { const a = [145, 0, 210, 150, 0]; const s = [85, 85, 75, 80, 0]; const l = [45, 45, 50, 50, 95]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'danaus-plexippus') { const a = [25, 0, 25, 0, 30]; const s = [95, 0, 90, 0, 95]; const l = [55, 10, 50, 95, 58]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'coracias-caudatus') { const a = [175, 280, 200, 175, 290]; const s = [70, 50, 75, 65, 45]; const l = [55, 60, 50, 60, 55]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'mandrillus-sphinx') { const a = [220, 0, 50, 215, 5]; const s = [90, 90, 95, 85, 85]; const l = [50, 45, 55, 55, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'trichoglossus-moluccanus') { const a = [0, 35, 120, 210, 275]; const s = [85, 95, 80, 85, 75]; const l = [50, 55, 50, 55, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'papilio-ulysses') { const a = [200, 0, 210, 195, 0]; const s = [95, 0, 90, 90, 0]; const l = [55, 12, 50, 60, 8]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'pavo-cristatus') { const a = [210, 160, 45, 200, 50]; const s = [85, 80, 90, 80, 85]; const l = [45, 40, 55, 50, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'aix-galericulata') { const a = [25, 280, 140, 0, 35]; const s = [90, 60, 70, 0, 85]; const l = [55, 45, 40, 95, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'fratercula-arctica') { const a = [0, 0, 25, 0, 30]; const s = [0, 0, 95, 0, 90]; const l = [10, 95, 55, 15, 50]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else if (scheme === 'protea-cynaroides') { const a = [340, 35, 350, 330, 30]; const s = [55, 25, 50, 45, 20]; const l = [60, 85, 55, 35, 90]; return { h: a[i % 5], s: s[i % 5], l: l[i % 5] }; }
+    else return { h: (i * golden) % 360, s: 80, l: 55 };
+  }
+  
   function ensurePaletteSize(n) {
     while (S.beamPalette.length < n) {
       const i = S.beamPalette.length;
-      S.beamPalette.push({ h: (i * 360 / Math.max(1, n)) % 360, s: 80, l: 55 });
+      // Add scheme-appropriate color when growing palette
+      S.beamPalette.push(getSchemeColorForIndex(S.beamScheme, i));
     }
     if (S.beamPalette.length > n) S.beamPalette.length = n;
     // Sync emitter palettes
@@ -1688,7 +2247,7 @@
     for (let em = 0; em < numEm; em++) {
       while (S.emitterPalettes[em].length < numBeams) {
         const i = S.emitterPalettes[em].length;
-        S.emitterPalettes[em].push({ h: (i * 360 / Math.max(1, numBeams)) % 360, s: 80, l: 55 });
+        S.emitterPalettes[em].push(getSchemeColorForIndex(S.beamScheme, i));
       }
       if (S.emitterPalettes[em].length > numBeams) S.emitterPalettes[em].length = numBeams;
     }
@@ -1710,22 +2269,46 @@
     const n = S.beamCount | 0;
     const base = (rand() * 360) % 360;
     const out = [];
-    if (scheme === 'rainbow') for (let i = 0; i < n; i++) out.push({ h: (base + i * 360 / n) % 360, s: 80, l: 55 });
-    else if (scheme === 'analogous') { const span = 60; for (let i = 0; i < n; i++) out.push({ h: (base - span / 2 + span * (i / Math.max(1, n - 1))) % 360, s: 80, l: 55 }); }
-    else if (scheme === 'triad') { const tri = [base, (base + 120) % 360, (base + 240) % 360]; for (let i = 0; i < n; i++) out.push({ h: tri[i % 3], s: 80, l: 55 }); }
-    else if (scheme === 'monochrome') { const h = ((base % 360) + 360) % 360; for (let i = 0; i < n; i++) out.push({ h, s: 35 + 40 * (i / Math.max(1, n - 1)), l: 40 + 20 * (i / Math.max(1, n - 1)) }); }
-    else if (scheme === 'warm') for (let i = 0; i < n; i++) out.push({ h: (10 + 60 * (i / Math.max(1, n - 1))) % 360, s: 85, l: 55 });
-    else if (scheme === 'cool') for (let i = 0; i < n; i++) out.push({ h: (190 + 70 * (i / Math.max(1, n - 1))) % 360, s: 75, l: 55 });
+    // Use golden angle (137.508°) for stable per-index colors that don't shift when count changes
+    const golden = 137.508;
+    // Or use fixed divisor of 24 (max beams) for even spacing
+    const fixed = 360 / 24;
+    
+    if (scheme === 'rainbow') for (let i = 0; i < n; i++) out.push({ h: (base + i * golden) % 360, s: 80, l: 55 });
+    else if (scheme === 'analogous') for (let i = 0; i < n; i++) out.push({ h: (base - 30 + i * 5) % 360, s: 80, l: 55 });
+    else if (scheme === 'monochrome') { const h = ((base % 360) + 360) % 360; for (let i = 0; i < n; i++) out.push({ h, s: 35 + (i % 8) * 5, l: 35 + (i % 8) * 5 }); }
+    else if (scheme === 'warm') for (let i = 0; i < n; i++) out.push({ h: (10 + (i % 12) * 5) % 60 + 10, s: 85, l: 55 });
+    else if (scheme === 'cool') for (let i = 0; i < n; i++) out.push({ h: 190 + (i % 12) * 6, s: 75, l: 55 });
     else if (scheme === 'earth') { const a = [30, 45, 60, 20, 100]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: 55, l: 45 }); }
-    else if (scheme === 'grayscale') for (let i = 0; i < n; i++) out.push({ h: 0, s: 0, l: 20 + 60 * (i / Math.max(1, n - 1)) });
-    else if (scheme === 'muted') for (let i = 0; i < n; i++) out.push({ h: (base + i * 22) % 360, s: 28, l: 68 });
+    else if (scheme === 'grayscale') for (let i = 0; i < n; i++) out.push({ h: 0, s: 0, l: 25 + (i % 10) * 6 });
     else if (scheme === 'noir') { const h = ((base % 360) + 360) % 360; for (let i = 0; i < n; i++) out.push({ h, s: 6, l: 22 + (i % 3) * 6 }); }
-    else if (scheme === 'duotone-amber-teal') { const a = [38, 190]; for (let i = 0; i < n; i++) out.push({ h: a[i % 2], s: 70, l: 52 }); }
-    else if (scheme === 'duotone-rose-ink') { const a = [345, 220]; for (let i = 0; i < n; i++) out.push({ h: a[i % 2], s: 60, l: 50 }); }
-    else if (scheme === 'film-bleach') for (let i = 0; i < n; i++) out.push({ h: (base + i * 18) % 360, s: 22, l: 62 });
-    else if (scheme === 'pantone-soft') { const t = [{ h: 10, s: 30, l: 72 }, { h: 35, s: 25, l: 74 }, { h: 200, s: 22, l: 70 }, { h: 300, s: 18, l: 72 }, { h: 120, s: 20, l: 68 }, { h: 260, s: 20, l: 70 }]; for (let i = 0; i < n; i++) out.push(t[i % t.length]); }
+    else if (scheme === 'pantone-soft') { const t = [{ h: 10, s: 30, l: 72 }, { h: 35, s: 25, l: 74 }, { h: 200, s: 22, l: 70 }, { h: 300, s: 18, l: 72 }, { h: 120, s: 20, l: 68 }, { h: 260, s: 20, l: 70 }]; for (let i = 0; i < n; i++) out.push({ ...t[i % t.length] }); }
+    // Nature-inspired palettes with Latin names
+    else if (scheme === 'dendrobates-azureus') { const a = [210, 210, 55, 210, 0]; const s = [90, 80, 90, 85, 0]; const l = [55, 45, 55, 60, 15]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Blue poison dart frog
+    else if (scheme === 'flabellina-iodinea') { const a = [280, 25, 345, 280, 15]; const s = [75, 90, 85, 65, 95]; const l = [45, 55, 50, 55, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Spanish shawl nudibranch
+    else if (scheme === 'ara-macao') { const a = [0, 50, 220, 0, 45, 210]; const s = [85, 95, 85, 90, 90, 80]; const l = [50, 55, 50, 45, 58, 55]; for (let i = 0; i < n; i++) out.push({ h: a[i % 6], s: s[i % 6], l: l[i % 6] }); } // Scarlet macaw
+    else if (scheme === 'papilio-machaon') { const a = [55, 0, 210, 55, 0]; const s = [90, 0, 70, 85, 0]; const l = [55, 10, 45, 60, 15]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Swallowtail butterfly
+    else if (scheme === 'glaucus-atlanticus') { const a = [210, 220, 200, 0, 215]; const s = [80, 70, 60, 0, 85]; const l = [55, 45, 70, 85, 40]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Blue dragon sea slug
+    else if (scheme === 'agalychnis-callidryas') { const a = [120, 200, 25, 0, 130]; const s = [75, 80, 95, 85, 70]; const l = [45, 50, 55, 50, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Red-eyed tree frog
+    else if (scheme === 'strelitzia-reginae') { const a = [25, 220, 120, 30, 215]; const s = [95, 85, 60, 90, 80]; const l = [55, 45, 40, 50, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Bird of paradise flower
+    else if (scheme === 'sialia-sialis') { const a = [215, 25, 0, 210, 30]; const s = [75, 80, 0, 70, 75]; const l = [55, 60, 95, 50, 55]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Eastern bluebird
+    else if (scheme === 'chromodoris-lochi') { const a = [220, 55, 0, 215, 50]; const s = [80, 90, 0, 75, 85]; const l = [55, 55, 15, 50, 60]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Nudibranch - blue, yellow, black
+    else if (scheme === 'physalia-physalis') { const a = [220, 280, 330, 210, 290]; const s = [70, 60, 70, 75, 55]; const l = [50, 50, 65, 55, 55]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Portuguese man o' war
+    else if (scheme === 'dendrobium-nobile') { const a = [310, 320, 0, 300, 330]; const s = [50, 60, 0, 45, 55]; const l = [70, 65, 98, 72, 68]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Noble dendrobium orchid
+    else if (scheme === 'picus-viridis') { const a = [100, 0, 55, 110, 5]; const s = [55, 85, 80, 50, 80]; const l = [40, 45, 55, 45, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Green woodpecker
+    // Indigenous sacred & culturally significant species
+    else if (scheme === 'pharomachrus-mocinno') { const a = [145, 0, 210, 150, 0]; const s = [85, 85, 75, 80, 0]; const l = [45, 45, 50, 50, 95]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Quetzal - Maya/Aztec sacred
+    else if (scheme === 'danaus-plexippus') { const a = [25, 0, 25, 0, 30]; const s = [95, 0, 90, 0, 95]; const l = [55, 10, 50, 95, 58]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Monarch butterfly - Mexico
+    else if (scheme === 'coracias-caudatus') { const a = [175, 280, 200, 175, 290]; const s = [70, 50, 75, 65, 45]; const l = [55, 60, 50, 60, 55]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Lilac-breasted roller - Kenya
+    else if (scheme === 'mandrillus-sphinx') { const a = [220, 0, 50, 215, 5]; const s = [90, 90, 95, 85, 85]; const l = [50, 45, 55, 55, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Mandrill - West Africa
+    else if (scheme === 'trichoglossus-moluccanus') { const a = [0, 35, 120, 210, 275]; const s = [85, 95, 80, 85, 75]; const l = [50, 55, 50, 55, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Rainbow lorikeet - Aboriginal Australia
+    else if (scheme === 'papilio-ulysses') { const a = [200, 0, 210, 195, 0]; const s = [95, 0, 90, 90, 0]; const l = [55, 12, 50, 60, 8]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Ulysses butterfly - Australia/Papua
+    else if (scheme === 'pavo-cristatus') { const a = [210, 160, 45, 200, 50]; const s = [85, 80, 90, 80, 85]; const l = [45, 40, 55, 50, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Indian peacock - sacred India
+    else if (scheme === 'aix-galericulata') { const a = [25, 280, 140, 0, 35]; const s = [90, 60, 70, 0, 85]; const l = [55, 45, 40, 95, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Mandarin duck - East Asia
+    else if (scheme === 'fratercula-arctica') { const a = [0, 0, 25, 0, 30]; const s = [0, 0, 95, 0, 90]; const l = [10, 95, 55, 15, 50]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // Atlantic puffin - Nordic/Inuit
+    else if (scheme === 'protea-cynaroides') { const a = [340, 35, 350, 330, 30]; const s = [55, 25, 50, 45, 20]; const l = [60, 85, 55, 35, 90]; for (let i = 0; i < n; i++) out.push({ h: a[i % 5], s: s[i % 5], l: l[i % 5] }); } // King Protea - South Africa/San
     else if (scheme === 'random') for (let i = 0; i < n; i++) out.push({ h: rand() * 360, s: 60 + rand() * 30, l: 45 + rand() * 20 });
-    else for (let i = 0; i < n; i++) out.push({ h: (base + i * 360 / n) % 360, s: 80, l: 55 });
+    else for (let i = 0; i < n; i++) out.push({ h: (base + i * golden) % 360, s: 80, l: 55 });
     return out;
   }
 
@@ -1881,6 +2464,22 @@
       pulseFreqCP100: S.pulseFreqCP100,
       pulseSpeed: S.pulseSpeed,
       pulseSoft: S.pulseSoft,
+      // Trails
+      trails: {
+        enabled: S.trails.enabled,
+        length: S.trails.length,
+        opacity: S.trails.opacity,
+        hueShift: S.trails.hueShift
+      },
+      // Shape (widthWave)
+      widthWave: {
+        enabled: S.widthWave.enabled,
+        shape: S.widthWave.shape,
+        freq: S.widthWave.freq,
+        speed: S.widthWave.speed,
+        duty: S.widthWave.duty,
+        rotation: S.widthWave.rotation
+      },
       // Center motion
       motion: {
         mode: S.motion.mode,
@@ -1888,7 +2487,8 @@
         range: S.motion.range,
         ratio: S.motion.ratio,
         phaseOffset: S.motion.phaseOffset
-      }
+      },
+      blendMode: S.blendMode
     };
   }
 
@@ -1929,6 +2529,24 @@
     S.pulseSpeed = scene.pulseSpeed;
     S.pulseSoft = scene.pulseSoft;
     
+    // Trails
+    if (scene.trails) {
+      S.trails.enabled = scene.trails.enabled ?? false;
+      S.trails.length = scene.trails.length ?? 20;
+      S.trails.opacity = scene.trails.opacity ?? 1;
+      S.trails.hueShift = scene.trails.hueShift ?? 0;
+    }
+    
+    // Shape (widthWave)
+    if (scene.widthWave) {
+      S.widthWave.enabled = scene.widthWave.enabled ?? false;
+      S.widthWave.shape = scene.widthWave.shape ?? 'circle';
+      S.widthWave.freq = scene.widthWave.freq ?? 0.5;
+      S.widthWave.speed = scene.widthWave.speed ?? 0;
+      S.widthWave.duty = scene.widthWave.duty ?? 0.5;
+      S.widthWave.rotation = scene.widthWave.rotation ?? 0;
+    }
+    
     // Center motion
     if (scene.motion) {
       S.motion.mode = scene.motion.mode || 'off';
@@ -1938,6 +2556,8 @@
       S.motion.phaseOffset = scene.motion.phaseOffset || 90;
       S.motion.time = 0;
     }
+    
+    S.blendMode = scene.blendMode ?? 'normal';
 
     // Rebuild
     buildShape();
@@ -1954,7 +2574,7 @@
       (S.polygonType === 'random' ? 'random-5' : 
       (S.polygonType === 'blob' ? 'blob' : 'regular-' + S.sides));
     reflectEl.value = S.reflectSlider;
-    bouncesEl.value = bouncesNumEl.value = S.maxBounces;
+    bouncesEl.value = S.maxBounces;
     widthEl.value = S.beamWidth;
     beamCountValEl.textContent = S.beamCount;
     emCountValEl.textContent = S.emittersNorm.length;
@@ -1962,16 +2582,30 @@
     spreadNumEl.value = S.spreadDeg.toFixed(1);
     angleEl.value = S.angleDeg.toFixed(1);
     rotSpeedEl.value = rotSpeedNum.value = S.rotationSpeed;
-    speedMultiplierEl.value = speedMultiplierNumEl.value = S.speedMultiplier;
+    speedMultiplierEl.value = speedToSlider(S.speedMultiplier);
+    speedMultiplierNumEl.textContent = S.speedMultiplier.toFixed(4);
     beamSchemeEl.value = S.beamScheme;
     speedPatternEl.value = S.speedPattern;
-    patternBaseEl.value = patternBaseNumEl.value = S.patternBase;
     pulseToggle.textContent = S.pulseOn ? 'On' : 'Off';
     pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
     pulseAmpEl.value = S.pulseAmp;
-    pulseFreqEl.value = S.pulseFreqCP100;
+    pulseFreqEl.value = pulseFreqToSlider(S.pulseFreqCP100);
     pulseSpeedEl.value = S.pulseSpeed;
     pulseQualityEl.value = S.pulseSoft;
+    // Trails
+    if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
+    if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
+    if (trailsOpacityEl) trailsOpacityEl.value = S.trails.opacity;
+    if (trailsHueShiftEl) trailsHueShiftEl.value = S.trails.hueShift;
+    // Shape (widthWave)
+    if (widthWaveToggle) widthWaveToggle.textContent = S.widthWave.enabled ? 'On' : 'Off';
+    if (widthWaveShapeEl) widthWaveShapeEl.value = S.widthWave.shape;
+    if (widthWaveFreqEl) widthWaveFreqEl.value = S.widthWave.freq;
+    if (widthWaveSpeedEl) widthWaveSpeedEl.value = S.widthWave.speed;
+    if (widthWaveDutyEl) widthWaveDutyEl.value = S.widthWave.duty;
+    if (widthWaveRotationEl) widthWaveRotationEl.value = S.widthWave.rotation;
+    // Blend mode
+    if (blendModeEl) blendModeEl.value = S.blendMode;
   }
 
   // Easing function for smooth transitions
@@ -2078,6 +2712,27 @@
       const toSpd = toSpeeds[i] || 0;
       S.perBeamSpeed[i] = lerp(fromSpd, toSpd, t);
     }
+    
+    // Lerp trails
+    const fromTrails = from.trails || { enabled: false, length: 20, opacity: 1, hueShift: 0 };
+    const toTrails = to.trails || { enabled: false, length: 20, opacity: 1, hueShift: 0 };
+    S.trails.enabled = t > 0.5 ? toTrails.enabled : fromTrails.enabled;
+    S.trails.length = Math.round(lerp(fromTrails.length, toTrails.length, t));
+    S.trails.opacity = lerp(fromTrails.opacity, toTrails.opacity, t);
+    S.trails.hueShift = lerp(fromTrails.hueShift, toTrails.hueShift, t);
+    
+    // Lerp widthWave (Shape)
+    const fromWave = from.widthWave || { enabled: false, shape: 'circle', freq: 0.5, speed: 0, duty: 0.5, rotation: 0 };
+    const toWave = to.widthWave || { enabled: false, shape: 'circle', freq: 0.5, speed: 0, duty: 0.5, rotation: 0 };
+    S.widthWave.enabled = t > 0.5 ? toWave.enabled : fromWave.enabled;
+    S.widthWave.shape = t > 0.5 ? toWave.shape : fromWave.shape;
+    S.widthWave.freq = lerp(fromWave.freq, toWave.freq, t);
+    S.widthWave.speed = lerp(fromWave.speed, toWave.speed, t);
+    S.widthWave.duty = lerp(fromWave.duty, toWave.duty, t);
+    S.widthWave.rotation = lerp(fromWave.rotation, toWave.rotation, t);
+    
+    // Blend mode (instant at midpoint)
+    S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
     
     // Sync slider values during transition, but only rebuild DOM at the end
     syncUIFromState();
@@ -2253,6 +2908,17 @@
     updateSceneUI();
   }
 
+  function factoryResetScenes() {
+    if (!confirm('This will delete all saved scenes and reset slots to empty. Are you sure?')) {
+      return;
+    }
+    S.scenes = [];
+    S.sceneSlots = [null, null, null, null, null, null, null, null];
+    localStorage.removeItem('voidulator-scenes');
+    updateSceneUI();
+    console.log('Scenes factory reset complete');
+  }
+
   function updateSceneUI() {
     // Update dropdown
     sceneSelectEl.innerHTML = '<option value="">-- Select scene --</option>';
@@ -2297,6 +2963,24 @@
       return true;
     }
     return false;
+  }
+
+  // Track current scene index for N key cycling
+  let currentSceneIdx = -1;
+  function goToNextScene() {
+    // Find all saved slots
+    const savedSlots = [];
+    for (let i = 0; i < 8; i++) {
+      if (S.sceneSlots[i] !== null && S.sceneSlots[i] !== undefined && S.sceneSlots[i].data) {
+        savedSlots.push(i);
+      }
+    }
+    if (savedSlots.length === 0) return;
+    
+    // Find next slot
+    currentSceneIdx = (currentSceneIdx + 1) % savedSlots.length;
+    const slot = savedSlots[currentSceneIdx];
+    goToScene(S.sceneSlots[slot].data);
   }
 
   // Speed patterns
@@ -2958,18 +3642,6 @@ void main() {
 
   // Helper: draw a polygon (circle or n-gon) at a point
   function pushShape(arr, cx, cy, radius, sides, rotation, t, rgb, alpha) {
-    // Apply edge fade - reduce alpha based on distance from room center
-    let edgeAlpha = alpha;
-    if (S.edgeFade > 0 && S.isCircle) {
-      const dist = Math.hypot(cx - S.circle.cx, cy - S.circle.cy);
-      const maxDist = S.circle.R;
-      const fadeStart = maxDist * (1 - S.edgeFade);
-      if (dist > fadeStart) {
-        const fadeFactor = 1 - (dist - fadeStart) / (maxDist - fadeStart);
-        edgeAlpha = alpha * Math.max(0, fadeFactor);
-      }
-    }
-    
     const pv = (x, y, a) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], a);
     
     // For circles, use 16 sides (good balance of smoothness vs performance)
@@ -2986,41 +3658,9 @@ void main() {
       const y1 = cy + Math.sin(a1) * radius;
       
       // Triangle from center to edge
-      pv(cx, cy, edgeAlpha);
-      pv(x0, y0, edgeAlpha);
-      pv(x1, y1, edgeAlpha);
-    }
-    
-    // Draw glow ring if enabled
-    if (S.shapeGlow > 0) {
-      const glowRadius = radius * (1 + S.shapeGlow * 0.5);
-      const glowAlpha = edgeAlpha * S.shapeGlow * 0.4;
-      
-      for (let i = 0; i < n; i++) {
-        const a0 = rotation + (i / n) * Math.PI * 2;
-        const a1 = rotation + ((i + 1) / n) * Math.PI * 2;
-        
-        // Inner edge (solid)
-        const ix0 = cx + Math.cos(a0) * radius;
-        const iy0 = cy + Math.sin(a0) * radius;
-        const ix1 = cx + Math.cos(a1) * radius;
-        const iy1 = cy + Math.sin(a1) * radius;
-        
-        // Outer edge (faded)
-        const ox0 = cx + Math.cos(a0) * glowRadius;
-        const oy0 = cy + Math.sin(a0) * glowRadius;
-        const ox1 = cx + Math.cos(a1) * glowRadius;
-        const oy1 = cy + Math.sin(a1) * glowRadius;
-        
-        // Two triangles for glow quad
-        pv(ix0, iy0, glowAlpha);
-        pv(ox0, oy0, 0);
-        pv(ix1, iy1, glowAlpha);
-        
-        pv(ix1, iy1, glowAlpha);
-        pv(ox0, oy0, 0);
-        pv(ox1, oy1, 0);
-      }
+      pv(cx, cy, alpha);
+      pv(x0, y0, alpha);
+      pv(x1, y1, alpha);
     }
   }
 
@@ -3110,32 +3750,13 @@ void main() {
     }
     
     // No width wave - single quad (normal beam)
-    // Calculate edge fade for each endpoint
-    let alpha0 = alpha, alpha1 = alpha;
-    if (S.edgeFade > 0 && S.isCircle) {
-      const maxDist = S.circle.R;
-      const fadeStart = maxDist * (1 - S.edgeFade);
-      
-      const dist0 = Math.hypot(x0 - S.circle.cx, y0 - S.circle.cy);
-      if (dist0 > fadeStart) {
-        const fadeFactor = 1 - (dist0 - fadeStart) / (maxDist - fadeStart);
-        alpha0 = alpha * Math.max(0, fadeFactor);
-      }
-      
-      const dist1 = Math.hypot(x1 - S.circle.cx, y1 - S.circle.cy);
-      if (dist1 > fadeStart) {
-        const fadeFactor = 1 - (dist1 - fadeStart) / (maxDist - fadeStart);
-        alpha1 = alpha * Math.max(0, fadeFactor);
-      }
-    }
-    
     const lx0 = x0 + nx * halfW, ly0 = y0 + ny * halfW;
     const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
     const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
     const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
     const pv = (x, y, t, a) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], a);
-    pv(lx0, ly0, t0, alpha0); pv(lx1, ly1, t1, alpha1); pv(rx0, ry0, t0, alpha0);
-    pv(rx0, ry0, t0, alpha0); pv(lx1, ly1, t1, alpha1); pv(rx1, ry1, t1, alpha1);
+    pv(lx0, ly0, t0, alpha); pv(lx1, ly1, t1, alpha); pv(rx0, ry0, t0, alpha);
+    pv(rx0, ry0, t0, alpha); pv(lx1, ly1, t1, alpha); pv(rx1, ry1, t1, alpha);
   }
 
   function renderBeamsGL(timeSec) {
@@ -3196,20 +3817,7 @@ void main() {
         const segs = computePath(E, dir, beamBounces);
         totalSegs += segs.length;
         const col = palette[i % palette.length];
-        // Apply hue rotation over time
-        const hueShift = (S.hueRotateSpeed || 0) * timeSec;
-        const rotatedHue = (col.h + hueShift) % 360;
-        
-        // Apply brightness oscillation
-        let adjustedL = col.l;
-        if (S.brightnessOsc.enabled) {
-          const brightOsc = Math.sin(2 * Math.PI * S.brightnessOsc.freq * timeSec);
-          // Oscillate lightness: amp=1 means ±50% lightness variation
-          const lightDelta = brightOsc * S.brightnessOsc.amp * 30;
-          adjustedL = clamp(col.l + lightDelta, 10, 90);
-        }
-        
-        const rgb = hslToRgb(rotatedHue, col.s, adjustedL);
+        const rgb = hslToRgb(col.h, col.s, col.l);
         
         // Calculate layer score based on beam direction relative to center
         // Beams pointing AWAY from center (toward walls) = TOP layer
@@ -3521,6 +4129,26 @@ void main() {
     S.draggingIdx = -1;
   });
 
+  // Double-tap on stage to toggle fullscreen
+  let lastTapTime = 0;
+  const stage = document.querySelector('.stage');
+  stage?.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    const timeSince = now - lastTapTime;
+    if (timeSince < 300 && timeSince > 0) {
+      // Double tap detected
+      e.preventDefault();
+      toggleFullscreen();
+    }
+    lastTapTime = now;
+  });
+  // Also support double-click for desktop
+  stage?.addEventListener('dblclick', (e) => {
+    // Don't trigger if dragging emitter
+    if (S.draggingIdx >= 0) return;
+    toggleFullscreen();
+  });
+
   // UI bindings
   function setShapeFromSelect() {
     const v = shapeSel.value;
@@ -3535,8 +4163,7 @@ void main() {
   _on(shapeSel, 'change', setShapeFromSelect);
   _on(reflectEl, 'input', updateReflect);
 
-  _on(bouncesEl, 'input', () => { S.maxBounces = parseInt(bouncesEl.value, 10) || 1; bouncesNumEl.value = S.maxBounces; });
-  _on(bouncesNumEl, 'input', () => { S.maxBounces = parseInt(bouncesNumEl.value, 10) || 1; bouncesEl.value = S.maxBounces; });
+  _on(bouncesEl, 'input', () => { S.maxBounces = parseInt(bouncesEl.value, 10) || 1; });
 
   _on(widthEl, 'input', () => S.beamWidth = parseFloat(widthEl.value) || 2);
   _on(layerModeToggle, 'click', () => {
@@ -3546,11 +4173,13 @@ void main() {
 
   const syncCount = (v) => {
     v = clamp(v, 1, 24) | 0;
+    const oldCount = S.beamCount;
     S.beamCount = v;
     beamCountValEl.textContent = v;
     ensureSpeedArrays(v);
     applySpeedPattern();
-    if (S.beamScheme !== 'custom') applySchemeToAllEmitters();
+    // Only regenerate colors when EXPLICITLY selecting a scheme (not when changing count)
+    // ensurePaletteSize will add new colors using stable golden angle if needed
     ensurePaletteSize(v);
     rebuildBeamSwatches();
   };
@@ -3578,38 +4207,16 @@ void main() {
 
   _on(speedRangeEl, 'change', () => { setSpeedMax(parseFloat(speedRangeEl.value) || 5); rebuildBeamSpeedInputs(); });
 
-  _on(speedMultiplierEl, 'input', () => { S.speedMultiplier = clamp(parseFloat(speedMultiplierEl.value) || 0, 0, 2); speedMultiplierNumEl.value = S.speedMultiplier.toFixed(3); });
-  _on(speedMultiplierNumEl, 'input', () => { S.speedMultiplier = clamp(parseFloat(speedMultiplierNumEl.value) || 0, 0, 2); speedMultiplierEl.value = S.speedMultiplier; });
-  
-  // Speed step buttons
-  _on(speedStepDown, 'click', () => {
-    const step = parseFloat(speedStepSize.value) || 0.01;
-    S.speedMultiplier = clamp(S.speedMultiplier - step, 0, 2);
-    speedMultiplierEl.value = S.speedMultiplier;
-    speedMultiplierNumEl.value = S.speedMultiplier.toFixed(3);
-  });
-  _on(speedStepUp, 'click', () => {
-    const step = parseFloat(speedStepSize.value) || 0.01;
-    S.speedMultiplier = clamp(S.speedMultiplier + step, 0, 2);
-    speedMultiplierEl.value = S.speedMultiplier;
-    speedMultiplierNumEl.value = S.speedMultiplier.toFixed(3);
+  _on(speedMultiplierEl, 'input', () => { 
+    const pos = parseFloat(speedMultiplierEl.value) || 0;
+    S.speedMultiplier = sliderToSpeed(pos);
+    speedMultiplierNumEl.textContent = S.speedMultiplier.toFixed(4);
   });
 
   _on(beamSchemeEl, 'change', () => { S.beamScheme = beamSchemeEl.value; applySchemeToAllEmitters(); rebuildBeamSwatches(); });
-  _on(hueRotateSpeedEl, 'input', () => { S.hueRotateSpeed = parseFloat(hueRotateSpeedEl.value) || 0; hueRotateSpeedNumEl.value = S.hueRotateSpeed; });
-  _on(hueRotateSpeedNumEl, 'input', () => { S.hueRotateSpeed = clamp(parseFloat(hueRotateSpeedNumEl.value) || 0, 0, 360); hueRotateSpeedEl.value = Math.min(60, S.hueRotateSpeed); });
-  
-  _on(brightnessOscToggle, 'click', () => {
-    S.brightnessOsc.enabled = !S.brightnessOsc.enabled;
-    brightnessOscToggle.textContent = S.brightnessOsc.enabled ? 'On' : 'Off';
-  });
-  _on(brightnessOscAmpEl, 'input', () => S.brightnessOsc.amp = parseFloat(brightnessOscAmpEl.value) || 0.5);
-  _on(brightnessOscFreqEl, 'input', () => S.brightnessOsc.freq = parseFloat(brightnessOscFreqEl.value) || 1);
   _on(shuffleSchemeBtn, 'click', () => { S.seed = (Math.random() * 1e9) | 0; if (S.beamScheme === 'custom') { S.beamScheme = 'random'; beamSchemeEl.value = 'random'; } applySchemeToAllEmitters(); rebuildBeamSwatches(); });
 
   _on(speedPatternEl, 'change', () => { S.speedPattern = speedPatternEl.value; applySpeedPattern(); });
-  _on(patternBaseEl, 'input', () => { S.patternBase = parseFloat(patternBaseEl.value) || 2; patternBaseNumEl.value = S.patternBase.toFixed(1); applySpeedPattern(); });
-  _on(patternBaseNumEl, 'input', () => { S.patternBase = clamp(parseFloat(patternBaseNumEl.value) || 2, 0.1, 50); patternBaseEl.value = S.patternBase; applySpeedPattern(); });
   _on(resetPhasesBtn, 'click', () => { for (let i = 0; i < S.perBeamPhase.length; i++) S.perBeamPhase[i] = 0; });
 
   _on(pulseToggle, 'click', () => {
@@ -3621,7 +4228,10 @@ void main() {
     pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
   });
   _on(pulseAmpEl, 'input', () => S.pulseAmp = parseFloat(pulseAmpEl.value) || 0);
-  _on(pulseFreqEl, 'input', () => S.pulseFreqCP100 = parseFloat(pulseFreqEl.value) || 1.2);
+  _on(pulseFreqEl, 'input', () => {
+    const pos = parseFloat(pulseFreqEl.value) || 0;
+    S.pulseFreqCP100 = sliderToPulseFreq(pos);
+  });
   _on(pulseSpeedEl, 'input', () => S.pulseSpeed = parseFloat(pulseSpeedEl.value) || 0);
   _on(pulseQualityEl, 'input', () => S.pulseSoft = parseFloat(pulseQualityEl.value) || 0.18);
   _on(pulseDutyEl, 'input', () => {
@@ -3636,19 +4246,9 @@ void main() {
   });
   _on(trailsLengthEl, 'input', () => {
     S.trails.length = parseInt(trailsLengthEl.value) || 20;
-    trailsLengthNumEl.value = S.trails.length;
-  });
-  _on(trailsLengthNumEl, 'input', () => {
-    S.trails.length = clamp(parseInt(trailsLengthNumEl.value) || 20, 1, 180);
-    trailsLengthEl.value = S.trails.length;
   });
   _on(trailsHueShiftEl, 'input', () => {
     S.trails.hueShift = parseInt(trailsHueShiftEl.value) || 0;
-    trailsHueShiftNumEl.value = S.trails.hueShift;
-  });
-  _on(trailsHueShiftNumEl, 'input', () => {
-    S.trails.hueShift = clamp(parseInt(trailsHueShiftNumEl.value) || 0, 0, 360);
-    trailsHueShiftEl.value = S.trails.hueShift;
   });
   
   // Blend mode handler
@@ -3699,25 +4299,21 @@ void main() {
     widthWaveRotationEl.value = 0;
   });
 
-  // Shader effects handlers
-  _on(edgeFadeEl, 'input', () => {
-    const val = parseFloat(edgeFadeEl.value);
-    S.edgeFade = isNaN(val) ? 0 : val;
-  });
-  _on(shapeGlowEl, 'input', () => {
-    const val = parseFloat(shapeGlowEl.value);
-    S.shapeGlow = isNaN(val) ? 0 : val;
-  });
-
   // Presets
   function currentPreset() {
     return {
       polygonType: S.polygonType, sides: S.sides, beamWidth: S.beamWidth,
       reflectSlider: S.reflectSlider, maxBounces: S.maxBounces, beamCount: S.beamCount,
       spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
-      speedMax: S.speedMax, emittersNorm: S.emittersNorm, beamScheme: S.beamScheme,
-      beamPalette: S.beamPalette, perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
+      speedMax: S.speedMax, speedMultiplier: S.speedMultiplier,
+      emittersNorm: S.emittersNorm, beamScheme: S.beamScheme,
+      beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
+      perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
+      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift },
+      widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
+      motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
+      blendMode: S.blendMode,
       pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft }
     };
   }
@@ -3727,44 +4323,54 @@ void main() {
       polygonType: P.polygonType || 'circle', sides: P.sides || 5, beamWidth: P.beamWidth || 2,
       reflectSlider: P.reflectSlider ?? 0.8, maxBounces: P.maxBounces || 8, beamCount: P.beamCount || 1,
       spreadDeg: P.spreadDeg ?? 0, angleDeg: P.angleDeg ?? 0, rotationSpeed: P.rotationSpeed ?? 0,
-      speedMax: P.speedMax || 5, beamScheme: P.beamScheme || 'grayscale',
+      speedMax: P.speedMax || 5, speedMultiplier: P.speedMultiplier ?? 0.01,
+      beamScheme: P.beamScheme || 'grayscale',
       beamPalette: P.beamPalette || [], perBeamSpeed: P.perBeamSpeed || [], perBeamPhase: P.perBeamPhase || [],
-      speedPattern: P.speedPattern || 'prime', patternBase: P.patternBase || 2
+      speedPattern: P.speedPattern || 'prime', patternBase: P.patternBase || 1,
+      blendMode: P.blendMode ?? 'normal'
     });
     if (P.emittersNorm) {
       S.emittersNorm = P.emittersNorm;
       S.emitters = P.emittersNorm.map(() => ({ x: 0, y: 0 }));
+    }
+    if (P.emitterPalettes) {
+      S.emitterPalettes = P.emitterPalettes;
     }
     if (P.pulse) {
       S.pulseOn = !!P.pulse.on; S.pulseShape = P.pulse.shape || 'sine';
       S.pulseAmp = P.pulse.amp ?? 1; S.pulseFreqCP100 = P.pulse.freq ?? 1.2;
       S.pulseSpeed = P.pulse.speed ?? 240; S.pulseSoft = P.pulse.soft ?? 0.18;
     }
-    // Sync UI
-    shapeSel.value = S.polygonType === 'circle' ? 'circle' : (S.polygonType === 'random' ? 'random-5' : (S.polygonType === 'blob' ? 'blob' : 'regular-' + S.sides));
-    reflectEl.value = S.reflectSlider; updateReflect();
-    bouncesEl.value = bouncesNumEl.value = S.maxBounces;
-    widthEl.value = S.beamWidth;
-    beamCountValEl.textContent = S.beamCount;
-    emCountValEl.textContent = S.emittersNorm.length;
-    spreadEl.value = S.spreadDeg; spreadNumEl.value = S.spreadDeg.toFixed(1);
-    angleEl.value = S.angleDeg;
-    setSpeedMax(S.speedMax);
-    rotSpeedEl.value = rotSpeedNum.value = S.rotationSpeed;
-    speedMultiplierEl.value = speedMultiplierNumEl.value = S.speedMultiplier;
-    beamSchemeEl.value = S.beamScheme;
-    speedPatternEl.value = S.speedPattern;
-    patternBaseEl.value = patternBaseNumEl.value = S.patternBase;
-    pulseToggle.textContent = S.pulseOn ? 'On' : 'Off';
-    pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
-    pulseAmpEl.value = S.pulseAmp; pulseFreqEl.value = S.pulseFreqCP100;
-    pulseSpeedEl.value = S.pulseSpeed; pulseQualityEl.value = S.pulseSoft;
+    if (P.trails) {
+      S.trails.enabled = P.trails.enabled ?? false;
+      S.trails.length = P.trails.length ?? 20;
+      S.trails.opacity = P.trails.opacity ?? 1;
+      S.trails.hueShift = P.trails.hueShift ?? 0;
+    }
+    if (P.widthWave) {
+      S.widthWave.enabled = P.widthWave.enabled ?? false;
+      S.widthWave.shape = P.widthWave.shape ?? 'circle';
+      S.widthWave.freq = P.widthWave.freq ?? 0.5;
+      S.widthWave.speed = P.widthWave.speed ?? 0;
+      S.widthWave.duty = P.widthWave.duty ?? 0.5;
+      S.widthWave.rotation = P.widthWave.rotation ?? 0;
+    }
+    if (P.motion) {
+      S.motion.mode = P.motion.mode || 'off';
+      S.motion.speed = P.motion.speed ?? 0.15;
+      S.motion.range = P.motion.range ?? 0.2;
+      S.motion.ratio = P.motion.ratio ?? 1.5;
+      S.motion.phaseOffset = P.motion.phaseOffset ?? 90;
+    }
+    
+    // Sync UI using shared function
     buildShape();
     updateEmittersFromNorm();
     ensurePaletteSize(S.beamCount);
     rebuildBeamSwatches();
     ensureSpeedArrays(S.beamCount);
     rebuildBeamSpeedInputs();
+    syncUIFromState();
   }
 
   _on(savePresetBtn, 'click', () => {
@@ -3798,18 +4404,21 @@ void main() {
       S.keysDown[key] = true;
       e.preventDefault();
     }
-    if (key === 'f') {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      } else {
-        document.exitFullscreen().catch(() => {});
-      }
-      e.preventDefault();
-    }
   });
 
-  // Resize on fullscreen change
+  // Resize on fullscreen change and sync state
   document.addEventListener('fullscreenchange', () => {
+    // Sync isFullscreen with actual browser state
+    const inBrowserFullscreen = !!document.fullscreenElement;
+    if (!inBrowserFullscreen && isFullscreen) {
+      // Browser exited fullscreen (e.g., user pressed Escape)
+      isFullscreen = false;
+      uiHidden = false;
+      document.body.classList.remove('fullscreen-mode');
+      document.body.classList.remove('hide-ui');
+      const btn = document.getElementById('btnFullscreen');
+      if (btn) btn.classList.remove('active');
+    }
     setTimeout(resize, 50);
     setTimeout(resize, 200);
   });
@@ -3888,6 +4497,10 @@ void main() {
     }
   });
 
+  // Factory reset scenes button
+  const factoryResetBtn = _el('factoryResetScenes');
+  _on(factoryResetBtn, 'click', factoryResetScenes);
+
   // Scene slot buttons
   document.querySelectorAll('.scene-slot').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -3955,11 +4568,11 @@ void main() {
       A.source.connect(A.analyser);
       A.dataArray = new Uint8Array(A.analyser.frequencyBinCount);
       A.active = true;
-      audioToggleBtn.textContent = 'Stop listening';
+      audioToggleBtn.textContent = getTranslation('stopListening');
       audioToggleBtn.style.borderColor = 'var(--accent)';
     } catch (e) {
       console.warn('Audio failed:', e);
-      audioToggleBtn.textContent = 'Mic denied';
+      audioToggleBtn.textContent = getTranslation('micDenied');
     }
   }
 
@@ -3974,7 +4587,7 @@ void main() {
     A.analyser = null;
     A.source = null;
     A.stream = null;
-    audioToggleBtn.textContent = 'Start listening';
+    audioToggleBtn.textContent = getTranslation('startListening');
     audioToggleBtn.style.borderColor = '';
   }
 
@@ -4020,25 +4633,17 @@ void main() {
     const e = A.energy * A.strength;
     
     switch (A.target) {
-      case 'angle':
-        // Gentle angle drift proportional to energy
-        S.angleDeg = (S.angleDeg + e * 3) % 360;
-        break;
-      case 'spread':
-        // Modulate spread around its base value
-        S.spreadDeg = clamp((parseFloat(spreadEl.value) || 0) + e * 60, 0, 180);
-        break;
       case 'width':
         // Thicken beams with energy
-        S.beamWidth = clamp((parseFloat(widthEl.value) || 2) + e * 6, 0.5, 8);
+        S.beamWidth = clamp(S.beamWidth + e * 6, 0.5, 8);
         break;
       case 'pulse-speed':
         // Pulse speed reacts to audio
-        S.pulseSpeed = clamp((parseFloat(pulseSpeedEl.value) || 240) + e * 400, 0, 900);
+        S.pulseSpeed = clamp(S.pulseSpeed + e * 400, 0, 900);
         break;
       case 'pulse-freq':
         // Pulse frequency reacts to audio
-        S.pulseFreqCP100 = clamp((parseFloat(pulseFreqEl.value) || 1.2) + e * 3, 0.05, 6);
+        S.pulseFreqCP100 = clamp(S.pulseFreqCP100 + e * 3, 0.05, 6);
         break;
     }
   }
@@ -4169,9 +4774,6 @@ void main() {
 
     // Audio can modulate range
     let range = M.range;
-    if (S.audio.active && S.audio.target === 'center-range') {
-      range = clamp(range + S.audio.energy * S.audio.strength * 0.5, 0, 0.8);
-    }
     const r = range * roomR;
 
     const t = M.time * Math.PI * 2;
@@ -4299,8 +4901,21 @@ void main() {
     const btn = document.getElementById('btnFullscreen');
     if (btn) btn.classList.toggle('active', isFullscreen);
     
-    // Show hint
-    if (isFullscreen) {
+    // On mobile, automatically hide UI in fullscreen
+    const isMobile = window.innerWidth <= 800;
+    if (isMobile && isFullscreen) {
+      uiHidden = true;
+      document.body.classList.add('hide-ui');
+    }
+    
+    // When exiting fullscreen, restore UI
+    if (!isFullscreen) {
+      uiHidden = false;
+      document.body.classList.remove('hide-ui');
+    }
+    
+    // Show hint (desktop only)
+    if (isFullscreen && !isMobile) {
       const hint = document.getElementById('fullscreenHint');
       if (hint) {
         hint.style.animation = 'none';
@@ -4327,6 +4942,8 @@ void main() {
   // === HIDE UI MODE ===
   let uiHidden = false;
   function toggleUI() {
+    // Only works in fullscreen mode
+    if (!isFullscreen) return;
     uiHidden = !uiHidden;
     document.body.classList.toggle('hide-ui', uiHidden);
     setTimeout(resize, 100);
@@ -4340,12 +4957,17 @@ void main() {
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
       toggleFullscreen();
-    } else if (e.key === 'h' || e.key === 'H') {
+    } else if (e.key === 'u' || e.key === 'U') {
       e.preventDefault();
       toggleUI();
+    } else if (e.key === 'n' || e.key === 'N') {
+      e.preventDefault();
+      goToNextScene();
     } else if (e.key === 'Escape' && isFullscreen) {
       isFullscreen = false;
+      uiHidden = false;
       document.body.classList.remove('fullscreen-mode');
+      document.body.classList.remove('hide-ui');
       const btn = document.getElementById('btnFullscreen');
       if (btn) btn.classList.remove('active');
       setTimeout(resize, 100);
@@ -4494,7 +5116,7 @@ void main() {
     console.log('Screensaver: Found', savedSlots.length, 'saved scenes in slots:', savedSlots);
     
     if (savedSlots.length === 0) {
-      alert('No saved scenes! Save some scenes first (Shift+Click on slot numbers)');
+      alert(getTranslation('noSavedScenes'));
       stopScreensaver();
       return;
     }
@@ -4540,51 +5162,7 @@ void main() {
   });
   
   // === CAST FUNCTIONALITY ===
-  function showCastOptions() {
-    // Check if browser supports casting
-    if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
-      const choice = confirm(
-        'Cast Options:\n\n' +
-        '• Chromecast: Use your browser\'s built-in cast (click the three dots menu → Cast)\n' +
-        '• AirPlay: On Safari, click the AirPlay icon in the video controls\n' +
-        '• HDMI: Connect your device directly to your TV\n\n' +
-        'Tip: Press F for fullscreen mode before casting!\n\n' +
-        'Click OK to open fullscreen mode now.'
-      );
-      if (choice && !isFullscreen) {
-        toggleFullscreen();
-      }
-    } else {
-      alert(
-        'Cast to TV:\n\n' +
-        '• Chromecast: Use your browser\'s built-in cast feature\n' +
-        '• AirPlay: Available on Safari/Mac\n' +
-        '• HDMI: Connect directly to your TV\n' +
-        '• Screen Mirror: Use your device\'s screen mirroring feature\n\n' +
-        'Tip: Press F for fullscreen mode before casting!'
-      );
-    }
-  }
-  
   // === PORTRAIT/LANDSCAPE HANDLING ===
-  function checkOrientation() {
-    const warning = document.getElementById('portraitWarning');
-    if (!warning) return;
-    
-    // Only show on mobile
-    const isMobile = window.innerWidth <= 900 || /Mobi|Android/i.test(navigator.userAgent);
-    const isPortrait = window.innerHeight > window.innerWidth;
-    
-    if (isMobile && isPortrait && !isFullscreen) {
-      warning.classList.add('visible');
-    } else {
-      warning.classList.remove('visible');
-    }
-  }
-  
-  window.addEventListener('resize', checkOrientation);
-  window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 100));
-  
   // === LOADING SPINNER ===
   function hideLoadingSpinner() {
     const loader = document.getElementById('loadingOverlay');
@@ -4643,12 +5221,1046 @@ void main() {
   // Load theme on startup
   loadTheme();
 
+  // === MODE SWITCHING (Simple/Advanced) ===
+  let currentMode = 'simple'; // Default to simple for new users
+  
+  function loadMode() {
+    try {
+      const saved = localStorage.getItem('voidulator-mode');
+      const isMobile = window.innerWidth <= 800;
+      
+      if (saved === 'simple' || saved === 'advanced') {
+        // Return user: use their saved preference
+        currentMode = saved;
+      } else if (isMobile) {
+        // First visit on mobile: ensure simple mode for tutorial
+        currentMode = 'simple';
+      }
+      // Desktop first visit: use default (simple)
+    } catch (e) { }
+    applyMode(currentMode);
+  }
+  
+  function saveMode(mode) {
+    try {
+      localStorage.setItem('voidulator-mode', mode);
+    } catch (e) { }
+  }
+  
+  function applyMode(mode) {
+    currentMode = mode;
+    if (mode === 'simple') {
+      document.body.classList.add('mode-simple');
+      document.body.classList.remove('mode-advanced');
+    } else {
+      document.body.classList.remove('mode-simple');
+      document.body.classList.add('mode-advanced');
+    }
+    updateSettingsUI();
+  }
+  
+  function setMode(mode) {
+    applyMode(mode);
+    saveMode(mode);
+    
+    // Apply Simple mode defaults when switching to simple
+    if (mode === 'simple') {
+      applySimpleDefaults();
+    }
+  }
+  
+  function applySimpleDefaults() {
+    // Set color scheme to rainbow
+    if (beamSchemeEl) {
+      beamSchemeEl.value = 'rainbow';
+      S.beamScheme = 'rainbow';
+      S.beamPalette = generatePalette('rainbow');
+      rebuildBeamSwatches();
+    }
+    // Set rotation pattern to linear
+    if (speedPatternEl) {
+      speedPatternEl.value = 'linear';
+      S.speedPattern = 'linear';
+      applySpeedPattern();
+    }
+    // Set screensaver to 10 minutes
+    const ssEl = document.getElementById('screensaverDuration');
+    const ssNumEl = document.getElementById('screensaverDurationNum');
+    if (ssEl) ssEl.value = 10;
+    if (ssNumEl) ssNumEl.value = 10;
+    // Turn off advanced effects
+    S.pulseOn = false;
+    if (pulseToggle) pulseToggle.textContent = 'Off';
+    S.widthWaveOn = false;
+    if (widthWaveToggle) widthWaveToggle.textContent = 'Off';
+    S.trailsOn = false;
+    if (trailsToggle) trailsToggle.textContent = 'Off';
+  }
+  
+  function updateSettingsUI() {
+    // Update mode buttons
+    const simpleBtn = document.getElementById('modeSimple');
+    const advancedBtn = document.getElementById('modeAdvanced');
+    if (simpleBtn && advancedBtn) {
+      simpleBtn.classList.toggle('active', currentMode === 'simple');
+      advancedBtn.classList.toggle('active', currentMode === 'advanced');
+    }
+    // Update theme buttons
+    const classicBtn = document.getElementById('themeClassic');
+    const coralBtn = document.getElementById('themeCoral');
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'classic';
+    if (classicBtn && coralBtn) {
+      classicBtn.classList.toggle('active', currentTheme === 'classic');
+      coralBtn.classList.toggle('active', currentTheme === 'coral');
+    }
+  }
+  
+  // === SETTINGS MODAL ===
+  function showSettingsModal() {
+    updateSettingsUI();
+    document.getElementById('settingsModal').style.display = 'flex';
+  }
+  
+  function hideSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'none';
+  }
+  
+  // Settings event listeners
+  document.getElementById('btnSettings')?.addEventListener('click', showSettingsModal);
+  document.getElementById('closeSettingsModal')?.addEventListener('click', hideSettingsModal);
+  document.getElementById('settingsModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'settingsModal') hideSettingsModal();
+  });
+  document.getElementById('modeSimple')?.addEventListener('click', () => setMode('simple'));
+  document.getElementById('modeAdvanced')?.addEventListener('click', () => setMode('advanced'));
+  document.getElementById('themeClassic')?.addEventListener('click', () => {
+    document.documentElement.setAttribute('data-theme', 'classic');
+    saveTheme('classic');
+    currentThemeIndex = 0;
+    updateSettingsUI();
+  });
+  document.getElementById('themeCoral')?.addEventListener('click', () => {
+    document.documentElement.setAttribute('data-theme', 'coral');
+    saveTheme('coral');
+    currentThemeIndex = 1;
+    updateSettingsUI();
+  });
+  document.getElementById('btnReplayTutorial')?.addEventListener('click', () => {
+    hideSettingsModal();
+    startTutorial();
+  });
+  
+  // === TUTORIAL SYSTEM ===
+  let tutorialStep = 0;
+  let tutorialSteps = [];
+  
+  function getTutorialSteps() {
+    const isSimple = currentMode === 'simple';
+    
+    // No tutorial for Advanced mode - users can figure it out
+    if (!isSimple) return [];
+    
+    // Simple mode tutorial
+    return [
+      {
+        element: '#reflect',
+        title: 'Reflectivity',
+        content: '<strong>Reflectivity</strong> controls how much light bounces off the walls. Higher values create more reflections.',
+        tryIt: '👆 Try dragging the slider!',
+        position: 'bottom'
+      },
+      {
+        element: '#bounces',
+        title: 'Max Bounces',
+        content: '<strong>Max Bounces</strong> limits how many times the beam can reflect. More bounces = more complex patterns.',
+        tryIt: '👆 Set it higher for intricate designs!',
+        position: 'bottom'
+      },
+      {
+        element: '#beamWidth',
+        title: 'Beam Width',
+        content: '<strong>Beam Width</strong> changes the thickness of the beam.',
+        tryIt: '👆 Try different widths!',
+        position: 'bottom'
+      },
+      {
+        element: '#beamCountVal',
+        title: 'Beam Count',
+        content: '<strong>Beam Count</strong> adds more beams. Each beam can have its own color!',
+        tryIt: '👆 Use the arrows to add beams.',
+        position: 'bottom'
+      },
+      {
+        element: '#speedMultiplier',
+        title: 'Speed',
+        content: '<strong>Speed</strong> controls how fast the beams rotate and animate. The sweet spot is usually down close to the bottom, but higher values can drastically change the appearance — especially with high reflectivity & bounces.',
+        tryIt: '👆 Drag to see the motion!',
+        position: 'bottom'
+      },
+      {
+        element: '#beamScheme',
+        title: 'Color Scheme',
+        content: '<strong>Color Scheme</strong> changes all beam colors at once. Try Rainbow, Warm, or Cool!',
+        tryIt: '👆 Pick a scheme you like.',
+        position: 'bottom'
+      },
+      {
+        element: '#btnFullscreen',
+        title: 'Fullscreen',
+        content: 'Press <strong>⛶</strong> or the <strong>F key</strong> for an immersive fullscreen experience!',
+        position: 'bottom'
+      },
+      {
+        element: '#btnScreensaver',
+        title: 'Screensaver Mode',
+        content: '<strong>🌙 Screensaver</strong> automatically cycles through saved scenes. Perfect for ambient displays!',
+        position: 'bottom'
+      },
+      {
+        element: '.stage',
+        title: 'Drag the Dot!',
+        content: 'You can <strong>drag the dot</strong> to reposition where the beam originates.',
+        tryIt: '👆 Try dragging it around!',
+        position: 'left'
+      },
+      {
+        element: null,
+        title: 'You\'re all set!',
+        content: 'That\'s the basics! Have fun exploring.<br><br><strong>Tip:</strong> Turn on Advanced mode in the Settings (⚙️) to access more features like Pulse effects, Shape, Trails, and more.<br><br><em>Note: Shape and Trails effects may affect performance on some devices.</em>',
+        position: 'center',
+        isOutro: true
+      }
+    ];
+  }
+  
+  // Track visited tutorial elements
+  let visitedElements = [];
+  
+  function clearTutorialClasses() {
+    document.querySelectorAll('.tutorial-current, .tutorial-visited').forEach(el => {
+      el.classList.remove('tutorial-current', 'tutorial-visited');
+    });
+    visitedElements = [];
+  }
+  
+  function markElementVisited(element) {
+    if (!element) return;
+    // Find the parent row if it exists
+    const row = element.closest('.row') || element;
+    if (!visitedElements.includes(row)) {
+      visitedElements.push(row);
+    }
+    row.classList.remove('tutorial-current');
+    row.classList.add('tutorial-visited');
+  }
+  
+  function markElementCurrent(element) {
+    if (!element) return;
+    // Remove current from any previous element
+    document.querySelectorAll('.tutorial-current').forEach(el => {
+      el.classList.remove('tutorial-current');
+    });
+    // Find the parent row if it exists
+    const row = element.closest('.row') || element;
+    row.classList.add('tutorial-current');
+  }
+  
+  function startTutorial() {
+    tutorialSteps = getTutorialSteps();
+    // Don't start if no steps (advanced mode)
+    if (tutorialSteps.length === 0) return;
+    tutorialStep = 0;
+    clearTutorialClasses();
+    document.getElementById('tutorialOverlay').classList.add('active');
+    updateBackButton();
+    showTutorialStep();
+  }
+  
+  function showTutorialStep() {
+    if (tutorialStep >= tutorialSteps.length) {
+      endTutorial();
+      return;
+    }
+    
+    const step = tutorialSteps[tutorialStep];
+    const highlight = document.getElementById('tutorialHighlight');
+    const tooltip = document.getElementById('tutorialTooltip');
+    const content = document.getElementById('tutorialContent');
+    const progress = document.getElementById('tutorialProgress');
+    
+    // Handle outro step (no element to highlight)
+    if (step.isOutro) {
+      // Hide highlight
+      highlight.style.display = 'none';
+      
+      // Build content
+      content.innerHTML = step.content;
+      
+      // Update progress
+      progress.textContent = `${tutorialStep + 1} / ${tutorialSteps.length}`;
+      
+      // Center tooltip
+      tooltip.className = 'tutorial-tooltip';
+      tooltip.style.left = '50%';
+      tooltip.style.top = '50%';
+      tooltip.style.transform = 'translate(-50%, -50%)';
+      
+      // Update button
+      const nextBtn = document.getElementById('tutorialNext');
+      const t = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[currentLanguage]) ? TRANSLATIONS[currentLanguage] : { finish: 'Finish' };
+      nextBtn.textContent = t.finish || 'Finish';
+      
+      updateBackButton();
+      return;
+    }
+    
+    // Reset transform for non-outro steps
+    tooltip.style.transform = '';
+    highlight.style.display = 'block';
+    
+    const selector = step.selector || step.element;
+    const element = document.querySelector(selector);
+    
+    if (!element) {
+      // Skip if element not found
+      tutorialStep++;
+      showTutorialStep();
+      return;
+    }
+    
+    // Scroll element into view on mobile
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Wait for scroll to complete before positioning
+    setTimeout(() => {
+      positionTutorialElements(element, step, highlight, tooltip, content, progress);
+    }, 100);
+  }
+  
+  function positionTutorialElements(element, step, highlight, tooltip, content, progress) {
+    // Mark current element
+    markElementCurrent(element);
+    
+    const rect = element.getBoundingClientRect();
+    
+    // Position highlight
+    const padding = 8;
+    highlight.style.left = (rect.left - padding) + 'px';
+    highlight.style.top = (rect.top - padding) + 'px';
+    highlight.style.width = (rect.width + padding * 2) + 'px';
+    highlight.style.height = (rect.height + padding * 2) + 'px';
+    
+    // Build content
+    let html = step.content;
+    if (step.tryIt) {
+      html += `<span class="try-it">${step.tryIt}</span>`;
+    }
+    content.innerHTML = html;
+    
+    // Update progress
+    progress.textContent = `${tutorialStep + 1} / ${tutorialSteps.length}`;
+    
+    // Position tooltip - prefer bottom on mobile
+    tooltip.className = 'tutorial-tooltip';
+    const tooltipRect = tooltip.getBoundingClientRect();
+    const isMobile = window.innerWidth <= 800;
+    let left, top;
+    
+    // On mobile, position tooltip at bottom center of screen
+    if (isMobile) {
+      tooltip.classList.add('arrow-top');
+      left = (window.innerWidth - tooltipRect.width) / 2;
+      top = Math.min(rect.bottom + 20, window.innerHeight - tooltipRect.height - 20);
+    } else {
+      switch (step.position) {
+        case 'right':
+          left = rect.right + 20;
+          top = rect.top;
+          tooltip.classList.add('arrow-left');
+          break;
+        case 'left':
+          left = rect.left - tooltipRect.width - 20;
+          top = rect.top;
+          tooltip.classList.add('arrow-right');
+          break;
+        case 'bottom':
+          left = rect.left;
+          top = rect.bottom + 20;
+          tooltip.classList.add('arrow-top');
+          break;
+        case 'top':
+          left = rect.left;
+          top = rect.top - tooltipRect.height - 20;
+          tooltip.classList.add('arrow-bottom');
+          break;
+        default:
+          left = rect.right + 20;
+          top = rect.top;
+          tooltip.classList.add('arrow-left');
+      }
+    }
+    
+    // Keep tooltip on screen
+    const maxLeft = window.innerWidth - tooltipRect.width - 20;
+    const maxTop = window.innerHeight - tooltipRect.height - 20;
+    left = Math.max(20, Math.min(left, maxLeft));
+    top = Math.max(20, Math.min(top, maxTop));
+    
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+    
+    // Update button text for last step
+    const nextBtn = document.getElementById('tutorialNext');
+    const t = (typeof TRANSLATIONS !== 'undefined' && TRANSLATIONS[currentLanguage]) ? TRANSLATIONS[currentLanguage] : { finish: 'Finish', next: 'Next' };
+    nextBtn.textContent = tutorialStep === tutorialSteps.length - 1 ? (t.finish || 'Finish') : (t.next || 'Next');
+    
+    // Update back button visibility
+    updateBackButton();
+  }
+  
+  function updateBackButton() {
+    const backBtn = document.getElementById('tutorialBack');
+    if (backBtn) {
+      backBtn.style.display = tutorialStep === 0 ? 'none' : 'inline-block';
+    }
+  }
+  
+  function nextTutorialStep() {
+    // Mark current element as visited before moving on
+    const step = tutorialSteps[tutorialStep];
+    if (step && step.element && !step.isOutro) {
+      const element = document.querySelector(step.selector || step.element);
+      markElementVisited(element);
+    }
+    tutorialStep++;
+    showTutorialStep();
+  }
+  
+  function prevTutorialStep() {
+    if (tutorialStep > 0) {
+      tutorialStep--;
+      showTutorialStep();
+    }
+  }
+  
+  function endTutorial() {
+    document.getElementById('tutorialOverlay').classList.remove('active');
+    // Clear all tutorial classes
+    clearTutorialClasses();
+    // Mark tutorial as completed
+    try {
+      localStorage.setItem('voidulator-tutorial-done', 'true');
+    } catch (e) { }
+  }
+  
+  // Tutorial event listeners
+  document.getElementById('tutorialNext')?.addEventListener('click', nextTutorialStep);
+  document.getElementById('tutorialBack')?.addEventListener('click', prevTutorialStep);
+  document.getElementById('tutorialSkip')?.addEventListener('click', endTutorial);
+  
+  // === FEEDBACK MODAL ===
+  function showFeedbackModal() {
+    hideSettingsModal();
+    document.getElementById('feedbackModal').style.display = 'flex';
+    document.getElementById('feedbackText').value = '';
+    document.getElementById('feedbackEmail').value = '';
+  }
+  
+  function hideFeedbackModal() {
+    document.getElementById('feedbackModal').style.display = 'none';
+  }
+  
+  function submitFeedback() {
+    const text = document.getElementById('feedbackText').value.trim();
+    const email = document.getElementById('feedbackEmail').value.trim();
+    
+    if (!text) {
+      alert('Please enter some feedback!');
+      return;
+    }
+    
+    // Store feedback locally for now (will be replaced with actual API)
+    const feedback = {
+      text,
+      email,
+      timestamp: new Date().toISOString(),
+      mode: currentMode,
+      theme: document.documentElement.getAttribute('data-theme') || 'classic'
+    };
+    
+    console.log('Feedback submitted:', feedback);
+    
+    // Show success message
+    const modal = document.querySelector('.feedback-modal-content');
+    modal.innerHTML = `
+      <div class="feedback-success">
+        <h2>✓ Thanks!</h2>
+        <p>Your feedback has been received.</p>
+        <div class="modal-buttons" style="margin-top: 16px;">
+          <button class="modal-btn primary" onclick="document.getElementById('feedbackModal').style.display='none';">Close</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Feedback event listeners - opens external Google Form
+  document.getElementById('btnFeedback')?.addEventListener('click', () => {
+    if (FEEDBACK_FORM_URL && !FEEDBACK_FORM_URL.includes('YOUR_FORM_ID_HERE')) {
+      window.open(FEEDBACK_FORM_URL, '_blank');
+    } else {
+      // Fallback to built-in modal if no form URL configured
+      showFeedbackModal();
+    }
+  });
+  document.getElementById('closeFeedbackModal')?.addEventListener('click', hideFeedbackModal);
+  document.getElementById('submitFeedback')?.addEventListener('click', submitFeedback);
+  document.getElementById('feedbackModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'feedbackModal') hideFeedbackModal();
+  });
+  
+  // === LANGUAGE SELECTION ===
+  const TRANSLATIONS = {
+    en: {
+      reflectivity: 'Reflectivity',
+      maxBounces: 'Max bounces',
+      beamWidth: 'Beam width',
+      beamCount: 'Beam count',
+      emitterDot: 'Emitter dot',
+      speed: 'Speed',
+      colors: 'Colors',
+      scheme: 'Scheme',
+      scenes: 'Scenes',
+      scene: 'Scene',
+      name: 'Name',
+      transition: 'Transition',
+      screensaver: 'Screensaver',
+      save: 'Save',
+      go: 'Go',
+      delete: 'Delete',
+      shuffle: 'Shuffle',
+      layerMode: 'Layer mode',
+      blendMode: 'Blend mode',
+      stepSize: 'Step size',
+      // Settings
+      settings: 'Settings',
+      mode: 'Mode',
+      simple: 'Simple',
+      advanced: 'Advanced',
+      theme: 'Theme',
+      language: 'Language',
+      help: 'Help',
+      tutorial: 'Tutorial',
+      feedback: 'Feedback',
+      sendFeedback: 'Send Feedback',
+      done: 'Done',
+      // Welcome modal
+      welcomeQuestion: 'Would you like a quick tour?',
+      skip: 'Skip',
+      start: 'Start',
+      next: 'Next',
+      back: 'Back',
+      finish: 'Finish',
+      // Hints
+      hintDragSwatches: 'Drag swatches to reorder layers.',
+      hintDuty: 'Duty: left = mostly dark, right = mostly light.',
+      hintShape: 'Click labels to reset. Flow: left=in, right=out.',
+      hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary.',
+      hintScreensaver: 'Minutes per scene in screensaver mode (🌙 button).',
+      hintAudio: 'Uses mic/system audio. Press F for clean fullscreen.',
+      // Fullscreen
+      fullscreenHint: 'F = exit fullscreen · U = toggle UI · N = next scene',
+      screensaverMode: '🌙 Screensaver Mode',
+      // Pulse
+      pulse: 'Pulse',
+      enable: 'Enable',
+      shape: 'Shape',
+      amplitude: 'Amplitude',
+      frequency: 'Frequency',
+      softness: 'Softness',
+      dutyCycle: 'Duty cycle',
+      // Shape
+      shapeTitle: 'Shape',
+      density: 'Density',
+      size: 'Size',
+      flow: 'Flow',
+      spin: 'Spin',
+      // Trails
+      trails: 'Trails',
+      length: 'Length',
+      hueShift: 'Hue shift',
+      // Audio
+      audio: 'Audio Reactive',
+      target: 'Target',
+      sensitivity: 'Sensitivity',
+      micInput: 'Mic input',
+      smoothing: 'Smoothing',
+      strength: 'Strength',
+      band: 'Band',
+      // Per-beam rotation
+      perBeamRotation: 'Per-beam Rotation',
+      pattern: 'Pattern',
+      resetPhases: 'Reset phases',
+      // Group titles
+      filePresets: 'File Presets',
+      bonus: 'Bonus',
+      // Buttons
+      export: 'Export',
+      import: 'Import',
+      factoryReset: 'Factory Reset Scenes',
+      startListening: 'Start listening',
+      stopListening: 'Stop listening',
+      micDenied: 'Mic denied',
+      // Alerts
+      noSavedScenes: 'No saved scenes! Save some scenes first (Shift+Click on slot numbers)'
+    },
+    es: {
+      reflectivity: 'Reflectividad',
+      maxBounces: 'Rebotes máx',
+      beamWidth: 'Ancho de haz',
+      beamCount: 'Cantidad',
+      emitterDot: 'Punto emisor',
+      speed: 'Velocidad',
+      colors: 'Colores',
+      scheme: 'Esquema',
+      scenes: 'Escenas',
+      scene: 'Escena',
+      name: 'Nombre',
+      transition: 'Transición',
+      screensaver: 'Salvapantallas',
+      save: 'Guardar',
+      go: 'Ir',
+      delete: 'Eliminar',
+      shuffle: 'Mezclar',
+      layerMode: 'Modo capa',
+      blendMode: 'Modo mezcla',
+      stepSize: 'Paso',
+      // Settings
+      settings: 'Ajustes',
+      mode: 'Modo',
+      simple: 'Simple',
+      advanced: 'Avanzado',
+      theme: 'Tema',
+      language: 'Idioma',
+      help: 'Ayuda',
+      tutorial: 'Tutorial',
+      feedback: 'Comentarios',
+      sendFeedback: 'Enviar comentarios',
+      done: 'Listo',
+      // Welcome modal
+      welcomeQuestion: '¿Te gustaría un tour rápido?',
+      skip: 'Omitir',
+      start: 'Comenzar',
+      next: 'Siguiente',
+      back: 'Atrás',
+      finish: 'Terminar',
+      // Hints
+      hintDragSwatches: 'Arrastra las muestras para reordenar capas.',
+      hintDuty: 'Ciclo: izq = mayormente oscuro, der = mayormente claro.',
+      hintShape: 'Haz clic en etiquetas para resetear. Flujo: izq=entrada, der=salida.',
+      hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario.',
+      hintScreensaver: 'Minutos por escena en modo salvapantallas (botón 🌙).',
+      hintAudio: 'Usa micrófono/audio del sistema. Presiona F para pantalla limpia.',
+      // Fullscreen
+      fullscreenHint: 'F = salir pantalla completa · U = alternar UI · N = siguiente escena',
+      screensaverMode: '🌙 Modo Salvapantallas',
+      // Pulse
+      pulse: 'Pulso',
+      enable: 'Activar',
+      shape: 'Forma',
+      amplitude: 'Amplitud',
+      frequency: 'Frecuencia',
+      softness: 'Suavidad',
+      dutyCycle: 'Ciclo de trabajo',
+      // Shape
+      shapeTitle: 'Forma',
+      density: 'Densidad',
+      size: 'Tamaño',
+      flow: 'Flujo',
+      spin: 'Giro',
+      // Trails
+      trails: 'Estelas',
+      length: 'Longitud',
+      hueShift: 'Cambio de tono',
+      // Audio
+      audio: 'Audio Reactivo',
+      target: 'Objetivo',
+      sensitivity: 'Sensibilidad',
+      micInput: 'Entrada mic',
+      smoothing: 'Suavizado',
+      strength: 'Intensidad',
+      band: 'Banda',
+      // Per-beam rotation
+      perBeamRotation: 'Rotación por Haz',
+      pattern: 'Patrón',
+      resetPhases: 'Resetear fases',
+      // Group titles
+      filePresets: 'Presets de Archivo',
+      bonus: 'Extra',
+      // Buttons
+      export: 'Exportar',
+      import: 'Importar',
+      factoryReset: 'Restablecer Escenas',
+      startListening: 'Iniciar escucha',
+      stopListening: 'Detener escucha',
+      micDenied: 'Mic denegado',
+      // Alerts
+      noSavedScenes: '¡No hay escenas guardadas! Guarda algunas primero (Shift+Clic en los números)'
+    },
+    pt: {
+      reflectivity: 'Refletividade',
+      maxBounces: 'Rebotes máx',
+      beamWidth: 'Largura do feixe',
+      beamCount: 'Quantidade',
+      emitterDot: 'Ponto emissor',
+      speed: 'Velocidade',
+      colors: 'Cores',
+      scheme: 'Esquema',
+      scenes: 'Cenas',
+      scene: 'Cena',
+      name: 'Nome',
+      transition: 'Transição',
+      screensaver: 'Proteção de tela',
+      save: 'Salvar',
+      go: 'Ir',
+      delete: 'Excluir',
+      shuffle: 'Embaralhar',
+      layerMode: 'Modo camada',
+      blendMode: 'Modo mistura',
+      stepSize: 'Passo',
+      // Settings
+      settings: 'Configurações',
+      mode: 'Modo',
+      simple: 'Simples',
+      advanced: 'Avançado',
+      theme: 'Tema',
+      language: 'Idioma',
+      help: 'Ajuda',
+      tutorial: 'Tutorial',
+      feedback: 'Feedback',
+      sendFeedback: 'Enviar feedback',
+      done: 'Pronto',
+      // Welcome modal
+      welcomeQuestion: 'Gostaria de um tour rápido?',
+      skip: 'Pular',
+      start: 'Iniciar',
+      next: 'Próximo',
+      back: 'Voltar',
+      finish: 'Concluir',
+      // Hints
+      hintDragSwatches: 'Arraste as amostras para reordenar camadas.',
+      hintDuty: 'Ciclo: esq = principalmente escuro, dir = principalmente claro.',
+      hintShape: 'Clique nos rótulos para resetar. Fluxo: esq=entrada, dir=saída.',
+      hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar.',
+      hintScreensaver: 'Minutos por cena no modo proteção de tela (botão 🌙).',
+      hintAudio: 'Usa microfone/áudio do sistema. Pressione F para tela limpa.',
+      // Fullscreen
+      fullscreenHint: 'F = sair tela cheia · U = alternar UI · N = próxima cena',
+      screensaverMode: '🌙 Modo Proteção de Tela',
+      // Pulse
+      pulse: 'Pulso',
+      enable: 'Ativar',
+      shape: 'Forma',
+      amplitude: 'Amplitude',
+      frequency: 'Frequência',
+      softness: 'Suavidade',
+      dutyCycle: 'Ciclo de trabalho',
+      // Shape
+      shapeTitle: 'Forma',
+      density: 'Densidade',
+      size: 'Tamanho',
+      flow: 'Fluxo',
+      spin: 'Rotação',
+      // Trails
+      trails: 'Rastros',
+      length: 'Comprimento',
+      hueShift: 'Mudança de tom',
+      // Audio
+      audio: 'Áudio Reativo',
+      target: 'Alvo',
+      sensitivity: 'Sensibilidade',
+      micInput: 'Entrada mic',
+      smoothing: 'Suavização',
+      strength: 'Intensidade',
+      band: 'Banda',
+      // Per-beam rotation
+      perBeamRotation: 'Rotação por Feixe',
+      pattern: 'Padrão',
+      resetPhases: 'Resetar fases',
+      // Group titles
+      filePresets: 'Presets de Arquivo',
+      bonus: 'Bônus',
+      // Buttons
+      export: 'Exportar',
+      import: 'Importar',
+      factoryReset: 'Resetar Cenas',
+      startListening: 'Iniciar escuta',
+      stopListening: 'Parar escuta',
+      micDenied: 'Mic negado',
+      // Alerts
+      noSavedScenes: 'Sem cenas salvas! Salve algumas primeiro (Shift+Clique nos números)'
+    },
+    fr: {
+      reflectivity: 'Réflectivité',
+      maxBounces: 'Rebonds max',
+      beamWidth: 'Largeur faisceau',
+      beamCount: 'Nombre',
+      emitterDot: 'Point émetteur',
+      speed: 'Vitesse',
+      colors: 'Couleurs',
+      scheme: 'Schéma',
+      scenes: 'Scènes',
+      scene: 'Scène',
+      name: 'Nom',
+      transition: 'Transition',
+      screensaver: 'Écran de veille',
+      save: 'Sauver',
+      go: 'Aller',
+      delete: 'Supprimer',
+      shuffle: 'Mélanger',
+      layerMode: 'Mode calque',
+      blendMode: 'Mode fusion',
+      stepSize: 'Pas',
+      // Settings
+      settings: 'Paramètres',
+      mode: 'Mode',
+      simple: 'Simple',
+      advanced: 'Avancé',
+      theme: 'Thème',
+      language: 'Langue',
+      help: 'Aide',
+      tutorial: 'Tutoriel',
+      feedback: 'Commentaires',
+      sendFeedback: 'Envoyer des commentaires',
+      done: 'Terminé',
+      // Welcome modal
+      welcomeQuestion: 'Voulez-vous une visite rapide?',
+      skip: 'Passer',
+      start: 'Commencer',
+      next: 'Suivant',
+      back: 'Retour',
+      finish: 'Terminer',
+      // Hints
+      hintDragSwatches: 'Glissez les échantillons pour réorganiser les couches.',
+      hintDuty: 'Cycle: gauche = principalement sombre, droite = principalement clair.',
+      hintShape: 'Cliquez sur les étiquettes pour réinitialiser. Flux: gauche=entrée, droite=sortie.',
+      hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire.',
+      hintScreensaver: 'Minutes par scène en mode écran de veille (bouton 🌙).',
+      hintAudio: 'Utilise le micro/audio système. Appuyez sur F pour plein écran propre.',
+      // Fullscreen
+      fullscreenHint: 'F = quitter plein écran · U = basculer UI · N = scène suivante',
+      screensaverMode: '🌙 Mode Écran de Veille',
+      // Pulse
+      pulse: 'Pulsation',
+      enable: 'Activer',
+      shape: 'Forme',
+      amplitude: 'Amplitude',
+      frequency: 'Fréquence',
+      softness: 'Douceur',
+      dutyCycle: 'Rapport cyclique',
+      // Shape
+      shapeTitle: 'Forme',
+      density: 'Densité',
+      size: 'Taille',
+      flow: 'Flux',
+      spin: 'Rotation',
+      // Trails
+      trails: 'Traînées',
+      length: 'Longueur',
+      hueShift: 'Décalage teinte',
+      // Audio
+      audio: 'Audio Réactif',
+      target: 'Cible',
+      sensitivity: 'Sensibilité',
+      micInput: 'Entrée mic',
+      smoothing: 'Lissage',
+      strength: 'Force',
+      band: 'Bande',
+      // Per-beam rotation
+      perBeamRotation: 'Rotation par Faisceau',
+      pattern: 'Motif',
+      resetPhases: 'Réinitialiser phases',
+      // Group titles
+      filePresets: 'Préréglages Fichier',
+      bonus: 'Bonus',
+      // Buttons
+      export: 'Exporter',
+      import: 'Importer',
+      factoryReset: 'Réinitialiser Scènes',
+      startListening: 'Démarrer écoute',
+      stopListening: 'Arrêter écoute',
+      micDenied: 'Mic refusé',
+      // Alerts
+      noSavedScenes: 'Aucune scène sauvegardée! Sauvegardez-en d\'abord (Shift+Clic sur les numéros)'
+    }
+  };
+  
+  // Map element IDs/selectors to translation keys
+  const I18N_MAP = {
+    // Labels in main grid (by their adjacent control ID)
+    'reflect': 'reflectivity',
+    'bounces': 'maxBounces',
+    'beamWidth': 'beamWidth',
+    'beamCountVal': 'beamCount',
+    'showEmitterToggle': 'emitterDot',
+    'speedMultiplier': 'speed',
+    'layerModeToggle': 'layerMode',
+    'blendMode': 'blendMode'
+  };
+  
+  let currentLanguage = 'en';
+  
+  function getTranslation(key) {
+    const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
+    return t[key] || TRANSLATIONS.en[key] || key;
+  }
+  
+  function applyTranslations() {
+    const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
+    
+    // Update labels in the main grid
+    document.querySelectorAll('.grid .row').forEach(row => {
+      const label = row.querySelector('label');
+      if (!label) return;
+      
+      // Find what control this label is for
+      const control = row.querySelector('input, select, button, .stepper');
+      if (!control) return;
+      
+      const id = control.id || control.querySelector('[id]')?.id;
+      const key = I18N_MAP[id];
+      if (key && t[key]) {
+        label.textContent = t[key];
+      }
+    });
+    
+    // Update group titles
+    document.querySelectorAll('.group .group-title').forEach(title => {
+      const text = title.textContent.trim().toLowerCase();
+      if (text === 'colors' || text === 'colores' || text === 'cores' || text === 'couleurs') {
+        title.textContent = t.colors;
+      } else if (text === 'scenes' || text === 'escenas' || text === 'cenas' || text === 'scènes') {
+        title.textContent = t.scenes;
+      }
+    });
+    
+    // Update scene labels
+    document.querySelectorAll('.subgrid').forEach(grid => {
+      grid.querySelectorAll('label').forEach(label => {
+        const text = label.textContent.trim().toLowerCase();
+        if (text === 'scene' || text === 'escena' || text === 'cena' || text === 'scène') {
+          label.textContent = t.scene;
+        } else if (text === 'name' || text === 'nombre' || text === 'nome' || text === 'nom') {
+          label.textContent = t.name;
+        } else if (text === 'transition' || text === 'transición' || text === 'transição') {
+          label.textContent = t.transition;
+        } else if (text === 'screensaver' || text === 'salvapantallas' || text === 'proteção de tela' || text === 'écran de veille') {
+          label.textContent = t.screensaver;
+        } else if (text === 'scheme' || text === 'esquema' || text === 'schéma') {
+          label.textContent = t.scheme;
+        }
+      });
+    });
+    
+    // Update buttons
+    const saveBtn = document.querySelector('#sceneSave');
+    const goBtn = document.querySelector('#sceneGo');
+    const deleteBtn = document.querySelector('#sceneDelete');
+    const shuffleBtn = document.querySelector('#shuffleScheme');
+    
+    if (saveBtn) saveBtn.textContent = t.save;
+    if (goBtn) goBtn.textContent = t.go;
+    if (deleteBtn) deleteBtn.textContent = t.delete;
+    if (shuffleBtn) shuffleBtn.textContent = t.shuffle;
+    
+    // Update all elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (t[key]) {
+        // Preserve emojis at the start of text
+        const text = el.textContent || '';
+        const emojiMatch = text.match(/^([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}][\uFE00-\uFE0F]?\s*)/u);
+        const emoji = emojiMatch ? emojiMatch[1] : '';
+        el.textContent = emoji + t[key];
+      }
+    });
+  }
+  
+  function loadLanguage() {
+    try {
+      const saved = localStorage.getItem('voidulator-language');
+      if (saved && TRANSLATIONS[saved]) {
+        currentLanguage = saved;
+        const sel = document.getElementById('languageSelect');
+        if (sel) sel.value = saved;
+        // Also update welcome modal language buttons
+        document.querySelectorAll('.welcome-language .lang-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.getAttribute('data-lang') === saved);
+        });
+        applyTranslations();
+      }
+    } catch (e) { }
+  }
+  
+  function setLanguage(lang) {
+    currentLanguage = lang;
+    try {
+      localStorage.setItem('voidulator-language', lang);
+    } catch (e) { }
+    applyTranslations();
+  }
+  
+  document.getElementById('languageSelect')?.addEventListener('change', (e) => {
+    setLanguage(e.target.value);
+  });
+  
+  // Load language on startup (called in init)
+  
+  // === WELCOME MODAL (First Time) ===
+  function checkFirstVisit() {
+    try {
+      const done = localStorage.getItem('voidulator-tutorial-done');
+      if (!done) {
+        // First visit - show welcome
+        setTimeout(() => {
+          document.getElementById('welcomeModal').style.display = 'flex';
+        }, 500);
+      }
+    } catch (e) { }
+  }
+  
+  document.getElementById('welcomeStart')?.addEventListener('click', () => {
+    document.getElementById('welcomeModal').style.display = 'none';
+    startTutorial();
+  });
+  document.getElementById('welcomeSkip')?.addEventListener('click', () => {
+    document.getElementById('welcomeModal').style.display = 'none';
+    try {
+      localStorage.setItem('voidulator-tutorial-done', 'true');
+    } catch (e) { }
+  });
+  
+  // Welcome modal language buttons
+  document.querySelectorAll('.welcome-language .lang-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lang = btn.getAttribute('data-lang');
+      if (lang) {
+        // Update active state
+        document.querySelectorAll('.welcome-language .lang-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Apply language
+        setLanguage(lang);
+        // Also update settings dropdown to match
+        const langSelect = document.getElementById('languageSelect');
+        if (langSelect) langSelect.value = lang;
+      }
+    });
+  });
+
   // === BUTTON EVENT LISTENERS ===
   document.getElementById('btnTheme')?.addEventListener('click', toggleTheme);
   document.getElementById('btnFullscreen')?.addEventListener('click', toggleFullscreen);
   document.getElementById('btnScreensaver')?.addEventListener('click', toggleScreensaver);
   document.getElementById('btnShare')?.addEventListener('click', showShareModal);
-  document.getElementById('btnCast')?.addEventListener('click', showCastOptions);
   document.getElementById('copyShareUrl')?.addEventListener('click', copyShareUrl);
   document.getElementById('closeShareModal')?.addEventListener('click', hideShareModal);
   document.getElementById('shareModal')?.addEventListener('click', (e) => {
@@ -4659,6 +6271,9 @@ void main() {
   function init() {
     // Check WebGL2 first
     if (!checkWebGL2()) return;
+    
+    // Load mode (Simple/Advanced)
+    loadMode();
     
     glInit();
     resize();
@@ -4685,11 +6300,18 @@ void main() {
       loadAutosave();
     }
     
-    // Check orientation
-    checkOrientation();
+    // Load language preferences and apply translations
+    loadLanguage();
+    
+    // Set version from config
+    const versionEl = document.getElementById('appVersion');
+    if (versionEl) versionEl.textContent = APP_VERSION;
     
     // Hide loading spinner
     hideLoadingSpinner();
+    
+    // Check for first visit (show welcome modal)
+    checkFirstVisit();
     
     requestAnimationFrame(loop);
   }
