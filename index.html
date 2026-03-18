@@ -1,18 +1,30 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="classic"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Voidulator – Laser Room Simulator</title>
+<title>Voidulator – Resonant Chaos</title>
 
 <!-- PWA Support -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ff9f1c">
+<meta name="theme-color" content="#40d8a0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Voidulator">
 
+<!-- Favicon -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23111318'/%3E%3Cg transform='translate(256,256)' fill='none' stroke='%2340d8a0'%3E%3Ccircle r='190' stroke-width='3' opacity='0.35'/%3E%3Ccircle r='160' stroke-width='2' opacity='0.5'/%3E%3Cpolygon points='0,-155 147.4,-47.9 91.1,125.4 -91.1,125.4 -147.4,-47.9' stroke-width='2' opacity='0.6'/%3E%3Crect x='-113' y='-113' width='226' height='226' stroke-width='2' opacity='0.5' transform='rotate(15)'/%3E%3Cpolygon points='0,-130 123.6,-40.2 76.4,105.2 -76.4,105.2 -123.6,-40.2' stroke-width='1.5' opacity='0.7' transform='rotate(36)'/%3E%3Cline x1='-140' y1='-80' x2='140' y2='80' stroke-width='1' opacity='0.3'/%3E%3Cline x1='140' y1='-80' x2='-140' y2='80' stroke-width='1' opacity='0.3'/%3E%3Cline x1='0' y1='-150' x2='0' y2='150' stroke-width='1' opacity='0.25'/%3E%3Cline x1='-150' y1='0' x2='150' y2='0' stroke-width='1' opacity='0.25'/%3E%3Ccircle r='52' fill='%23111318' stroke-width='2.5' opacity='0.8'/%3E%3Ccircle r='3' fill='%2340d8a0' opacity='0.7'/%3E%3C/g%3E%3C/svg%3E">
+
 <!-- SEO & Social -->
-<meta name="description" content="Mesmerizing laser room simulator with reflections, shapes, and visual effects. Create stunning visual art.">
-<meta name="keywords" content="laser, visualizer, art, generative, WebGL, animation, screensaver">
+<meta name="description" content="Voidulator — Resonant Chaos. A mesmerizing WebGL laser room simulator with reflections, shapes, and visual effects.">
+<meta name="keywords" content="laser, visualizer, art, generative, WebGL, animation, screensaver, resonant chaos">
+<meta property="og:title" content="Voidulator – Resonant Chaos">
+<meta property="og:description" content="A mesmerizing WebGL laser room simulator. Create stunning visual art with bouncing beams, reflections, and hypnotic effects.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://voidulator.ollebjerkas.se">
+<meta property="og:image" content="https://voidulator.ollebjerkas.se/screenshot.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Voidulator – Resonant Chaos">
+<meta name="twitter:description" content="A mesmerizing WebGL laser room simulator. Create stunning visual art with bouncing beams and hypnotic effects.">
+<meta name="twitter:image" content="https://voidulator.ollebjerkas.se/screenshot.png">
 
 <style>
   /* === THEME: CLASSIC === */
@@ -1369,9 +1381,122 @@
   body.mode-simple .row.advanced-only {
     display: none !important;
   }
+  /* ============================================
+     SPLASH / INTRO SCREEN
+     ============================================ */
+  .splash-overlay {
+    position: fixed;
+    inset: 0;
+    background: #111318;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.8s ease;
+  }
+  .splash-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .splash-logo {
+    width: 220px;
+    height: 220px;
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: splashFadeIn 1.2s ease 0.2s forwards;
+  }
+  .splash-title {
+    font: 700 32px/1 'Consolas', 'Monaco', 'Courier New', monospace;
+    color: #40d8a0;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    opacity: 0;
+    animation: splashFadeIn 1s ease 0.6s forwards;
+  }
+  .splash-subtitle {
+    font: 400 13px/1.4 'Consolas', 'Monaco', 'Courier New', monospace;
+    color: #28846a;
+    letter-spacing: 4px;
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: splashFadeIn 1s ease 0.8s forwards;
+  }
+  .splash-credit {
+    font: 400 13px/1.6 'Consolas', 'Monaco', 'Courier New', monospace;
+    color: #556060;
+    text-align: center;
+    opacity: 0;
+    animation: splashFadeIn 1s ease 1.2s forwards;
+  }
+  .splash-hint {
+    position: absolute;
+    bottom: 28px;
+    font: 400 11px/1 'Consolas', 'Monaco', 'Courier New', monospace;
+    color: #334040;
+    letter-spacing: 2px;
+    opacity: 0;
+    animation: splashFadeIn 1s ease 2s forwards;
+  }
+  @keyframes splashFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (max-width: 800px) {
+    .splash-logo { width: 160px; height: 160px; margin-bottom: 24px; }
+    .splash-title { font-size: 24px; letter-spacing: 4px; }
+  }
 </style>
 </head>
 <body>
+
+<!-- Splash / Intro screen -->
+<div class="splash-overlay" id="splashOverlay" onclick="dismissSplash()">
+  <svg class="splash-logo" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+    <g transform="translate(200,200)" fill="none" stroke="#40d8a0">
+      <!-- Outer circle -->
+      <circle r="175" stroke-width="1" opacity="0.2"/>
+      <!-- Pentagon outer -->
+      <polygon points="0,-165 156.9,-51 97,-133.5 -97,-133.5 -156.9,-51" stroke-width="0.8" opacity="0.15"/>
+      <!-- Circle mid -->
+      <circle r="155" stroke-width="1.2" opacity="0.3"/>
+      <!-- Pentagon 1 -->
+      <polygon points="0,-148 140.8,-45.7 87,-119.7 -87,-119.7 -140.8,-45.7" stroke-width="1" opacity="0.35"/>
+      <!-- Square rotated -->
+      <rect x="-108" y="-108" width="216" height="216" stroke-width="1" opacity="0.3" transform="rotate(12)"/>
+      <!-- Pentagon 2 - counter-rotated -->
+      <polygon points="0,-135 128.4,-41.7 79.4,109.2 -79.4,109.2 -128.4,-41.7" stroke-width="1.2" opacity="0.45" transform="rotate(36)"/>
+      <!-- Inner pentagon -->
+      <polygon points="0,-110 104.6,-33.9 64.7,89 -64.7,89 -104.6,-33.9" stroke-width="1" opacity="0.35" transform="rotate(18)"/>
+      <!-- Cross lines (web pattern) -->
+      <line x1="-145" y1="-84" x2="145" y2="84" stroke-width="0.8" opacity="0.2"/>
+      <line x1="145" y1="-84" x2="-145" y2="84" stroke-width="0.8" opacity="0.2"/>
+      <line x1="-80" y1="-145" x2="80" y2="145" stroke-width="0.8" opacity="0.18"/>
+      <line x1="80" y1="-145" x2="-80" y2="145" stroke-width="0.8" opacity="0.18"/>
+      <line x1="0" y1="-155" x2="0" y2="155" stroke-width="0.6" opacity="0.15"/>
+      <line x1="-155" y1="0" x2="155" y2="0" stroke-width="0.6" opacity="0.15"/>
+      <!-- Pentagon-to-pentagon connecting lines -->
+      <line x1="0" y1="-148" x2="79.4" y2="109.2" stroke-width="0.7" opacity="0.2"/>
+      <line x1="140.8" y1="-45.7" x2="-79.4" y2="109.2" stroke-width="0.7" opacity="0.2"/>
+      <line x1="-140.8" y1="-45.7" x2="128.4" y2="-41.7" stroke-width="0.7" opacity="0.2"/>
+      <line x1="87" y1="119.7" x2="-128.4" y2="-41.7" stroke-width="0.7" opacity="0.2"/>
+      <line x1="-87" y1="119.7" x2="0" y2="-135" stroke-width="0.7" opacity="0.2"/>
+      <!-- Inner structure ring -->
+      <circle r="80" stroke-width="0.8" opacity="0.25"/>
+      <!-- Void -->
+      <circle r="48" fill="#111318" stroke-width="2" opacity="0.7"/>
+      <circle r="50" stroke-width="0.5" opacity="0.15"/>
+      <!-- Center dot -->
+      <circle r="2.5" fill="#40d8a0" opacity="0.6"/>
+    </g>
+  </svg>
+  <div class="splash-title">Voidulator</div>
+  <div class="splash-subtitle">RESONANT CHAOS</div>
+  <div class="splash-credit">By Olle Bjerkås<br>2026</div>
+  <div class="splash-hint">CLICK ANYWHERE TO ENTER</div>
+</div>
 
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -1442,7 +1567,7 @@
     <div class="modal-buttons">
       <button class="modal-btn primary" id="closeSettingsModal" data-i18n="done">Done</button>
     </div>
-    <div class="settings-version" id="appVersion">v1.0.0-beta</div>
+    <div class="settings-version" id="appVersion">v1.0.0</div>
   </div>
 </div>
 
@@ -1865,8 +1990,11 @@
 (() => {
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
-  const FEEDBACK_FORM_URL = 'https://forms.gle/YOUR_FORM_ID_HERE';
-  const APP_VERSION = 'v1.0.0-beta';
+  const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
+  const APP_VERSION = 'v1.0.0';
+  
+  // Default demo scenes (full curated collection)
+  const DEFAULT_SCENES_DB = {"scenes":[{"name":"Monochrome munch","data":{"polygonType":"circle","sides":5,"reflectSlider":1,"maxBounces":192,"beamWidth":1.4,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00392,"emittersNorm":[{"nx":0.021670585105838223,"ny":0.6273812028794234}],"beamScheme":"grayscale","beamPalette":[{"h":0,"s":0,"l":20},{"h":0,"s":0,"l":40},{"h":0,"s":0,"l":60},{"h":0,"s":0,"l":80}],"emitterPalettes":[[{"h":0,"s":0,"l":20},{"h":0,"s":0,"l":40},{"h":0,"s":0,"l":60},{"h":0,"s":0,"l":80}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[316.81,273.63,230.44,187.25],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"normal"}},{"name":"Purple pipe dreams","data":{"polygonType":"circle","sides":5,"reflectSlider":1,"maxBounces":192,"beamWidth":1.4,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01084,"emittersNorm":[{"nx":0.021670585105838223,"ny":0.6273812028794234}],"beamScheme":"custom","beamPalette":[{"h":287.17,"s":61.7,"l":46.08}],"emitterPalettes":[[{"h":287.17,"s":61.7,"l":46.08}]],"perBeamSpeed":[2],"perBeamPhase":[19.68],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.389,"pulseSpeed":17,"pulseSoft":0.12,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"triangle","freq":5.86,"speed":17,"duty":0.36,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"normal"}},{"name":"Macaw mind","data":{"polygonType":"circle","sides":5,"reflectSlider":0.797,"maxBounces":268,"beamWidth":1.4,"beamCount":3,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00214,"emittersNorm":[{"nx":0.021670585105838223,"ny":0.6273812028794234}],"beamScheme":"ara-macao","beamPalette":[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50}],"emitterPalettes":[[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50}]],"perBeamSpeed":[2,4,6],"perBeamPhase":[34.17,28.02,41.91],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.389,"pulseSpeed":17,"pulseSoft":0.12,"trails":{"enabled":true,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"normal"}},{"name":"Deliberate justification","data":{"polygonType":"circle","sides":5,"reflectSlider":0.831,"maxBounces":268,"beamWidth":1.5,"beamCount":3,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.0042,"emittersNorm":[{"nx":0.021670585105838223,"ny":0.6273812028794234}],"beamScheme":"ara-macao","beamPalette":[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50}],"emitterPalettes":[[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50}]],"perBeamSpeed":[2,4,6],"perBeamPhase":[227.21,54.1,261.03],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":0.51,"pulseFreqCP100":2.389,"pulseSpeed":17,"pulseSoft":0.12,"trails":{"enabled":false,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Birth","data":{"polygonType":"circle","sides":5,"reflectSlider":0.831,"maxBounces":268,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.0042,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"warm","beamPalette":[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}],"emitterPalettes":[[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[0.86,1.73,2.59,2.99],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.3495,"pulseSpeed":17,"pulseSoft":0.84,"trails":{"enabled":false,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Legacy computer","data":{"polygonType":"circle","sides":5,"reflectSlider":1,"maxBounces":294,"beamWidth":1.6,"beamCount":3,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00486,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"pharomachrus-mocinno","beamPalette":[{"h":145,"s":85,"l":45},{"h":0,"s":85,"l":45},{"h":210,"s":75,"l":50}],"emitterPalettes":[[{"h":145,"s":85,"l":45},{"h":0,"s":85,"l":45},{"h":210,"s":75,"l":50}]],"perBeamSpeed":[2,3,5],"perBeamPhase":[129.12,193.68,322.8],"speedPattern":"prime","patternBase":2,"pulseOn":true,"pulseShape":"square","pulseAmp":1,"pulseFreqCP100":0.05,"pulseSpeed":17,"pulseSoft":0.84,"trails":{"enabled":true,"length":136,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"square","freq":2.1,"speed":27,"duty":0.15,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"normal"}},{"name":"Sentinel","data":{"polygonType":"circle","sides":5,"reflectSlider":1,"maxBounces":300,"beamWidth":7.6,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00524,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"warm","beamPalette":[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}],"emitterPalettes":[[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[5.17,10.34,15.51,20.23],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.3495,"pulseSpeed":17,"pulseSoft":0.84,"trails":{"enabled":false,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Friendly flower","data":{"polygonType":"circle","sides":5,"reflectSlider":0.797,"maxBounces":268,"beamWidth":1.4,"beamCount":3,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00356,"emittersNorm":[{"nx":0.30855321562185645,"ny":0.6188656701580406}],"beamScheme":"physalia-physalis","beamPalette":[{"h":220,"s":70,"l":50},{"h":280,"s":60,"l":50},{"h":330,"s":70,"l":65}],"emitterPalettes":[[{"h":220,"s":70,"l":50},{"h":280,"s":60,"l":50},{"h":330,"s":70,"l":65}]],"perBeamSpeed":[2,4,6],"perBeamPhase":[34.37,28.41,42.5],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.389,"pulseSpeed":17,"pulseSoft":0.12,"trails":{"enabled":true,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"normal"}},{"name":"Take up the journey","data":{"polygonType":"circle","sides":5,"reflectSlider":0.983,"maxBounces":41,"beamWidth":1.4,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.0923,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"warm","beamPalette":[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}],"emitterPalettes":[[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[54.75,109.49,164.24,218.98],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.59,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":false,"length":134,"opacity":1,"hueShift":360},"widthWave":{"enabled":true,"shape":"pentagon","freq":8,"speed":-51,"duty":0.81,"rotation":0.7},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Trafalgarnar","data":{"polygonType":"circle","sides":5,"reflectSlider":0.983,"maxBounces":41,"beamWidth":1.4,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01962,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50},{"h":15.07,"s":90.39,"l":44.9}],"emitterPalettes":[[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50},{"h":15.07,"s":90.39,"l":44.9}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[94.25,188.49,282.74,16.98],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.59,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":false,"length":134,"opacity":1,"hueShift":360},"widthWave":{"enabled":true,"shape":"pentagon","freq":8,"speed":-51,"duty":0.81,"rotation":0.7},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Wilder kind of flower","data":{"polygonType":"circle","sides":5,"reflectSlider":0.983,"maxBounces":117,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.8453,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}],"emitterPalettes":[[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[15.26,30.52,45.78,61.04],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.59,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":true,"length":168,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"pentagon","freq":7.92,"speed":12,"duty":0.34,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Look into my eye","data":{"polygonType":"circle","sides":5,"reflectSlider":0.983,"maxBounces":117,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.8453,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}],"emitterPalettes":[[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[345.63,158.45,144.08,129.72],"speedPattern":"prime","patternBase":2,"pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.59,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":true,"length":168,"opacity":1,"hueShift":360},"widthWave":{"enabled":false,"shape":"pentagon","freq":7.92,"speed":12,"duty":0.34,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"We can go places","data":{"polygonType":"circle","sides":5,"reflectSlider":0.724,"maxBounces":293,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.8453,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}],"emitterPalettes":[[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[2.34,3.51,5.84,8.18],"speedPattern":"prime","patternBase":2,"pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.59,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":true,"length":180,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"pentagon","freq":7.92,"speed":12,"duty":0.34,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Functional star","data":{"polygonType":"circle","sides":5,"reflectSlider":0.884,"maxBounces":322,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":2,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}],"emitterPalettes":[[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[158.13,57.19,215.31,13.44],"speedPattern":"prime","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.16808,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":true,"length":166,"opacity":1,"hueShift":189},"widthWave":{"enabled":false,"shape":"pentagon","freq":7.92,"speed":12,"duty":0.34,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Prime fold","data":{"polygonType":"circle","sides":5,"reflectSlider":0.658,"maxBounces":300,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":2,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":39.39,"l":25.88},{"h":198.53,"s":73.91,"l":18.04},{"h":27.91,"s":76.79,"l":21.96},{"h":0,"s":38.62,"l":37.06}],"emitterPalettes":[[{"h":120,"s":39.39,"l":25.88},{"h":198.53,"s":73.91,"l":18.04},{"h":27.91,"s":76.79,"l":21.96},{"h":0,"s":38.62,"l":37.06}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[69.13,103.7,172.83,241.96],"speedPattern":"prime","patternBase":2,"pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.08384,"pulseSpeed":54,"pulseSoft":0.84,"pulseDuty":0.13,"trails":{"enabled":true,"length":180,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"pentagon","freq":7.54,"speed":40,"duty":0.11,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}}],"slots":[{"name":"Functional star","data":{"polygonType":"circle","sides":5,"reflectSlider":0.884,"maxBounces":322,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":2,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}],"emitterPalettes":[[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[0,0,0,0],"speedPattern":"prime","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.16808,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":true,"length":166,"opacity":1,"hueShift":189},"widthWave":{"enabled":false,"shape":"pentagon","freq":7.92,"speed":12,"duty":0.34,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"We can go places","data":{"polygonType":"circle","sides":5,"reflectSlider":0.724,"maxBounces":293,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.8453,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}],"emitterPalettes":[[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[0,0,0,0],"speedPattern":"prime","patternBase":2,"pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.59,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":true,"length":180,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"pentagon","freq":7.92,"speed":12,"duty":0.34,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Legacy computer","data":{"polygonType":"circle","sides":5,"reflectSlider":1,"maxBounces":294,"beamWidth":1.6,"beamCount":3,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00486,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"pharomachrus-mocinno","beamPalette":[{"h":145,"s":85,"l":45},{"h":0,"s":85,"l":45},{"h":210,"s":75,"l":50}],"emitterPalettes":[[{"h":145,"s":85,"l":45},{"h":0,"s":85,"l":45},{"h":210,"s":75,"l":50}]],"perBeamSpeed":[2,3,5],"perBeamPhase":[0,0,0],"speedPattern":"prime","patternBase":2,"pulseOn":true,"pulseShape":"square","pulseAmp":1,"pulseFreqCP100":0.05,"pulseSpeed":17,"pulseSoft":0.84,"trails":{"enabled":true,"length":136,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"square","freq":2.1,"speed":27,"duty":0.15,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"normal"}},{"name":"Birth","data":{"polygonType":"circle","sides":5,"reflectSlider":0.831,"maxBounces":268,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.0042,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"warm","beamPalette":[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}],"emitterPalettes":[[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[0,0,0,0],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.3495,"pulseSpeed":17,"pulseSoft":0.84,"trails":{"enabled":false,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Macaw mind","data":{"polygonType":"circle","sides":5,"reflectSlider":0.797,"maxBounces":268,"beamWidth":1.4,"beamCount":3,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00214,"emittersNorm":[{"nx":0.021670585105838223,"ny":0.6273812028794234}],"beamScheme":"ara-macao","beamPalette":[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50}],"emitterPalettes":[[{"h":0,"s":85,"l":50},{"h":50,"s":95,"l":55},{"h":220,"s":85,"l":50}]],"perBeamSpeed":[2,4,6],"perBeamPhase":[0,0,0],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.389,"pulseSpeed":17,"pulseSoft":0.12,"trails":{"enabled":true,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"normal"}},{"name":"Look into my eye","data":{"polygonType":"circle","sides":5,"reflectSlider":0.983,"maxBounces":117,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.8453,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}],"emitterPalettes":[[{"h":120,"s":46.67,"l":2.94},{"h":199.35,"s":81.58,"l":14.9},{"h":27.69,"s":86.67,"l":2.94},{"h":0,"s":42.86,"l":4.12}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[0,0,0,0],"speedPattern":"prime","patternBase":2,"pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.59,"pulseSpeed":54,"pulseSoft":0.84,"trails":{"enabled":true,"length":168,"opacity":1,"hueShift":360},"widthWave":{"enabled":false,"shape":"pentagon","freq":7.92,"speed":12,"duty":0.34,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Prime fold","data":{"polygonType":"circle","sides":5,"reflectSlider":0.658,"maxBounces":300,"beamWidth":0.5,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":2,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"custom","beamPalette":[{"h":120,"s":39.39,"l":25.88},{"h":198.53,"s":73.91,"l":18.04},{"h":27.91,"s":76.79,"l":21.96},{"h":0,"s":38.62,"l":37.06}],"emitterPalettes":[[{"h":120,"s":39.39,"l":25.88},{"h":198.53,"s":73.91,"l":18.04},{"h":27.91,"s":76.79,"l":21.96},{"h":0,"s":38.62,"l":37.06}]],"perBeamSpeed":[2,3,5,7],"perBeamPhase":[0,0,0,0],"speedPattern":"prime","patternBase":2,"pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.08384,"pulseSpeed":54,"pulseSoft":0.84,"pulseDuty":0.13,"trails":{"enabled":true,"length":180,"opacity":1,"hueShift":0},"widthWave":{"enabled":true,"shape":"pentagon","freq":7.54,"speed":40,"duty":0.11,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},{"name":"Sentinel","data":{"polygonType":"circle","sides":5,"reflectSlider":1,"maxBounces":300,"beamWidth":7.6,"beamCount":4,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.00524,"emittersNorm":[{"nx":0.65015317503917,"ny":0.02832317840956362}],"beamScheme":"warm","beamPalette":[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}],"emitterPalettes":[[{"h":20,"s":85,"l":55},{"h":25,"s":85,"l":55},{"h":30,"s":85,"l":55},{"h":35,"s":85,"l":55}]],"perBeamSpeed":[2,4,6,8],"perBeamPhase":[0,0,0,0],"speedPattern":"linear","patternBase":2,"pulseOn":true,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":0.3495,"pulseSpeed":17,"pulseSoft":0.84,"trails":{"enabled":false,"length":57,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"triangle","freq":5.5,"speed":17,"duty":0.35,"rotation":-0.2},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90},"blendMode":"additive"}},null]};
   
   const _el = id => document.getElementById(id);
   const _on = (el, evt, fn) => { if (el) el.addEventListener(evt, fn); };
@@ -1912,8 +2040,6 @@
   // Trails
   const trailsToggle = _el('trailsToggle');
   const trailsLengthEl = _el('trailsLength');
-  const trailsOpacityEl = _el('trailsOpacity');
-  const trailsFadeEl = _el('trailsFade');
   const trailsHueShiftEl = _el('trailsHueShift');
   // Thickness pulse
   const widthWaveToggle = _el('widthWaveToggle');
@@ -2464,7 +2590,7 @@
       pulseFreqCP100: S.pulseFreqCP100,
       pulseSpeed: S.pulseSpeed,
       pulseSoft: S.pulseSoft,
-      // Trails
+      pulseDuty: S.pulseDuty,
       trails: {
         enabled: S.trails.enabled,
         length: S.trails.length,
@@ -2528,8 +2654,7 @@
     S.pulseFreqCP100 = scene.pulseFreqCP100;
     S.pulseSpeed = scene.pulseSpeed;
     S.pulseSoft = scene.pulseSoft;
-    
-    // Trails
+    S.pulseDuty = scene.pulseDuty ?? 0.5;
     if (scene.trails) {
       S.trails.enabled = scene.trails.enabled ?? false;
       S.trails.length = scene.trails.length ?? 20;
@@ -2592,10 +2717,10 @@
     pulseFreqEl.value = pulseFreqToSlider(S.pulseFreqCP100);
     pulseSpeedEl.value = S.pulseSpeed;
     pulseQualityEl.value = S.pulseSoft;
+    if (pulseDutyEl) pulseDutyEl.value = S.pulseDuty;
     // Trails
     if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
     if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
-    if (trailsOpacityEl) trailsOpacityEl.value = S.trails.opacity;
     if (trailsHueShiftEl) trailsHueShiftEl.value = S.trails.hueShift;
     // Shape (widthWave)
     if (widthWaveToggle) widthWaveToggle.textContent = S.widthWave.enabled ? 'On' : 'Off';
@@ -2647,8 +2772,7 @@
     S.pulseFreqCP100 = lerp(from.pulseFreqCP100, to.pulseFreqCP100, t);
     S.pulseSpeed = lerp(from.pulseSpeed, to.pulseSpeed, t);
     S.pulseSoft = lerp(from.pulseSoft, to.pulseSoft, t);
-    
-    // Lerp emitter positions
+    S.pulseDuty = lerp(from.pulseDuty ?? 0.5, to.pulseDuty ?? 0.5, t);
     // Handle all emitters in the current array
     for (let i = 0; i < S.emittersNorm.length; i++) {
       const fromPos = from.emittersNorm[i] || { nx: 0.5, ny: 0.5 };
@@ -2898,8 +3022,6 @@
         if (data) {
           S.scenes = data.scenes || [];
           S.sceneSlots = data.slots || [null, null, null, null, null, null, null, null];
-          console.log('Loaded scenes:', S.scenes.length, 'scenes,', 
-            S.sceneSlots.filter(s => s !== null).length, 'slots filled');
         }
       }
     } catch (e) { 
@@ -2916,7 +3038,6 @@
     S.sceneSlots = [null, null, null, null, null, null, null, null];
     localStorage.removeItem('voidulator-scenes');
     updateSceneUI();
-    console.log('Scenes factory reset complete');
   }
 
   function updateSceneUI() {
@@ -3419,6 +3540,7 @@
   
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
+  let trailFBO2, trailTex2, trailPingPong = 0;
   let copyProg, copyBuf;
 
   function glInit() {
@@ -3604,8 +3726,8 @@ void main() {
     // Create two textures for ping-pong rendering
     if (trailFBO) gl.deleteFramebuffer(trailFBO);
     if (trailTex) gl.deleteTexture(trailTex);
-    if (window.trailTex2) gl.deleteTexture(window.trailTex2);
-    if (window.trailFBO2) gl.deleteFramebuffer(window.trailFBO2);
+    if (trailTex2) gl.deleteTexture(trailTex2);
+    if (trailFBO2) gl.deleteFramebuffer(trailFBO2);
     
     // First texture/FBO
     trailTex = gl.createTexture();
@@ -3622,20 +3744,20 @@ void main() {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, trailTex, 0);
     
     // Second texture/FBO for ping-pong
-    window.trailTex2 = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, window.trailTex2);
+    trailTex2 = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, trailTex2);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     
-    window.trailFBO2 = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, window.trailFBO2);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, window.trailTex2, 0);
+    trailFBO2 = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFBO2);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, trailTex2, 0);
     
     // Track which is the "read" texture (starts with first)
-    window.trailPingPong = 0;
+    trailPingPong = 0;
     
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
@@ -3944,10 +4066,10 @@ void main() {
       const w = glCanvas.width, h = glCanvas.height;
       
       // Determine read/write textures and FBOs
-      const pp = window.trailPingPong || 0;
-      const readTex = pp === 0 ? trailTex : window.trailTex2;
-      const writeFBO = pp === 0 ? window.trailFBO2 : trailFBO;
-      const writeTex = pp === 0 ? window.trailTex2 : trailTex;
+      const pp = trailPingPong;
+      const readTex = pp === 0 ? trailTex : trailTex2;
+      const writeFBO = pp === 0 ? trailFBO2 : trailFBO;
+      const writeTex = pp === 0 ? trailTex2 : trailTex;
       
       // Length (1-180): controls fade rate / trail duration
       // Map length to fade rate: len=1 → 0.75, len=180 → 0.995
@@ -4029,7 +4151,7 @@ void main() {
       gl.enable(gl.BLEND);
       
       // Swap ping-pong for next frame
-      window.trailPingPong = 1 - pp;
+      trailPingPong = 1 - pp;
     } else {
       // No trails - simple render
       gl.useProgram(prog);
@@ -4233,7 +4355,10 @@ void main() {
     S.pulseFreqCP100 = sliderToPulseFreq(pos);
   });
   _on(pulseSpeedEl, 'input', () => S.pulseSpeed = parseFloat(pulseSpeedEl.value) || 0);
-  _on(pulseQualityEl, 'input', () => S.pulseSoft = parseFloat(pulseQualityEl.value) || 0.18);
+  _on(pulseQualityEl, 'input', () => {
+    const val = parseFloat(pulseQualityEl.value);
+    S.pulseSoft = isNaN(val) ? 0.18 : val;
+  });
   _on(pulseDutyEl, 'input', () => {
     const val = parseFloat(pulseDutyEl.value);
     S.pulseDuty = isNaN(val) ? 0.5 : val;
@@ -4314,7 +4439,7 @@ void main() {
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
-      pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft }
+      pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft, duty: S.pulseDuty }
     };
   }
 
@@ -4340,6 +4465,7 @@ void main() {
       S.pulseOn = !!P.pulse.on; S.pulseShape = P.pulse.shape || 'sine';
       S.pulseAmp = P.pulse.amp ?? 1; S.pulseFreqCP100 = P.pulse.freq ?? 1.2;
       S.pulseSpeed = P.pulse.speed ?? 240; S.pulseSoft = P.pulse.soft ?? 0.18;
+      S.pulseDuty = P.pulse.duty ?? 0.5;
     }
     if (P.trails) {
       S.trails.enabled = P.trails.enabled ?? false;
@@ -4655,7 +4781,6 @@ void main() {
     if (W.ripples.length >= W.maxRipples) {
       W.ripples.shift(); // Remove oldest
     }
-    console.log('🌊 Spawning ripple at', x.toFixed(0), y.toFixed(0), 'amp:', W.amplitude, 'speed:', W.speed, 'enabled:', W.enabled);
     W.ripples.push({
       x: x,
       y: y,
@@ -4744,11 +4869,6 @@ void main() {
       
       totalDx += px * waveValue;
       totalDy += py * waveValue;
-    }
-
-    // Debug log occasionally
-    if (Math.random() < 0.0001 && (totalDx !== 0 || totalDy !== 0)) {
-      console.log('🌊 Wave displacement:', totalDx.toFixed(2), totalDy.toFixed(2));
     }
 
     return { dx: totalDx, dy: totalDy };
@@ -4963,14 +5083,10 @@ void main() {
     } else if (e.key === 'n' || e.key === 'N') {
       e.preventDefault();
       goToNextScene();
-    } else if (e.key === 'Escape' && isFullscreen) {
-      isFullscreen = false;
-      uiHidden = false;
-      document.body.classList.remove('fullscreen-mode');
-      document.body.classList.remove('hide-ui');
-      const btn = document.getElementById('btnFullscreen');
-      if (btn) btn.classList.remove('active');
-      setTimeout(resize, 100);
+    } else if (e.key === 'Escape' && isFullscreen && !document.fullscreenElement) {
+      // Only handle Escape for CSS-only fullscreen (not native browser fullscreen,
+      // which is handled by the fullscreenchange event)
+      toggleFullscreen();
     }
   });
   
@@ -4993,7 +5109,6 @@ void main() {
       if (saved) {
         const P = JSON.parse(saved);
         applyPreset(P);
-        console.log('Loaded autosaved state');
         return true;
       }
     } catch (e) {
@@ -5030,7 +5145,6 @@ void main() {
         applyPreset(P);
         // Clear URL params after loading
         window.history.replaceState({}, '', window.location.pathname);
-        console.log('Loaded state from URL');
         return true;
       }
     } catch (e) {
@@ -5056,15 +5170,31 @@ void main() {
   function copyShareUrl() {
     const urlInput = document.getElementById('shareUrl');
     if (urlInput) {
-      urlInput.select();
-      document.execCommand('copy');
-      // Flash feedback
-      const btn = document.getElementById('copyShareUrl');
-      if (btn) {
-        const orig = btn.textContent;
-        btn.textContent = '✓ Copied!';
-        setTimeout(() => btn.textContent = orig, 1500);
+      const url = urlInput.value;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          showCopyFeedback();
+        }).catch(() => {
+          // Fallback for clipboard permission denied
+          urlInput.select();
+          try { document.execCommand('copy'); } catch (e) { }
+          showCopyFeedback();
+        });
+      } else {
+        // Fallback for older browsers
+        urlInput.select();
+        try { document.execCommand('copy'); } catch (e) { }
+        showCopyFeedback();
       }
+    }
+  }
+  
+  function showCopyFeedback() {
+    const btn = document.getElementById('copyShareUrl');
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
     }
   }
   
@@ -5113,8 +5243,6 @@ void main() {
       }
     }
     
-    console.log('Screensaver: Found', savedSlots.length, 'saved scenes in slots:', savedSlots);
-    
     if (savedSlots.length === 0) {
       alert(getTranslation('noSavedScenes'));
       stopScreensaver();
@@ -5127,7 +5255,6 @@ void main() {
     function cycleScene() {
       if (!screensaverActive) return;
       const slot = savedSlots[currentIdx];
-      console.log('Screensaver: Cycling to slot', slot);
       goToSceneSlot(slot);
       currentIdx = (currentIdx + 1) % savedSlots.length;
     }
@@ -5157,8 +5284,13 @@ void main() {
       stopScreensaver();
     }
   });
-  document.addEventListener('keydown', () => {
-    if (screensaverActive) stopScreensaver();
+  document.addEventListener('keydown', (e) => {
+    if (screensaverActive) {
+      // Ignore modifier-only keys (Shift, Ctrl, Alt, Meta, volume, etc.)
+      const ignore = ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'NumLock', 'ScrollLock',
+                       'AudioVolumeUp', 'AudioVolumeDown', 'AudioVolumeMute'];
+      if (!ignore.includes(e.key)) stopScreensaver();
+    }
   });
   
   // === CAST FUNCTIONALITY ===
@@ -5171,6 +5303,17 @@ void main() {
       setTimeout(() => loader.remove(), 500);
     }
   }
+  
+  // === SPLASH SCREEN ===
+  window.dismissSplash = function() {
+    const splash = document.getElementById('splashOverlay');
+    if (splash && !splash.classList.contains('hidden')) {
+      splash.classList.add('hidden');
+      setTimeout(() => splash.remove(), 800);
+    }
+  };
+  // Auto-dismiss splash after 8 seconds if user hasn't clicked
+  setTimeout(window.dismissSplash, 8000);
   
   // === WEBGL2 CHECK ===
   function checkWebGL2() {
@@ -5291,9 +5434,9 @@ void main() {
     // Turn off advanced effects
     S.pulseOn = false;
     if (pulseToggle) pulseToggle.textContent = 'Off';
-    S.widthWaveOn = false;
+    S.widthWave.enabled = false;
     if (widthWaveToggle) widthWaveToggle.textContent = 'Off';
-    S.trailsOn = false;
+    S.trails.enabled = false;
     if (trailsToggle) trailsToggle.textContent = 'Off';
   }
   
@@ -5687,8 +5830,6 @@ void main() {
       mode: currentMode,
       theme: document.documentElement.getAttribute('data-theme') || 'classic'
     };
-    
-    console.log('Feedback submitted:', feedback);
     
     // Show success message
     const modal = document.querySelector('.feedback-modal-content');
@@ -6295,9 +6436,21 @@ void main() {
       S.motion.wanderSeedsY[i] = Math.random() * 100;
     }
     
-    // Try to load from URL first, then autosave
+    // Try to load from URL first, then autosave, then default demo preset
     if (!loadFromUrl()) {
-      loadAutosave();
+      if (!loadAutosave()) {
+        // First visit — apply the first slot scene as startup
+        const firstSlot = DEFAULT_SCENES_DB.slots.find(s => s !== null);
+        if (firstSlot) applySceneInstant(firstSlot.data);
+      }
+    }
+    
+    // Seed scenes and slots from curated collection if none exist yet
+    if (S.sceneSlots.every(s => s === null) && S.scenes.length === 0) {
+      S.scenes = DEFAULT_SCENES_DB.scenes.map(s => ({ name: s.name, data: s.data }));
+      S.sceneSlots = DEFAULT_SCENES_DB.slots.map(s => s ? { name: s.name, data: s.data } : null);
+      saveScenes();
+      updateSceneUI();
     }
     
     // Load language preferences and apply translations
