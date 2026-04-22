@@ -12,6 +12,8 @@
 
 <!-- Favicon -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%23111318'/%3E%3Cg transform='translate(256,256)' fill='none' stroke='%2340d8a0'%3E%3Ccircle r='190' stroke-width='3' opacity='0.35'/%3E%3Ccircle r='160' stroke-width='2' opacity='0.5'/%3E%3Cpolygon points='0,-155 147.4,-47.9 91.1,125.4 -91.1,125.4 -147.4,-47.9' stroke-width='2' opacity='0.6'/%3E%3Crect x='-113' y='-113' width='226' height='226' stroke-width='2' opacity='0.5' transform='rotate(15)'/%3E%3Cpolygon points='0,-130 123.6,-40.2 76.4,105.2 -76.4,105.2 -123.6,-40.2' stroke-width='1.5' opacity='0.7' transform='rotate(36)'/%3E%3Cline x1='-140' y1='-80' x2='140' y2='80' stroke-width='1' opacity='0.3'/%3E%3Cline x1='140' y1='-80' x2='-140' y2='80' stroke-width='1' opacity='0.3'/%3E%3Cline x1='0' y1='-150' x2='0' y2='150' stroke-width='1' opacity='0.25'/%3E%3Cline x1='-150' y1='0' x2='150' y2='0' stroke-width='1' opacity='0.25'/%3E%3Ccircle r='52' fill='%23111318' stroke-width='2.5' opacity='0.8'/%3E%3Ccircle r='3' fill='%2340d8a0' opacity='0.7'/%3E%3C/g%3E%3C/svg%3E">
+<!-- iOS "Add to Home Screen" icon (iOS doesn't support SVG favicons yet) -->
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
 <!-- SEO & Social -->
 <meta name="description" content="Voidulator — Resonant Chaos. A mesmerizing WebGL laser room simulator with reflections, shapes, and visual effects.">
@@ -648,6 +650,31 @@
     0% { opacity: 1; }
     70% { opacity: 1; }
     100% { opacity: 0; }
+  }
+  
+  /* Mobile-only affordance hint — shown once after splash dismisses */
+  .touch-hint {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(17, 19, 24, 0.85);
+    border: 1px solid rgba(64, 216, 160, 0.3);
+    color: #40d8a0;
+    padding: 10px 18px;
+    border-radius: 24px;
+    font: 400 13px/1 'Consolas', 'Monaco', 'Courier New', monospace;
+    letter-spacing: 1px;
+    z-index: 10001;
+    pointer-events: none;
+    opacity: 0;
+    animation: touchHintFade 4.5s ease forwards;
+  }
+  @keyframes touchHintFade {
+    0%   { opacity: 0; transform: translate(-50%, -40%); }
+    15%  { opacity: 1; transform: translate(-50%, -50%); }
+    80%  { opacity: 1; transform: translate(-50%, -50%); }
+    100% { opacity: 0; transform: translate(-50%, -55%); }
   }
 
   /* === Loading spinner === */
@@ -2858,8 +2885,13 @@
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
     
-    // Sync slider values during transition, but only rebuild DOM at the end
-    syncUIFromState();
+    // Throttle UI sync to ~10Hz during transition — sliders don't need 60fps updates,
+    // and writing to dozens of form fields every frame causes measurable layout work
+    const nowMs = performance.now();
+    if (t >= 1 || nowMs - (lerpScene._lastUISync || 0) > 100) {
+      lerpScene._lastUISync = nowMs;
+      syncUIFromState();
+    }
     if (t >= 1) {
       rebuildBeamSwatches();
       rebuildBeamSpeedInputs();
@@ -3542,6 +3574,19 @@
   let trailFBO, trailTex, trailProg, trailBuf;
   let trailFBO2, trailTex2, trailPingPong = 0;
   let copyProg, copyBuf;
+  
+  // Reusable vertex buffer — grows as needed, never re-allocated per frame
+  let vertBuf = new Float32Array(65536);
+  let vertCount = 0;
+  function vertReserve(n) {
+    if (vertCount + n > vertBuf.length) {
+      let newSize = vertBuf.length * 2;
+      while (newSize < vertCount + n) newSize *= 2;
+      const bigger = new Float32Array(newSize);
+      bigger.set(vertBuf);
+      vertBuf = bigger;
+    }
+  }
 
   function glInit() {
     gl = glCanvas.getContext('webgl2', { antialias: true, alpha: false, preserveDrawingBuffer: true });
@@ -3763,16 +3808,19 @@ void main() {
   }
 
   // Helper: draw a polygon (circle or n-gon) at a point
-  function pushShape(arr, cx, cy, radius, sides, rotation, t, rgb, alpha) {
-    const pv = (x, y, a) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], a);
-    
+  function pushShape(cx, cy, radius, sides, rotation, t, rgb, alpha) {
     // For circles, use 16 sides (good balance of smoothness vs performance)
     const n = (sides === 0) ? 16 : sides;
+    const floatsNeeded = n * 3 * 7; // n triangles × 3 verts × 7 floats
+    vertReserve(floatsNeeded);
+    const buf = vertBuf;
+    let i = vertCount;
+    const r0 = rgb[0], r1 = rgb[1], r2 = rgb[2];
     
     // Draw main shape
-    for (let i = 0; i < n; i++) {
-      const a0 = rotation + (i / n) * Math.PI * 2;
-      const a1 = rotation + ((i + 1) / n) * Math.PI * 2;
+    for (let k = 0; k < n; k++) {
+      const a0 = rotation + (k / n) * Math.PI * 2;
+      const a1 = rotation + ((k + 1) / n) * Math.PI * 2;
       
       const x0 = cx + Math.cos(a0) * radius;
       const y0 = cy + Math.sin(a0) * radius;
@@ -3780,17 +3828,17 @@ void main() {
       const y1 = cy + Math.sin(a1) * radius;
       
       // Triangle from center to edge
-      pv(cx, cy, alpha);
-      pv(x0, y0, alpha);
-      pv(x1, y1, alpha);
+      buf[i]=cx;   buf[i+1]=cy;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+      buf[i]=x0;   buf[i+1]=y0;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+      buf[i]=x1;   buf[i+1]=y1;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
     }
+    vertCount = i;
   }
 
-  function pushQuad(arr, x0, y0, x1, y1, halfW, t0, t1, rgb, alpha, timeSec) {
+  function pushQuad(x0, y0, x1, y1, halfW, t0, t1, rgb, alpha, timeSec) {
     const dx = x1 - x0, dy = y1 - y0;
     const segLen = Math.hypot(dx, dy) || 1;
     const nx = -dy / segLen, ny = dx / segLen;
-    const dirX = dx / segLen, dirY = dy / segLen;
     
     // If width wave enabled, draw shapes along the beam
     if (S.widthWave.enabled) {
@@ -3836,9 +3884,7 @@ void main() {
           const distSq = (cx - S.circle.cx) ** 2 + (cy - S.circle.cy) ** 2;
           inside = distSq <= (S.circle.R - radius) ** 2;
         } else if (S.vertices.length > 2) {
-          // Polygon room: point-in-polygon test
-          // Simple check: use the centroid distance as approximation
-          // For proper clipping, check if point is inside polygon
+          // Polygon room: point-in-polygon test (winding number)
           let windingNumber = 0;
           const n = S.vertices.length;
           for (let j = 0; j < n; j++) {
@@ -3864,21 +3910,31 @@ void main() {
         // Spin angle based on time
         const rotation = rotSpeed * timeSec;
         
-        pushShape(arr, cx, cy, radius, sides, rotation, t, rgb, alpha);
+        pushShape(cx, cy, radius, sides, rotation, t, rgb, alpha);
       }
       
       // Skip beam when shapes are enabled
       return;
     }
     
-    // No width wave - single quad (normal beam)
+    // No width wave - single quad (normal beam), 2 triangles = 6 verts × 7 floats
+    vertReserve(42);
+    const buf = vertBuf;
+    let i = vertCount;
+    const r0 = rgb[0], r1 = rgb[1], r2 = rgb[2];
     const lx0 = x0 + nx * halfW, ly0 = y0 + ny * halfW;
     const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
     const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
     const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
-    const pv = (x, y, t, a) => arr.push(x, y, t, rgb[0], rgb[1], rgb[2], a);
-    pv(lx0, ly0, t0, alpha); pv(lx1, ly1, t1, alpha); pv(rx0, ry0, t0, alpha);
-    pv(rx0, ry0, t0, alpha); pv(lx1, ly1, t1, alpha); pv(rx1, ry1, t1, alpha);
+    // Triangle 1
+    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    // Triangle 2
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    vertCount = i;
   }
 
   function renderBeamsGL(timeSec) {
@@ -3893,7 +3949,7 @@ void main() {
     gl.uniform1f(u_soft, S.pulseSoft);
     gl.uniform1f(u_duty, S.pulseDuty);
 
-    const verts = [];
+    vertCount = 0; // Reuse the persistent vertBuf; pushQuad/pushShape write into it
     const base = S.angleDeg * Math.PI / 180;
     const spread = (S.spreadDeg || 0) * Math.PI / 180;
     const n = S.beamCount | 0;
@@ -4019,7 +4075,7 @@ void main() {
       // Render sorted segments
       for (const item of allSegments) {
         const s = item.seg;
-        pushQuad(verts, s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.rgb, s.intensity, timeSec);
+        pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.rgb, s.intensity, timeSec);
       }
     } else {
       // STATIC MODE: Render beams in beamOrder (user-defined layer order via drag-drop)
@@ -4045,17 +4101,18 @@ void main() {
           
           for (const beam of beams) {
             for (const s of beam.segs) {
-              pushQuad(verts, s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.rgb, s.intensity, timeSec);
+              pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.rgb, s.intensity, timeSec);
             }
           }
         }
       }
     }
 
-    const data = new Float32Array(verts);
+    // Upload only the populated range — no reallocation, no copy
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, vertBuf.subarray(0, vertCount), gl.DYNAMIC_DRAW);
     const stride = 7 * 4;
+    const vertexCount = vertCount / 7;
     
     // Set blend mode
     setBlendMode(S.blendMode);
@@ -4126,8 +4183,8 @@ void main() {
       gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
       
       setBlendMode(S.blendMode);
-      if (data.length > 0) {
-        gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+      if (vertexCount > 0) {
+        gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
       }
       
       // Step 2: Copy write FBO to screen
@@ -4172,8 +4229,8 @@ void main() {
       
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      if (data.length > 0) {
-        gl.drawArrays(gl.TRIANGLES, 0, data.length / 7);
+      if (vertexCount > 0) {
+        gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
       }
     }
   }
@@ -4245,22 +4302,33 @@ void main() {
 
   // Use window to catch pointer release anywhere (fixes sticky dragging)
   window.addEventListener('pointerup', () => {
+    const wasDragging = S.draggingIdx >= 0;
     S.draggingIdx = -1;
+    if (wasDragging) requestAutosave();
   });
   window.addEventListener('pointercancel', () => {
     S.draggingIdx = -1;
   });
 
-  // Double-tap on stage to toggle fullscreen
+  // Double-tap on stage to toggle fullscreen (but not when dragging the emitter)
   let lastTapTime = 0;
+  let tapStartedOnEmitter = false;
   const stage = document.querySelector('.stage');
+  // Record whether this tap started on an emitter (set by pointerdown on the overlay canvas)
+  ovCanvas.addEventListener('pointerdown', () => {
+    tapStartedOnEmitter = S.draggingIdx >= 0;
+  }, { capture: true });
   stage?.addEventListener('touchend', (e) => {
+    // Ignore taps that began as emitter drags — they're not gesture starts
+    if (tapStartedOnEmitter) { tapStartedOnEmitter = false; lastTapTime = 0; return; }
     const now = Date.now();
     const timeSince = now - lastTapTime;
     if (timeSince < 300 && timeSince > 0) {
       // Double tap detected
       e.preventDefault();
       toggleFullscreen();
+      lastTapTime = 0; // reset so a 3rd tap doesn't re-fire
+      return;
     }
     lastTapTime = now;
   });
@@ -4524,6 +4592,9 @@ void main() {
   document.addEventListener('keydown', (e) => {
     // Ignore keyboard shortcuts when typing in inputs
     if (isTypingInInput()) return;
+    // Skip OS key-repeat events — we already set the state on the initial press,
+    // and the browser will re-fire keydown many times per second while held
+    if (e.repeat) return;
     
     const key = e.key.toLowerCase();
     if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
@@ -4681,6 +4752,8 @@ void main() {
 
   // Main loop
   let last = performance.now();
+  let loopRafId = 0;
+  let isTabVisible = !document.hidden;
   // ---- Audio Reactive ----
   async function startAudio() {
     const A = S.audio;
@@ -4953,8 +5026,10 @@ void main() {
   }
 
   function loop(t) {
-    const dt = t - last; last = t;
-    const dtSec = dt / 1000;
+    const rawDt = t - last;
+    last = t;
+    // Clamp dt to prevent huge jumps after backgrounding (max 100ms = 10fps floor)
+    const dtSec = Math.min(rawDt, 100) / 1000;
 
     // Update transition
     updateTransition(t);
@@ -5010,8 +5085,21 @@ void main() {
     }
     renderBeamsGL(t / 1000);
     drawOverlay();
-    requestAnimationFrame(loop);
+    loopRafId = requestAnimationFrame(loop);
   }
+
+  // Pause render loop when tab is hidden — saves battery and prevents huge dt jumps
+  document.addEventListener('visibilitychange', () => {
+    isTabVisible = !document.hidden;
+    if (isTabVisible) {
+      // Resume: reset `last` so the first frame has a reasonable dt
+      last = performance.now();
+      if (!loopRafId) loopRafId = requestAnimationFrame(loop);
+    } else {
+      // Pause
+      if (loopRafId) { cancelAnimationFrame(loopRafId); loopRafId = 0; }
+    }
+  });
 
   // === FULLSCREEN MODE ===
   let isFullscreen = false;
@@ -5092,7 +5180,6 @@ void main() {
   
   // === AUTOSAVE ===
   const AUTOSAVE_KEY = 'voidulator_autosave';
-  const AUTOSAVE_INTERVAL = 5000; // 5 seconds
   
   function autosave() {
     try {
@@ -5117,8 +5204,26 @@ void main() {
     return false;
   }
   
-  // Autosave every 5 seconds
-  setInterval(autosave, AUTOSAVE_INTERVAL);
+  // Debounced autosave: save 2s after last change, skip when tab hidden
+  let autosaveTimer = 0;
+  function requestAutosave() {
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => {
+      autosaveTimer = 0;
+      if (!document.hidden) autosave();
+    }, 2000);
+  }
+  // Also save on pagehide/beforeunload so users don't lose last-second changes
+  window.addEventListener('pagehide', () => {
+    if (autosaveTimer) { clearTimeout(autosaveTimer); autosaveTimer = 0; autosave(); }
+  });
+  // Trigger autosave when any control changes (catches slider, button, select, color)
+  ['input', 'change', 'click'].forEach(evt => {
+    document.addEventListener(evt, (e) => {
+      // Only listen in the panel — ignore clicks on stage/modals
+      if (e.target.closest('.panel, .modal')) requestAutosave();
+    }, true);
+  });
   
   // === SHARE FUNCTIONALITY ===
   function generateShareUrl() {
@@ -5310,10 +5415,28 @@ void main() {
     if (splash && !splash.classList.contains('hidden')) {
       splash.classList.add('hidden');
       setTimeout(() => splash.remove(), 800);
+      // Show "drag the dot" hint on touch devices, once per browser
+      maybeShowTouchHint();
     }
   };
   // Auto-dismiss splash after 8 seconds if user hasn't clicked
   setTimeout(window.dismissSplash, 8000);
+  
+  function maybeShowTouchHint() {
+    try {
+      // Only on touch-capable viewports, and only if we haven't shown it before
+      const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+      if (!isTouch) return;
+      if (localStorage.getItem('voidulator-touch-hint-seen')) return;
+      localStorage.setItem('voidulator-touch-hint-seen', '1');
+    } catch (e) { /* no localStorage → still show */ }
+    const hint = document.createElement('div');
+    hint.className = 'touch-hint';
+    hint.textContent = '◉ Drag the dot to play';
+    document.body.appendChild(hint);
+    // Remove after animation completes (4.5s to match CSS)
+    setTimeout(() => hint.remove(), 5000);
+  }
   
   // === WEBGL2 CHECK ===
   function checkWebGL2() {
@@ -6466,7 +6589,7 @@ void main() {
     // Check for first visit (show welcome modal)
     checkFirstVisit();
     
-    requestAnimationFrame(loop);
+    loopRafId = requestAnimationFrame(loop);
   }
   init();
 })();
