@@ -4525,6 +4525,8 @@ void main() {
       speedPattern: P.speedPattern || 'prime', patternBase: P.patternBase || 1,
       blendMode: P.blendMode ?? 'normal'
     });
+    // Derive reflectivity from slider (applySceneInstant does this; keep in sync)
+    S.reflectivity = 1 - Math.pow(1 - S.reflectSlider, 3.2);
     if (P.emittersNorm) {
       S.emittersNorm = P.emittersNorm;
       S.emitters = P.emittersNorm.map(() => ({ x: 0, y: 0 }));
