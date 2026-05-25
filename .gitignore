@@ -1,0 +1,32 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Local archive / working files
+Version archive/
+Screenshots/
+Voidulator demo videos/
+Multi file test/
+2025-10-12 14-44-56-proj.llc
+2026 03 17 working version pre launch/
+Voidulator working*.html
+index (*.html
+
+# Old working copies
+*.bak
+*.backup
+*~

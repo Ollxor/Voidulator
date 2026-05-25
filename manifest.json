@@ -1,11 +1,11 @@
 {
   "name": "Voidulator",
   "short_name": "Voidulator",
-  "description": "Mesmerizing laser room simulator with reflections, shapes, and visual effects",
+  "description": "Voidulator — Resonant Chaos. A mesmerizing laser room simulator with reflections, shapes, and visual effects.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#ff9f1c",
+  "background_color": "#111318",
+  "theme_color": "#40d8a0",
   "orientation": "any",
   "categories": ["entertainment", "graphics", "utilities"],
   "icons": [
