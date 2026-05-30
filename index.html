@@ -1409,6 +1409,50 @@
     display: none !important;
   }
   /* ============================================
+     AUDIO REACTIVE — URL gate + level meter
+     ============================================ */
+  /* Audio section hidden unless ?audio is in URL */
+  body:not(.audio-enabled) #audioGroup { display: none !important; }
+
+  .audio-meter {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+    height: 48px;
+    padding: 6px 0 2px;
+  }
+  .meter-bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    height: 100%;
+  }
+  .meter-track {
+    flex: 1;
+    width: 100%;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+  }
+  .meter-fill {
+    width: 100%;
+    height: 0%;
+    background: var(--accent, #40d8a0);
+    border-radius: 3px;
+    transition: height 0.05s linear;
+  }
+  .meter-label {
+    font-size: 9px;
+    color: var(--text-muted, #888);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ============================================
      SPLASH / INTRO SCREEN
      ============================================ */
   .splash-overlay {
@@ -1911,41 +1955,36 @@
       </div>
     </div>
 
-    <div class="group collapsible collapsed advanced-only" id="audioGroup">
-      <div class="group-title" data-i18n="audio">Audio Reactive</div>
+    <div class="group collapsible collapsed" id="audioGroup">
+      <div class="group-title">Audio Reactive</div>
       <div class="group-content">
         <div class="subgrid">
-          <label data-i18n="micInput">Mic input</label>
+          <label>Mic input</label>
           <div class="btn-row">
-            <button class="btn" id="audioToggle" data-i18n="startListening">Start listening</button>
+            <button class="btn" id="audioToggle">Start listening</button>
           </div>
-          <label data-i18n="sensitivity">Sensitivity</label>
+          <label>Sensitivity</label>
           <div class="ctrl-row">
-            <input id="audioSensitivity" type="range" min="0.1" max="5" step="0.1" value="4">
-            <input id="audioSensitivityNum" type="number" min="0.1" max="5" step="0.1" value="4">
+            <input id="audioSensitivity" type="range" min="0.1" max="5" step="0.1" value="1">
+            <input id="audioSensitivityNum" type="number" min="0.1" max="5" step="0.1" value="1">
           </div>
-          <label data-i18n="smoothing">Smoothing</label>
-          <input id="audioSmoothing" type="range" min="0" max="0.98" step="0.01" value="0.5">
-          <label data-i18n="target">Target</label>
-          <select id="audioTarget">
-            <option value="width" selected="">Beam width</option>
-            <option value="pulse-speed">Pulse speed</option>
-            <option value="pulse-freq">Pulse freq</option>
-          </select>
-          <label data-i18n="strength">Strength</label>
-          <div class="ctrl-row">
-            <input id="audioStrength" type="range" min="0" max="1" step="0.01" value="0.3">
-            <input id="audioStrengthNum" type="number" min="0" max="1" step="0.01" value="0.3">
-          </div>
-          <label data-i18n="band">Band</label>
-          <select id="audioBand">
-            <option value="all" selected="">Full spectrum</option>
-            <option value="bass">Bass (low)</option>
-            <option value="mid">Mids</option>
-            <option value="high">Highs</option>
-          </select>
         </div>
-        <div class="hint" data-i18n="hintAudio">Uses mic/system audio. Press F for clean fullscreen.</div>
+        <!-- 3-band level meter -->
+        <div class="audio-meter" id="audioMeter">
+          <div class="meter-bar">
+            <div class="meter-track"><div class="meter-fill" id="meterBass"></div></div>
+            <span class="meter-label">Bass</span>
+          </div>
+          <div class="meter-bar">
+            <div class="meter-track"><div class="meter-fill" id="meterMid"></div></div>
+            <span class="meter-label">Mid</span>
+          </div>
+          <div class="meter-bar">
+            <div class="meter-track"><div class="meter-fill" id="meterHigh"></div></div>
+            <span class="meter-label">High</span>
+          </div>
+        </div>
+        <div class="hint">Beam 0→bass, 1→mid, 2→high, 3→level. Press F for fullscreen.</div>
       </div>
     </div>
 
@@ -2096,11 +2135,9 @@
   const audioToggleBtn = _el('audioToggle');
   const audioSensitivityEl = _el('audioSensitivity');
   const audioSensitivityNumEl = _el('audioSensitivityNum');
-  const audioSmoothingEl = _el('audioSmoothing');
-  const audioTargetEl = _el('audioTarget');
-  const audioStrengthEl = _el('audioStrength');
-  const audioStrengthNumEl = _el('audioStrengthNum');
-  const audioBandEl = _el('audioBand');
+  const meterBassEl  = _el('meterBass');
+  const meterMidEl   = _el('meterMid');
+  const meterHighEl  = _el('meterHigh');
 
   // State
   const S = {
@@ -2189,13 +2226,15 @@
       source: null,
       stream: null,
       dataArray: null,
-      energy: 0,
-      rawEnergy: 0,
-      sensitivity: 4,
-      smoothing: 0.5,
-      target: 'width',
-      strength: 0.3,
-      band: 'all'
+      energy: 0,       // legacy compat
+      rawEnergy: 0,    // legacy compat
+      sensitivity: 1,  // 0.1–5 knob
+      // Unused legacy fields kept so old autosaves don't break on load
+      smoothing: 0.5, target: 'width', strength: 0.3, band: 'all',
+      // Analysis output — filled each frame by updateAudio(), never persisted
+      bands: { bass: 0, mid: 0, high: 0, level: 0 },
+      // Modulation live values — filled each frame by computeAudioLive()
+      live: { beamWidthMult: [], beamAlphaMult: [], reflectAdd: 0 }
     },
     // Center motion
     motion: {
@@ -3535,16 +3574,18 @@
     let o = { ...origin }, d = norm(dir), intensity = 1;
     const segs = []; let cum = 0;
     const limit = maxBounces !== undefined ? maxBounces : S.maxBounces;
-    
+    // Audio adds a gentle global reflectivity boost on loud passages
+    const liveRefl = Math.min(S.reflectivity + S.audio.live.reflectAdd, 0.9995);
+
     for (let i = 0; i < limit && intensity > 0.01; i++) {
       const hit = S.isCircle ? firstHitCircle(o, d, S.circle) : firstHitPoly(o, d, S.vertices);
       if (!hit) break;
-      
+
       const len = Math.hypot(hit.point.x - o.x, hit.point.y - o.y);
       segs.push({ from: {...o}, to: hit.point, len, cum, intensity });
       cum += len;
       o = hit.point;
-      
+
       // Reflect off wall
       if (S.isCircle) {
         const n = norm({ x: o.x - S.circle.cx, y: o.y - S.circle.cy });
@@ -3557,8 +3598,8 @@
           d = reflectByNormal(d, n);
         }
       }
-      
-      intensity *= S.reflectivity;
+
+      intensity *= liveRefl;
       o = { x: o.x + d.x * 0.5, y: o.y + d.y * 0.5 };
     }
     return segs;
@@ -4058,7 +4099,8 @@ void main() {
             rgb: beam.rgb,
             distFromCenter,
             radialScore: beam.radialScore,
-            bounceIdx: bounceIdx
+            bounceIdx: bounceIdx,
+            beamIdx: beam.beamIdx  // needed for per-beam audio modulation
           });
           bounceIdx++;
         }
@@ -4076,10 +4118,16 @@ void main() {
         return a.radialScore - b.radialScore;
       });
 
-      // Render sorted segments
+      // Render sorted segments (with per-beam audio modulation)
+      const aLive = S.audio.live;
       for (const item of allSegments) {
         const s = item.seg;
-        pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.rgb, s.intensity, timeSec);
+        const bi = item.beamIdx;
+        const wm = aLive.beamWidthMult[bi] ?? 1;
+        const am = aLive.beamAlphaMult[bi] ?? 1;
+        pushQuad(s.from.x, s.from.y, s.to.x, s.to.y,
+          half * wm, s.cum, s.cum + s.len, item.rgb,
+          Math.min(s.intensity * am, 1), timeSec);
       }
     } else {
       // STATIC MODE: Render beams in beamOrder (user-defined layer order via drag-drop)
@@ -4097,15 +4145,20 @@ void main() {
       }
       
       // Render in beamOrder - first in order = bottom, last = top
+      const aLiveS = S.audio.live;
       for (const beamIdx of S.beamOrder) {
+        const wm = aLiveS.beamWidthMult[beamIdx] ?? 1;
+        const am = aLiveS.beamAlphaMult[beamIdx] ?? 1;
         for (let em = 0; em < S.emitters.length; em++) {
           const key = `${em}-${beamIdx}`;
           const beams = beamsByIdx.get(key);
           if (!beams) continue;
-          
+
           for (const beam of beams) {
             for (const s of beam.segs) {
-              pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.rgb, s.intensity, timeSec);
+              pushQuad(s.from.x, s.from.y, s.to.x, s.to.y,
+                half * wm, s.cum, s.cum + s.len, beam.rgb,
+                Math.min(s.intensity * am, 1), timeSec);
             }
           }
         }
@@ -4171,10 +4224,9 @@ void main() {
       // Draw current beams on top (to write FBO)
       gl.useProgram(prog);
       gl.uniform2f(u_res, w / S.dpr, h / S.dpr);
-      gl.uniform1f(u_time, timeSec);
+      gl.uniform1f(u_phaseTime, S.pulsePhase);
       gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
       gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
-      gl.uniform1f(u_speed, S.pulseSpeed);
       gl.uniform1f(u_amp, S.pulseAmp);
       gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
       gl.uniform1f(u_soft, S.pulseSoft);
@@ -4217,10 +4269,9 @@ void main() {
       // No trails - simple render
       gl.useProgram(prog);
       gl.uniform2f(u_res, glCanvas.width / S.dpr, glCanvas.height / S.dpr);
-      gl.uniform1f(u_time, timeSec);
+      gl.uniform1f(u_phaseTime, S.pulsePhase);
       gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
       gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
-      gl.uniform1f(u_speed, S.pulseSpeed);
       gl.uniform1f(u_amp, S.pulseAmp);
       gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
       gl.uniform1f(u_soft, S.pulseSoft);
@@ -4646,15 +4697,14 @@ void main() {
     if (S.audio.active) stopAudio();
     else startAudio();
   });
-  _on(audioSensitivityEl, 'input', () => { S.audio.sensitivity = parseFloat(audioSensitivityEl.value) || 1.5; audioSensitivityNumEl.value = S.audio.sensitivity.toFixed(1); });
-  _on(audioSensitivityNumEl, 'input', () => { S.audio.sensitivity = clamp(parseFloat(audioSensitivityNumEl.value) || 1.5, 0.1, 5); audioSensitivityEl.value = S.audio.sensitivity; });
-  _on(audioSmoothingEl, 'input', () => {
-    S.audio.smoothing = parseFloat(audioSmoothingEl.value) || 0.5;
+  _on(audioSensitivityEl, 'input', () => {
+    S.audio.sensitivity = parseFloat(audioSensitivityEl.value) || 1;
+    if (audioSensitivityNumEl) audioSensitivityNumEl.value = S.audio.sensitivity.toFixed(1);
   });
-  _on(audioTargetEl, 'change', () => S.audio.target = audioTargetEl.value);
-  _on(audioStrengthEl, 'input', () => { S.audio.strength = parseFloat(audioStrengthEl.value) || 0.3; audioStrengthNumEl.value = S.audio.strength.toFixed(2); });
-  _on(audioStrengthNumEl, 'input', () => { S.audio.strength = clamp(parseFloat(audioStrengthNumEl.value) || 0.3, 0, 1); audioStrengthEl.value = S.audio.strength; });
-  _on(audioBandEl, 'change', () => S.audio.band = audioBandEl.value);
+  _on(audioSensitivityNumEl, 'input', () => {
+    S.audio.sensitivity = clamp(parseFloat(audioSensitivityNumEl.value) || 1, 0.1, 5);
+    if (audioSensitivityEl) audioSensitivityEl.value = S.audio.sensitivity;
+  });
 
   // Collapsible groups
   document.querySelectorAll('.group.collapsible .group-title').forEach(title => {
@@ -4768,8 +4818,8 @@ void main() {
       A.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       A.source = A.ctx.createMediaStreamSource(A.stream);
       A.analyser = A.ctx.createAnalyser();
-      A.analyser.fftSize = 128;
-      A.analyser.smoothingTimeConstant = 0;
+      A.analyser.fftSize = 1024;        // 512 bins ≈ 43 Hz/bin — enough for bass
+      A.analyser.smoothingTimeConstant = 0; // we do our own smoothing
       A.source.connect(A.analyser);
       A.dataArray = new Uint8Array(A.analyser.frequencyBinCount);
       A.active = true;
@@ -4801,56 +4851,77 @@ void main() {
     if (!A.active || !A.analyser) return;
     A.analyser.getByteFrequencyData(A.dataArray);
     const bins = A.dataArray;
-    const len = bins.length;
-
-    // Band selection
-    let start = 0, end = len;
-    if (A.band === 'bass') { start = 0; end = Math.floor(len * 0.15); }
-    else if (A.band === 'mid') { start = Math.floor(len * 0.15); end = Math.floor(len * 0.55); }
-    else if (A.band === 'high') { start = Math.floor(len * 0.55); end = len; }
-
-    // Use RMS + peak blend for snappier response
-    let sumSq = 0, peak = 0;
-    const count = Math.max(1, end - start);
-    for (let i = start; i < end; i++) {
-      const v = bins[i] / 255;
-      sumSq += v * v;
-      if (v > peak) peak = v;
-    }
-    const rms = Math.sqrt(sumSq / count);
-    // Blend RMS (stable) with peak (snappy) — 60/40
-    A.rawEnergy = Math.min((rms * 0.6 + peak * 0.4) * A.sensitivity, 1);
-
-    // Frame-rate-independent smoothing (attack fast, release slower)
     const dt = Math.max(dtSec, 0.001);
-    const isRising = A.rawEnergy > A.energy;
-    // Attack: use (1 - smoothing) as speed base, but attack 3x faster
-    const attackSpeed = (1 - A.smoothing) * 3;
-    const releaseSpeed = (1 - A.smoothing);
-    const speed = isRising ? attackSpeed : releaseSpeed;
-    const factor = 1 - Math.exp(-speed * dt * 60);
-    A.energy += (A.rawEnergy - A.energy) * factor;
+
+    // fftSize=1024 → 512 bins at 44100 Hz → ~43 Hz/bin
+    // Band ranges (skip bin 0 = DC):
+    //   bass : bins 1–6   (~43–258 Hz)
+    //   mid  : bins 7–93  (~301–4000 Hz)
+    //   high : bins 94–256 (~4049–11008 Hz)
+    //   level: broadband 1–256
+    function bandRaw(start, end) {
+      let sumSq = 0, peak = 0;
+      const count = Math.max(1, end - start);
+      for (let i = start; i < end; i++) {
+        const v = bins[i] / 255;
+        sumSq += v * v;
+        if (v > peak) peak = v;
+      }
+      // 60% RMS (stable body) + 40% peak (snappy transients)
+      return Math.sqrt(sumSq / count) * 0.6 + peak * 0.4;
+    }
+
+    // Scale by sensitivity, clamp to [0, 1]
+    const s = A.sensitivity;
+    const rawBass  = Math.min(bandRaw(1,   7)   * s, 1);
+    const rawMid   = Math.min(bandRaw(7,   94)  * s, 1);
+    const rawHigh  = Math.min(bandRaw(94,  257) * s, 1);
+    const rawLevel = Math.min(bandRaw(1,   257) * s, 1);
+
+    // Asymmetric smoothing per band: attack ~50ms (rate≈20), release ~300ms (rate≈3)
+    function smooth(cur, raw) {
+      const rate = raw > cur ? 20 : 3;
+      return cur + (raw - cur) * (1 - Math.exp(-rate * dt));
+    }
+    const B = A.bands;
+    B.bass  = smooth(B.bass,  rawBass);
+    B.mid   = smooth(B.mid,   rawMid);
+    B.high  = smooth(B.high,  rawHigh);
+    B.level = smooth(B.level, rawLevel);
+
+    A.energy = B.level; // keep legacy field in sync
   }
 
-  function applyAudioModulation() {
+  function computeAudioLive() {
     const A = S.audio;
-    if (!A.active || A.energy < 0.001) return;
-    const e = A.energy * A.strength;
-    
-    switch (A.target) {
-      case 'width':
-        // Thicken beams with energy
-        S.beamWidth = clamp(S.beamWidth + e * 6, 0.5, 8);
-        break;
-      case 'pulse-speed':
-        // Pulse speed reacts to audio
-        S.pulseSpeed = clamp(S.pulseSpeed + e * 400, 0, 900);
-        break;
-      case 'pulse-freq':
-        // Pulse frequency reacts to audio
-        S.pulseFreqCP100 = clamp(S.pulseFreqCP100 + e * 3, 0.05, 6);
-        break;
+    const live = A.live;
+    if (!A.active) {
+      // Audio off — reset to neutral so render reads base values unchanged
+      live.beamWidthMult = [];
+      live.beamAlphaMult = [];
+      live.reflectAdd = 0;
+      return;
     }
+
+    const { bass, mid, high, level } = A.bands;
+    const sens = A.sensitivity;
+
+    // Hardcoded Phase-0 routing: beam0←bass, beam1←mid, beam2←high, beam3←level
+    const bandMap = [bass, mid, high, level];
+    const n = S.beamCount | 0;
+    live.beamWidthMult = [];
+    live.beamAlphaMult = [];
+
+    for (let i = 0; i < n; i++) {
+      const b = bandMap[Math.min(i, 3)];
+      // Width: up to ~2x at full energy and default sensitivity (sens=1)
+      live.beamWidthMult[i] = 1 + b * sens * 1.0;
+      // Alpha/brightness: gentler — up to ~1.5x
+      live.beamAlphaMult[i] = 1 + b * sens * 0.5;
+    }
+
+    // Global: level → tiny reflectivity boost so all bounces brighten on beats
+    live.reflectAdd = level * sens * 0.06;
   }
 
   // ---- Center Motion ----
@@ -5040,9 +5111,16 @@ void main() {
     // Update transition
     updateTransition(t);
 
-    // Audio reactive
+    // Audio reactive — analyse bands, then derive per-beam live modulation
     updateAudio(dtSec);
-    applyAudioModulation();
+    computeAudioLive();
+    // Update 3-bar meter DOM (cheap — CSS height drives the visual)
+    if (S.audio.active) {
+      const B = S.audio.bands;
+      if (meterBassEl)  meterBassEl.style.height  = (B.bass  * 100).toFixed(1) + '%';
+      if (meterMidEl)   meterMidEl.style.height   = (B.mid   * 100).toFixed(1) + '%';
+      if (meterHighEl)  meterHighEl.style.height  = (B.high  * 100).toFixed(1) + '%';
+    }
 
     // Center motion (before WASD so WASD overrides when active)
     updateCenterMotion(dtSec);
@@ -6568,6 +6646,11 @@ void main() {
       S.motion.wanderSeedsY[i] = Math.random() * 100;
     }
     
+    // ?audio URL gate — show audio section only when flag is present
+    if (new URLSearchParams(window.location.search).has('audio')) {
+      document.body.classList.add('audio-enabled');
+    }
+
     // Try to load from URL first, then autosave, then startup preset
     if (!loadFromUrl()) {
       if (!loadAutosave()) {
