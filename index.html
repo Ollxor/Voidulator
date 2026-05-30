@@ -2141,7 +2141,6 @@
     pulseSpeed: 60,
     pulseSoft: 0.18,
     pulseDuty: 0.5, // 0 = mostly dark, 1 = mostly light
-    pulsePhase: 0,  // Runtime accumulator — not persisted in scenes
     // Trails (framebuffer-based for performance)
     trails: {
       enabled: false,
@@ -3572,7 +3571,7 @@
 
   // WebGL
   let gl, prog, buf, a_pos, a_t, a_col, a_alpha;
-  let u_res, u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+  let u_res, u_time, u_freqPx, u_speed, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
   
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
@@ -3612,7 +3611,7 @@ void main() {
     const fs = `#version 300 es
 precision highp float;
 in float v_t; in vec3 v_col; in float v_alpha;
-uniform float u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+uniform float u_time, u_freqPx, u_speed, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
 out vec4 outColor;
 void main() {
   float a = v_alpha;
@@ -3621,9 +3620,7 @@ void main() {
     if (u_duty < 0.01) {
       a = 0.0;
     } else {
-      // u_phaseTime: JS-side bounded accumulator kept in [0, 2*pi] to avoid
-      // float32 precision loss from large speed*time products after long sessions
-      float phase = 6.2831853 * u_freqPx * v_t - u_phaseTime;
+      float phase = 6.2831853 * u_freqPx * (v_t - u_speed * u_time);
       float s = sin(phase); // -1 to 1
       
       // Normalize sine to 0-1
@@ -3665,8 +3662,9 @@ void main() {
     a_col = gl.getAttribLocation(prog, 'a_col');
     a_alpha = gl.getAttribLocation(prog, 'a_alpha');
     u_res = gl.getUniformLocation(prog, 'u_res');
-    u_phaseTime = gl.getUniformLocation(prog, 'u_phaseTime');
+    u_time = gl.getUniformLocation(prog, 'u_time');
     u_freqPx = gl.getUniformLocation(prog, 'u_freqPx');
+    u_speed = gl.getUniformLocation(prog, 'u_speed');
     u_amp = gl.getUniformLocation(prog, 'u_amp');
     u_shape = gl.getUniformLocation(prog, 'u_shape');
     u_soft = gl.getUniformLocation(prog, 'u_soft');
@@ -3945,9 +3943,10 @@ void main() {
   function renderBeamsGL(timeSec) {
     gl.useProgram(prog);
     gl.uniform2f(u_res, glCanvas.width / S.dpr, glCanvas.height / S.dpr);
-    gl.uniform1f(u_phaseTime, S.pulsePhase);
+    gl.uniform1f(u_time, timeSec);
     gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
     gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
+    gl.uniform1f(u_speed, S.pulseSpeed);
     gl.uniform1f(u_amp, S.pulseAmp);
     gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
     gl.uniform1f(u_soft, S.pulseSoft);
@@ -5089,9 +5088,6 @@ void main() {
     for (let i = 0; i < S.perBeamPhase.length; i++) {
       S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i] || 0) * S.speedMultiplier * dtSec) % 360;
     }
-    // Advance pulse phase accumulator — kept in [0, 2π] to avoid float32
-    // precision loss in the shader (replaces unbounded u_speed*u_time approach)
-    S.pulsePhase = (S.pulsePhase + Math.PI * 2 * (S.pulseFreqCP100 / 100) * S.pulseSpeed * dtSec) % (Math.PI * 2);
     renderBeamsGL(t / 1000);
     drawOverlay();
     loopRafId = requestAnimationFrame(loop);
