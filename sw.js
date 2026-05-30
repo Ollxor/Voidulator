@@ -1,5 +1,5 @@
 // Voidulator Service Worker
-const CACHE_NAME = 'voidulator-v1';
+const CACHE_NAME = 'voidulator-v2';
 const urlsToCache = [
   '/',
   '/index.html',
