@@ -1475,6 +1475,70 @@
     .splash-logo { width: 160px; height: 160px; margin-bottom: 24px; }
     .splash-title { font-size: 24px; letter-spacing: 4px; }
   }
+
+  /* Audio level meter */
+  .audio-level-track {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    align-self: center;
+  }
+  .audio-level-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    background: var(--accent);
+    transition: width 60ms linear;
+  }
+
+  /* Modulation matrix routes */
+  .mod-route {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .mod-route select { flex: 1; min-width: 0; }
+  .mod-route input[type=range] { flex: 1; min-width: 40px; }
+  .mod-route .mod-amount {
+    width: 38px;
+    text-align: right;
+    font-size: 10px;
+    opacity: 0.8;
+    flex: none;
+  }
+  .mod-route .mod-del { flex: none; padding: 2px 7px; }
+
+  /* Beat indicator */
+  .beat-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.15;
+    align-self: center;
+    transition: opacity 150ms ease-out;
+  }
+
+  /* MIDI */
+  .midi-status { font-size: 11px; opacity: 0.7; align-self: center; }
+  .midi-binding {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    opacity: 0.85;
+    margin-bottom: 4px;
+  }
+  .midi-binding .mod-del { flex: none; padding: 2px 7px; }
+  .learning { border-color: var(--accent) !important; animation: learnPulse 1s ease infinite; }
+  @keyframes learnPulse { 50% { opacity: 0.5; } }
+
+  /* Recording */
+  .rec-time { font-size: 11px; opacity: 0.8; align-self: center; }
+  .recording { border-color: #e33 !important; color: #e33; }
 </style>
 </head>
 <body>
@@ -1926,26 +1990,90 @@
           </div>
           <label data-i18n="smoothing">Smoothing</label>
           <input id="audioSmoothing" type="range" min="0" max="0.98" step="0.01" value="0.5">
-          <label data-i18n="target">Target</label>
-          <select id="audioTarget">
-            <option value="width" selected="">Beam width</option>
-            <option value="pulse-speed">Pulse speed</option>
-            <option value="pulse-freq">Pulse freq</option>
-          </select>
-          <label data-i18n="strength">Strength</label>
-          <div class="ctrl-row">
-            <input id="audioStrength" type="range" min="0" max="1" step="0.01" value="0.3">
-            <input id="audioStrengthNum" type="number" min="0" max="1" step="0.01" value="0.3">
-          </div>
-          <label data-i18n="band">Band</label>
-          <select id="audioBand">
-            <option value="all" selected="">Full spectrum</option>
-            <option value="bass">Bass (low)</option>
-            <option value="mid">Mids</option>
-            <option value="high">Highs</option>
-          </select>
+          <label>Level</label>
+          <div class="audio-level-track"><div id="audioLevelBar" class="audio-level-bar"></div></div>
         </div>
         <div class="hint" data-i18n="hintAudio">Uses mic/system audio. Press F for clean fullscreen.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible collapsed advanced-only" id="modGroup">
+      <div class="group-title">Modulation Matrix</div>
+      <div class="group-content">
+        <div id="modRoutes"></div>
+        <div class="btn-row">
+          <button class="btn" id="modAddRoute">+ Add route</button>
+        </div>
+        <div class="hint">Routes audio/beat sources to parameters. Amount is bipolar &mdash; negative inverts. Needs mic listening.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible collapsed advanced-only" id="beatGroup">
+      <div class="group-title">Beat Detection</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Detect</label>
+          <div class="btn-row">
+            <button class="btn" id="beatToggle">Off</button>
+            <span id="beatDot" class="beat-dot"></span>
+          </div>
+          <label>Sensitivity</label>
+          <div class="ctrl-row">
+            <input id="beatSens" type="range" min="1.05" max="2.5" step="0.05" value="1.4">
+            <input id="beatSensNum" type="number" min="1.05" max="2.5" step="0.05" value="1.4">
+          </div>
+          <label>Envelope decay</label>
+          <input id="beatDecay" type="range" min="1" max="15" step="0.5" value="6">
+          <label>On beat: ripple</label>
+          <div class="btn-row"><button class="btn" id="beatRippleToggle">Off</button></div>
+          <label>On beat: hue jump</label>
+          <div class="btn-row"><button class="btn" id="beatHueToggle">Off</button></div>
+          <label>Hue step (&deg;)</label>
+          <input id="beatHueStep" type="range" min="5" max="180" step="5" value="30">
+        </div>
+        <div class="hint">Needs mic listening. The beat envelope is also a source in the Modulation Matrix.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible collapsed advanced-only" id="midiGroup">
+      <div class="group-title">MIDI</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Input</label>
+          <div class="btn-row"><button class="btn" id="midiToggle">Enable MIDI</button></div>
+          <label>Status</label>
+          <div id="midiStatus" class="midi-status">Off</div>
+          <label>Learn</label>
+          <div class="ctrl-row">
+            <select id="midiLearnParam"></select>
+            <button class="btn" id="midiLearnBtn">Learn</button>
+          </div>
+          <label>Notes &rarr; beat</label>
+          <div class="btn-row"><button class="btn" id="midiNoteBeatToggle">Off</button></div>
+        </div>
+        <div id="midiBindings"></div>
+        <div class="hint">Click Learn, then move a knob or fader on your controller to bind it.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible collapsed advanced-only" id="recGroup">
+      <div class="group-title">Record Video</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Resolution</label>
+          <select id="recRes">
+            <option value="480">480p</option>
+            <option value="720">720p</option>
+            <option value="1080" selected="">1080p</option>
+            <option value="2160">4K</option>
+          </select>
+          <label>Record</label>
+          <div class="btn-row">
+            <button class="btn" id="recToggle">&#9679; Start</button>
+            <span id="recTime" class="rec-time"></span>
+          </div>
+        </div>
+        <div class="hint">Exports WebM at the chosen height; width follows the window aspect. Keep the tab visible while recording. 4K is GPU-heavy.</div>
       </div>
     </div>
 
@@ -2018,7 +2146,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.0.0';
+  const APP_VERSION = 'v1.1.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2097,10 +2225,30 @@
   const audioSensitivityEl = _el('audioSensitivity');
   const audioSensitivityNumEl = _el('audioSensitivityNum');
   const audioSmoothingEl = _el('audioSmoothing');
-  const audioTargetEl = _el('audioTarget');
-  const audioStrengthEl = _el('audioStrength');
-  const audioStrengthNumEl = _el('audioStrengthNum');
-  const audioBandEl = _el('audioBand');
+  const audioLevelBarEl = _el('audioLevelBar');
+  // Modulation matrix
+  const modRoutesEl = _el('modRoutes');
+  const modAddRouteBtn = _el('modAddRoute');
+  // Beat detection
+  const beatToggleBtn = _el('beatToggle');
+  const beatDotEl = _el('beatDot');
+  const beatSensEl = _el('beatSens');
+  const beatSensNumEl = _el('beatSensNum');
+  const beatDecayEl = _el('beatDecay');
+  const beatRippleToggleBtn = _el('beatRippleToggle');
+  const beatHueToggleBtn = _el('beatHueToggle');
+  const beatHueStepEl = _el('beatHueStep');
+  // MIDI
+  const midiToggleBtn = _el('midiToggle');
+  const midiStatusEl = _el('midiStatus');
+  const midiLearnParamEl = _el('midiLearnParam');
+  const midiLearnBtn = _el('midiLearnBtn');
+  const midiNoteBeatToggleBtn = _el('midiNoteBeatToggle');
+  const midiBindingsEl = _el('midiBindings');
+  // Recording
+  const recResEl = _el('recRes');
+  const recToggleBtn = _el('recToggle');
+  const recTimeEl = _el('recTime');
 
   // State
   const S = {
@@ -2188,13 +2336,47 @@
       source: null,
       stream: null,
       dataArray: null,
-      energy: 0,
-      rawEnergy: 0,
       sensitivity: 4,
       smoothing: 0.5,
-      target: 'width',
-      strength: 0.3,
-      band: 'all'
+      // Smoothed per-band energies (0-1) — modulation matrix sources
+      bands: { all: 0, bass: 0, mid: 0, high: 0 },
+      // Unsmoothed per-band energies — beat detector input
+      raw: { all: 0, bass: 0, mid: 0, high: 0 }
+    },
+    // Modulation matrix: routes of {source, target, amount, enabled}
+    modRoutes: [],
+    // Runtime global hue offset (degrees) applied to all beam colors
+    hueOffset: 0,
+    // Beat detection
+    beat: {
+      enabled: false,
+      env: 0,            // beat envelope: 1 on detect, exponential decay
+      decay: 6,          // envelope decay rate (per second)
+      sensitivity: 1.4,  // energy must exceed rolling mean × this
+      minInterval: 0.18, // seconds between detections
+      cooldown: 0,
+      hist: [],          // rolling history of raw bass energy
+      ripple: false,     // on beat: spawn center ripple
+      hueJump: false,    // on beat: jump global hue
+      hueStep: 30
+    },
+    // WebMIDI
+    midi: {
+      enabled: false,
+      access: null,
+      bindings: {},      // 'cc-<ch>-<num>' → param id
+      learnArmed: false,
+      noteBeat: false    // note-on fires beat actions
+    },
+    // Video recording
+    rec: {
+      active: false,
+      recorder: null,
+      chunks: [],
+      ctx: null,         // 2d context of offscreen recording canvas
+      w: 0, h: 0,
+      startTime: 0,
+      lastTimeUpdate: 0
     },
     // Center motion
     motion: {
@@ -3228,9 +3410,13 @@
   }
 
   // Geometry
+  // While recording, the backing resolution is overridden so exports render
+  // at the chosen height natively (CSS size and room geometry are unaffected).
+  let recDprOverride = null;
+
   function resize() {
     const rect = glCanvas.parentElement.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = recDprOverride || Math.min(window.devicePixelRatio || 1, 2);
     S.dpr = dpr;
     const w = Math.floor(rect.width * dpr);
     const h = Math.floor(rect.height * dpr);
@@ -3998,7 +4184,8 @@ void main() {
         const segs = computePath(E, dir, beamBounces);
         totalSegs += segs.length;
         const col = palette[i % palette.length];
-        const rgb = hslToRgb(col.h, col.s, col.l);
+        // hueOffset: runtime-only global hue rotation (modulation/beat events)
+        const rgb = hslToRgb((((col.h + S.hueOffset) % 360) + 360) % 360, col.s, col.l);
         
         // Calculate layer score based on beam direction relative to center
         // Beams pointing AWAY from center (toward walls) = TOP layer
@@ -4510,7 +4697,10 @@ void main() {
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
-      pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft, duty: S.pulseDuty }
+      pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft, duty: S.pulseDuty },
+      // Performance rig config (modulation matrix + beat actions)
+      modRoutes: S.modRoutes,
+      beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
     };
   }
 
@@ -4561,7 +4751,21 @@ void main() {
       S.motion.ratio = P.motion.ratio ?? 1.5;
       S.motion.phaseOffset = P.motion.phaseOffset ?? 90;
     }
-    
+    if (Array.isArray(P.modRoutes)) {
+      S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
+      renderModRoutes();
+    }
+    if (P.beat) {
+      S.beat.enabled = !!P.beat.enabled;
+      S.beat.sensitivity = P.beat.sensitivity ?? 1.4;
+      S.beat.decay = P.beat.decay ?? 6;
+      S.beat.ripple = !!P.beat.ripple;
+      S.beat.hueJump = !!P.beat.hueJump;
+      S.beat.hueStep = P.beat.hueStep ?? 30;
+      syncBeatUI();
+    }
+    if (P.modRoutes || P.beat) saveModConfig();
+
     // Sync UI using shared function
     buildShape();
     updateEmittersFromNorm();
@@ -4650,10 +4854,56 @@ void main() {
   _on(audioSmoothingEl, 'input', () => {
     S.audio.smoothing = parseFloat(audioSmoothingEl.value) || 0.5;
   });
-  _on(audioTargetEl, 'change', () => S.audio.target = audioTargetEl.value);
-  _on(audioStrengthEl, 'input', () => { S.audio.strength = parseFloat(audioStrengthEl.value) || 0.3; audioStrengthNumEl.value = S.audio.strength.toFixed(2); });
-  _on(audioStrengthNumEl, 'input', () => { S.audio.strength = clamp(parseFloat(audioStrengthNumEl.value) || 0.3, 0, 1); audioStrengthEl.value = S.audio.strength; });
-  _on(audioBandEl, 'change', () => S.audio.band = audioBandEl.value);
+
+  // Modulation matrix UI bindings
+  _on(modAddRouteBtn, 'click', () => {
+    S.modRoutes.push({ source: 'bass', target: 'pulseAmp', amount: 0.5, enabled: true });
+    saveModConfig();
+    renderModRoutes();
+  });
+
+  // Beat detection UI bindings
+  function syncBeatUI() {
+    beatToggleBtn.textContent = S.beat.enabled ? 'On' : 'Off';
+    beatToggleBtn.style.borderColor = S.beat.enabled ? 'var(--accent)' : '';
+    beatRippleToggleBtn.textContent = S.beat.ripple ? 'On' : 'Off';
+    beatHueToggleBtn.textContent = S.beat.hueJump ? 'On' : 'Off';
+    beatSensEl.value = beatSensNumEl.value = S.beat.sensitivity;
+    beatDecayEl.value = S.beat.decay;
+    beatHueStepEl.value = S.beat.hueStep;
+    midiNoteBeatToggleBtn.textContent = S.midi.noteBeat ? 'On' : 'Off';
+  }
+  _on(beatToggleBtn, 'click', () => {
+    S.beat.enabled = !S.beat.enabled;
+    S.beat.hist = [];
+    syncBeatUI(); saveModConfig();
+  });
+  _on(beatSensEl, 'input', () => { S.beat.sensitivity = parseFloat(beatSensEl.value) || 1.4; beatSensNumEl.value = S.beat.sensitivity.toFixed(2); saveModConfig(); });
+  _on(beatSensNumEl, 'input', () => { S.beat.sensitivity = clamp(parseFloat(beatSensNumEl.value) || 1.4, 1.05, 2.5); beatSensEl.value = S.beat.sensitivity; saveModConfig(); });
+  _on(beatDecayEl, 'input', () => { S.beat.decay = parseFloat(beatDecayEl.value) || 6; saveModConfig(); });
+  _on(beatRippleToggleBtn, 'click', () => {
+    S.beat.ripple = !S.beat.ripple;
+    // Ripples only render when the wave system is on — enable it with the action
+    if (S.beat.ripple) S.waves.enabled = true;
+    syncBeatUI(); saveModConfig();
+  });
+  _on(beatHueToggleBtn, 'click', () => { S.beat.hueJump = !S.beat.hueJump; syncBeatUI(); saveModConfig(); });
+  _on(beatHueStepEl, 'input', () => { S.beat.hueStep = parseFloat(beatHueStepEl.value) || 30; saveModConfig(); });
+
+  // MIDI UI bindings
+  _on(midiToggleBtn, 'click', () => { if (!S.midi.enabled) enableMidi(); });
+  _on(midiLearnBtn, 'click', () => {
+    S.midi.learnArmed = !S.midi.learnArmed;
+    midiLearnBtn.classList.toggle('learning', S.midi.learnArmed);
+    midiLearnBtn.textContent = S.midi.learnArmed ? 'Move a knob…' : 'Learn';
+  });
+  _on(midiNoteBeatToggleBtn, 'click', () => { S.midi.noteBeat = !S.midi.noteBeat; syncBeatUI(); saveModConfig(); });
+
+  // Recording UI bindings
+  _on(recToggleBtn, 'click', () => {
+    if (S.rec.active) stopRecording();
+    else startRecording();
+  });
 
   // Collapsible groups
   document.querySelectorAll('.group.collapsible .group-title').forEach(title => {
@@ -4785,70 +5035,469 @@ void main() {
     if (A.stream) A.stream.getTracks().forEach(t => t.stop());
     if (A.ctx && A.ctx.state !== 'closed') A.ctx.close().catch(() => {});
     A.active = false;
-    A.energy = 0;
-    A.rawEnergy = 0;
+    A.bands = { all: 0, bass: 0, mid: 0, high: 0 };
+    A.raw = { all: 0, bass: 0, mid: 0, high: 0 };
     A.ctx = null;
     A.analyser = null;
     A.source = null;
     A.stream = null;
+    if (audioLevelBarEl) audioLevelBarEl.style.width = '0%';
     audioToggleBtn.textContent = getTranslation('startListening');
     audioToggleBtn.style.borderColor = '';
   }
 
+  // Computes raw + smoothed energy for all four bands every frame.
+  // Bands: bass = lowest 15% of bins, mid = 15-55%, high = 55-100%.
   function updateAudio(dtSec) {
     const A = S.audio;
     if (!A.active || !A.analyser) return;
     A.analyser.getByteFrequencyData(A.dataArray);
     const bins = A.dataArray;
     const len = bins.length;
+    const bassEnd = Math.floor(len * 0.15);
+    const midEnd = Math.floor(len * 0.55);
 
-    // Band selection
-    let start = 0, end = len;
-    if (A.band === 'bass') { start = 0; end = Math.floor(len * 0.15); }
-    else if (A.band === 'mid') { start = Math.floor(len * 0.15); end = Math.floor(len * 0.55); }
-    else if (A.band === 'high') { start = Math.floor(len * 0.55); end = len; }
+    const ranges = {
+      all: [0, len],
+      bass: [0, bassEnd],
+      mid: [bassEnd, midEnd],
+      high: [midEnd, len]
+    };
 
-    // Use RMS + peak blend for snappier response
-    let sumSq = 0, peak = 0;
-    const count = Math.max(1, end - start);
-    for (let i = start; i < end; i++) {
-      const v = bins[i] / 255;
-      sumSq += v * v;
-      if (v > peak) peak = v;
-    }
-    const rms = Math.sqrt(sumSq / count);
-    // Blend RMS (stable) with peak (snappy) — 60/40
-    A.rawEnergy = Math.min((rms * 0.6 + peak * 0.4) * A.sensitivity, 1);
-
-    // Frame-rate-independent smoothing (attack fast, release slower)
     const dt = Math.max(dtSec, 0.001);
-    const isRising = A.rawEnergy > A.energy;
-    // Attack: use (1 - smoothing) as speed base, but attack 3x faster
-    const attackSpeed = (1 - A.smoothing) * 3;
-    const releaseSpeed = (1 - A.smoothing);
-    const speed = isRising ? attackSpeed : releaseSpeed;
-    const factor = 1 - Math.exp(-speed * dt * 60);
-    A.energy += (A.rawEnergy - A.energy) * factor;
+    // Frame-rate-independent smoothing (attack 3x faster than release)
+    const attackFactor = 1 - Math.exp(-(1 - A.smoothing) * 3 * dt * 60);
+    const releaseFactor = 1 - Math.exp(-(1 - A.smoothing) * dt * 60);
+
+    for (const band in ranges) {
+      const [start, end] = ranges[band];
+      let sumSq = 0, peak = 0;
+      const count = Math.max(1, end - start);
+      for (let i = start; i < end; i++) {
+        const v = bins[i] / 255;
+        sumSq += v * v;
+        if (v > peak) peak = v;
+      }
+      const rms = Math.sqrt(sumSq / count);
+      // Blend RMS (stable) with peak (snappy) — 60/40
+      const raw = Math.min((rms * 0.6 + peak * 0.4) * A.sensitivity, 1);
+      A.raw[band] = raw;
+      const factor = raw > A.bands[band] ? attackFactor : releaseFactor;
+      A.bands[band] += (raw - A.bands[band]) * factor;
+    }
+
+    if (audioLevelBarEl) audioLevelBarEl.style.width = (A.bands.all * 100).toFixed(0) + '%';
   }
 
-  function applyAudioModulation() {
-    const A = S.audio;
-    if (!A.active || A.energy < 0.001) return;
-    const e = A.energy * A.strength;
-    
-    switch (A.target) {
-      case 'width':
-        // Thicken beams with energy
-        S.beamWidth = clamp(S.beamWidth + e * 6, 0.5, 8);
-        break;
-      case 'pulse-speed':
-        // Pulse speed reacts to audio
-        S.pulseSpeed = clamp(S.pulseSpeed + e * 400, 0, 900);
-        break;
-      case 'pulse-freq':
-        // Pulse frequency reacts to audio
-        S.pulseFreqCP100 = clamp(S.pulseFreqCP100 + e * 3, 0.05, 6);
-        break;
+  // ---- Beat Detection ----
+  // Adaptive threshold: a beat fires when raw bass energy spikes above its
+  // rolling mean × sensitivity, with a minimum re-trigger interval.
+  function updateBeat(dtSec) {
+    const B = S.beat;
+    // Envelope decays regardless of detection state
+    if (B.env > 0) {
+      B.env *= Math.exp(-B.decay * dtSec);
+      if (B.env < 0.001) B.env = 0;
+    }
+    if (beatDotEl) beatDotEl.style.opacity = (0.15 + B.env * 0.85).toFixed(2);
+    if (!B.enabled || !S.audio.active) return;
+
+    const e = S.audio.raw.bass;
+    B.hist.push(e);
+    if (B.hist.length > 40) B.hist.shift(); // ~0.7s of history at 60fps
+
+    B.cooldown -= dtSec;
+    if (B.hist.length < 12 || B.cooldown > 0) return;
+
+    let mean = 0;
+    for (let i = 0; i < B.hist.length; i++) mean += B.hist[i];
+    mean /= B.hist.length;
+
+    if (e > 0.08 && e > mean * B.sensitivity) {
+      B.env = 1;
+      B.cooldown = B.minInterval;
+      triggerBeatActions();
+    }
+  }
+
+  function triggerBeatActions() {
+    const B = S.beat;
+    if (B.ripple) spawnRippleAtCenter();
+    if (B.hueJump) S.hueOffset = (S.hueOffset + B.hueStep) % 360;
+  }
+
+  // ---- Parameter Registry ----
+  // Single source of truth for everything that can be driven programmatically:
+  // modulation matrix targets and MIDI-mappable parameters.
+  // range = how much amount=1 adds at full source level; min/max clamp the result.
+  const MOD_PARAMS = {
+    beamWidth:     { label: 'Beam width',     get: () => S.beamWidth,       set: v => S.beamWidth = v,       min: 0.5,  max: () => 8,          range: () => 6 },
+    spreadDeg:     { label: 'Spread',         get: () => S.spreadDeg,       set: v => S.spreadDeg = v,       min: 0,    max: () => 180,        range: () => 120 },
+    rotationSpeed: { label: 'Global speed',   get: () => S.rotationSpeed,   set: v => S.rotationSpeed = v,   min: 0,    max: () => S.speedMax, range: () => S.speedMax },
+    pulseSpeed:    { label: 'Pulse speed',    get: () => S.pulseSpeed,      set: v => S.pulseSpeed = v,      min: 0,    max: () => 900,        range: () => 400 },
+    pulseFreq:     { label: 'Pulse freq',     get: () => S.pulseFreqCP100,  set: v => S.pulseFreqCP100 = v,  min: 0.05, max: () => 6,          range: () => 3 },
+    pulseAmp:      { label: 'Pulse amp',      get: () => S.pulseAmp,        set: v => S.pulseAmp = v,        min: 0,    max: () => 1,          range: () => 1 },
+    pulseDuty:     { label: 'Pulse duty',     get: () => S.pulseDuty,       set: v => S.pulseDuty = v,       min: 0,    max: () => 1,          range: () => 1 },
+    hue:           { label: 'Hue shift',      get: () => S.hueOffset,       set: v => S.hueOffset = v,       min: 0,    max: () => 360,        range: () => 180, wrap: true },
+    wwDuty:        { label: 'Shape wave size', get: () => S.widthWave.duty, set: v => S.widthWave.duty = v,  min: 0,    max: () => 1,          range: () => 1 }
+  };
+
+  const MOD_SOURCES = {
+    all: 'Audio (full)',
+    bass: 'Audio (bass)',
+    mid: 'Audio (mids)',
+    high: 'Audio (highs)',
+    beat: 'Beat envelope'
+  };
+
+  // ---- Modulation Matrix ----
+  // Non-destructive: base values are saved before offsets are applied and
+  // restored after the frame renders, so sliders, autosave, and scenes always
+  // see the unmodulated values.
+  const modBase = {};
+  let modActive = false;
+
+  function applyModulation() {
+    if (!S.modRoutes.length) return;
+    const src = {
+      all: S.audio.bands.all,
+      bass: S.audio.bands.bass,
+      mid: S.audio.bands.mid,
+      high: S.audio.bands.high,
+      beat: S.beat.env
+    };
+    const offsets = {};
+    for (const r of S.modRoutes) {
+      if (r.enabled === false) continue;
+      const v = src[r.source] || 0;
+      if (v < 0.0005) continue;
+      const P = MOD_PARAMS[r.target];
+      if (!P) continue;
+      offsets[r.target] = (offsets[r.target] || 0) + v * r.amount * P.range();
+    }
+    for (const k in offsets) {
+      const P = MOD_PARAMS[k];
+      if (!(k in modBase)) modBase[k] = P.get();
+      let v = modBase[k] + offsets[k];
+      v = P.wrap ? ((v % 360) + 360) % 360 : clamp(v, P.min, P.max());
+      P.set(v);
+      modActive = true;
+    }
+  }
+
+  function restoreModulation() {
+    if (!modActive) return;
+    for (const k in modBase) {
+      MOD_PARAMS[k].set(modBase[k]);
+      delete modBase[k];
+    }
+    modActive = false;
+  }
+
+  // ---- Modulation/beat config persistence (global rig config, not per-scene) ----
+  const MOD_CONFIG_KEY = 'voidulator-mod';
+
+  function saveModConfig() {
+    try {
+      localStorage.setItem(MOD_CONFIG_KEY, JSON.stringify({
+        routes: S.modRoutes,
+        beat: {
+          enabled: S.beat.enabled,
+          sensitivity: S.beat.sensitivity,
+          decay: S.beat.decay,
+          ripple: S.beat.ripple,
+          hueJump: S.beat.hueJump,
+          hueStep: S.beat.hueStep
+        },
+        midiNoteBeat: S.midi.noteBeat
+      }));
+    } catch (e) { console.warn('Mod config save failed:', e); }
+  }
+
+  function loadModConfig() {
+    try {
+      const raw = localStorage.getItem(MOD_CONFIG_KEY);
+      if (!raw) {
+        // First run: mirror the old default audio behavior (full spectrum → width)
+        S.modRoutes = [{ source: 'all', target: 'beamWidth', amount: 0.3, enabled: true }];
+        return;
+      }
+      const cfg = JSON.parse(raw);
+      if (Array.isArray(cfg.routes)) {
+        S.modRoutes = cfg.routes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
+      }
+      if (cfg.beat) {
+        S.beat.enabled = !!cfg.beat.enabled;
+        S.beat.sensitivity = cfg.beat.sensitivity ?? 1.4;
+        S.beat.decay = cfg.beat.decay ?? 6;
+        S.beat.ripple = !!cfg.beat.ripple;
+        S.beat.hueJump = !!cfg.beat.hueJump;
+        S.beat.hueStep = cfg.beat.hueStep ?? 30;
+      }
+      S.midi.noteBeat = !!cfg.midiNoteBeat;
+    } catch (e) { console.warn('Mod config load failed:', e); }
+  }
+
+  // ---- Modulation Matrix UI ----
+  function renderModRoutes() {
+    if (!modRoutesEl) return;
+    modRoutesEl.innerHTML = '';
+    S.modRoutes.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'mod-route';
+
+      const srcSel = document.createElement('select');
+      for (const id in MOD_SOURCES) {
+        const o = document.createElement('option');
+        o.value = id; o.textContent = MOD_SOURCES[id];
+        srcSel.appendChild(o);
+      }
+      srcSel.value = r.source;
+      srcSel.addEventListener('change', () => { r.source = srcSel.value; saveModConfig(); });
+
+      const tgtSel = document.createElement('select');
+      for (const id in MOD_PARAMS) {
+        const o = document.createElement('option');
+        o.value = id; o.textContent = MOD_PARAMS[id].label;
+        tgtSel.appendChild(o);
+      }
+      tgtSel.value = r.target;
+      tgtSel.addEventListener('change', () => { r.target = tgtSel.value; saveModConfig(); });
+
+      const amt = document.createElement('input');
+      amt.type = 'range'; amt.min = -1; amt.max = 1; amt.step = 0.01; amt.value = r.amount;
+      amt.title = 'Amount (negative inverts)';
+      const amtLabel = document.createElement('span');
+      amtLabel.className = 'mod-amount';
+      amtLabel.textContent = r.amount.toFixed(2);
+      amt.addEventListener('input', () => {
+        r.amount = parseFloat(amt.value) || 0;
+        amtLabel.textContent = r.amount.toFixed(2);
+        saveModConfig();
+      });
+
+      const del = document.createElement('button');
+      del.className = 'btn mod-del';
+      del.textContent = '×';
+      del.title = 'Remove route';
+      del.addEventListener('click', () => {
+        S.modRoutes.splice(i, 1);
+        saveModConfig();
+        renderModRoutes();
+      });
+
+      row.appendChild(srcSel);
+      row.appendChild(tgtSel);
+      row.appendChild(amt);
+      row.appendChild(amtLabel);
+      row.appendChild(del);
+      modRoutesEl.appendChild(row);
+    });
+  }
+
+  // ---- WebMIDI ----
+  // CC bindings map a controller knob/fader absolutely onto a registry
+  // parameter's min→max span. Bindings persist in localStorage.
+  const MIDI_BINDINGS_KEY = 'voidulator-midi';
+
+  function saveMidiBindings() {
+    try { localStorage.setItem(MIDI_BINDINGS_KEY, JSON.stringify(S.midi.bindings)); }
+    catch (e) { console.warn('MIDI bindings save failed:', e); }
+  }
+
+  function loadMidiBindings() {
+    try {
+      const raw = localStorage.getItem(MIDI_BINDINGS_KEY);
+      if (!raw) return;
+      const b = JSON.parse(raw);
+      for (const key in b) if (MOD_PARAMS[b[key]]) S.midi.bindings[key] = b[key];
+    } catch (e) { console.warn('MIDI bindings load failed:', e); }
+  }
+
+  async function enableMidi() {
+    if (!navigator.requestMIDIAccess) {
+      midiStatusEl.textContent = 'Not supported in this browser';
+      return;
+    }
+    try {
+      const access = await navigator.requestMIDIAccess();
+      S.midi.access = access;
+      S.midi.enabled = true;
+      const hookInputs = () => {
+        access.inputs.forEach(inp => { inp.onmidimessage = onMidiMessage; });
+        updateMidiStatus();
+      };
+      access.onstatechange = hookInputs;
+      hookInputs();
+      midiToggleBtn.textContent = 'MIDI enabled';
+      midiToggleBtn.style.borderColor = 'var(--accent)';
+    } catch (e) {
+      console.warn('MIDI access failed:', e);
+      midiStatusEl.textContent = 'Access denied';
+    }
+  }
+
+  function updateMidiStatus() {
+    if (!S.midi.access) { midiStatusEl.textContent = 'Off'; return; }
+    const names = [];
+    S.midi.access.inputs.forEach(inp => names.push(inp.name));
+    midiStatusEl.textContent = names.length ? names.join(', ') : 'No devices connected';
+  }
+
+  function onMidiMessage(ev) {
+    const [status, d1, d2] = ev.data;
+    const type = status & 0xf0;
+    const ch = status & 0x0f;
+
+    if (type === 0xB0) { // Control Change
+      const key = 'cc-' + ch + '-' + d1;
+      if (S.midi.learnArmed) {
+        S.midi.bindings[key] = midiLearnParamEl.value;
+        S.midi.learnArmed = false;
+        midiLearnBtn.classList.remove('learning');
+        midiLearnBtn.textContent = 'Learn';
+        saveMidiBindings();
+        renderMidiBindings();
+        return;
+      }
+      const paramId = S.midi.bindings[key];
+      const P = MOD_PARAMS[paramId];
+      if (P) {
+        // Sets the BASE value (CC events arrive between frames, when
+        // modulation offsets are restored), so matrix routes stack on top.
+        P.set(P.min + (d2 / 127) * (P.max() - P.min));
+        syncUIFromState();
+        requestAutosave();
+      }
+    } else if (type === 0x90 && d2 > 0 && S.midi.noteBeat) { // Note On
+      S.beat.env = 1;
+      triggerBeatActions();
+    }
+  }
+
+  function renderMidiBindings() {
+    if (!midiBindingsEl) return;
+    midiBindingsEl.innerHTML = '';
+    for (const key in S.midi.bindings) {
+      const paramId = S.midi.bindings[key];
+      const P = MOD_PARAMS[paramId];
+      if (!P) continue;
+      const parts = key.split('-'); // cc-<ch>-<num>
+      const row = document.createElement('div');
+      row.className = 'midi-binding';
+      const label = document.createElement('span');
+      label.textContent = `CC ${parts[2]} (ch ${parseInt(parts[1]) + 1}) → ${P.label}`;
+      const del = document.createElement('button');
+      del.className = 'btn mod-del';
+      del.textContent = '×';
+      del.title = 'Remove binding';
+      del.addEventListener('click', () => {
+        delete S.midi.bindings[key];
+        saveMidiBindings();
+        renderMidiBindings();
+      });
+      row.appendChild(label);
+      row.appendChild(del);
+      midiBindingsEl.appendChild(row);
+    }
+  }
+
+  // ---- Video Recording ----
+  // Renders at the chosen height by overriding the device pixel ratio, so 4K
+  // exports are genuinely rendered at 4K (not upscaled). Each frame the GL
+  // canvas and overlay are composited into an offscreen canvas whose stream
+  // feeds MediaRecorder.
+  let recCanvas = null;
+
+  function pickRecMime() {
+    const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    for (const m of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  }
+
+  function startRecording() {
+    if (!window.MediaRecorder) {
+      recTimeEl.textContent = 'Not supported';
+      return;
+    }
+    const R = S.rec;
+    const targetH = parseInt(recResEl.value) || 1080;
+    const rect = glCanvas.parentElement.getBoundingClientRect();
+    recDprOverride = targetH / rect.height;
+    resize();
+
+    // Even dimensions keep video encoders happy
+    R.w = glCanvas.width & ~1;
+    R.h = glCanvas.height & ~1;
+    recCanvas = document.createElement('canvas');
+    recCanvas.width = R.w;
+    recCanvas.height = R.h;
+    R.ctx = recCanvas.getContext('2d');
+
+    const bitrates = { 480: 8e6, 720: 12e6, 1080: 24e6, 2160: 45e6 };
+    try {
+      R.recorder = new MediaRecorder(recCanvas.captureStream(60), {
+        mimeType: pickRecMime(),
+        videoBitsPerSecond: bitrates[targetH] || 12e6
+      });
+    } catch (e) {
+      console.warn('MediaRecorder failed:', e);
+      recDprOverride = null;
+      resize();
+      recTimeEl.textContent = 'Recorder error';
+      return;
+    }
+
+    R.chunks = [];
+    R.recorder.ondataavailable = e => { if (e.data && e.data.size) R.chunks.push(e.data); };
+    R.recorder.onstop = () => {
+      const blob = new Blob(R.chunks, { type: 'video/webm' });
+      R.chunks = [];
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `voidulator-${targetH}p-${ts}.webm`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    };
+    R.recorder.start(1000); // gather data every second
+    R.active = true;
+    R.startTime = performance.now();
+    R.lastTimeUpdate = 0;
+    recToggleBtn.innerHTML = '&#9632; Stop';
+    recToggleBtn.classList.add('recording');
+  }
+
+  function stopRecording() {
+    const R = S.rec;
+    if (!R.active) return;
+    R.active = false;
+    recDprOverride = null;
+    resize();
+    if (R.recorder && R.recorder.state !== 'inactive') R.recorder.stop();
+    R.recorder = null;
+    R.ctx = null;
+    recCanvas = null;
+    recToggleBtn.innerHTML = '&#9679; Start';
+    recToggleBtn.classList.remove('recording');
+    recTimeEl.textContent = '';
+  }
+
+  function captureRecFrame(t) {
+    const R = S.rec;
+    if (!R.active || !R.ctx) return;
+    R.ctx.fillStyle = '#000';
+    R.ctx.fillRect(0, 0, R.w, R.h);
+    R.ctx.drawImage(glCanvas, 0, 0, R.w, R.h);
+    R.ctx.drawImage(ovCanvas, 0, 0, R.w, R.h);
+    if (t - R.lastTimeUpdate > 500) {
+      R.lastTimeUpdate = t;
+      const sec = (t - R.startTime) / 1000;
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      recTimeEl.textContent = `${m}:${String(s).padStart(2, '0')} · ${R.h}p`;
     }
   }
 
@@ -5039,9 +5688,11 @@ void main() {
     // Update transition
     updateTransition(t);
 
-    // Audio reactive
+    // Audio reactive: analyse, detect beats, then apply modulation offsets
+    // (restored after rendering — see restoreModulation below)
     updateAudio(dtSec);
-    applyAudioModulation();
+    updateBeat(dtSec);
+    applyModulation();
 
     // Center motion (before WASD so WASD overrides when active)
     updateCenterMotion(dtSec);
@@ -5090,6 +5741,8 @@ void main() {
     }
     renderBeamsGL(t / 1000);
     drawOverlay();
+    captureRecFrame(t);
+    restoreModulation();
     loopRafId = requestAnimationFrame(loop);
   }
 
@@ -5103,6 +5756,9 @@ void main() {
     } else {
       // Pause
       if (loopRafId) { cancelAnimationFrame(loopRafId); loopRafId = 0; }
+      // The render loop is the recorder's frame source — stop cleanly instead
+      // of recording a frozen image
+      if (S.rec.active) stopRecording();
     }
   });
 
@@ -6580,9 +7236,22 @@ void main() {
       updateSceneUI();
     }
     
+    // Modulation matrix, beat detection, MIDI (global rig config)
+    loadModConfig();
+    renderModRoutes();
+    loadMidiBindings();
+    renderMidiBindings();
+    for (const id in MOD_PARAMS) {
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = MOD_PARAMS[id].label;
+      midiLearnParamEl.appendChild(o);
+    }
+    syncBeatUI();
+
     // Load language preferences and apply translations
     loadLanguage();
-    
+
     // Set version from config
     const versionEl = document.getElementById('appVersion');
     if (versionEl) versionEl.textContent = APP_VERSION;
@@ -6594,6 +7263,10 @@ void main() {
     checkFirstVisit();
     
     loopRafId = requestAnimationFrame(loop);
+
+    // Debug/scripting handle (console access to the otherwise closure-scoped
+    // state — e.g. Voidulator.S.beat.env = 1 to simulate a beat)
+    window.Voidulator = { S, MOD_PARAMS, triggerBeatActions, startRecording, stopRecording, renderModRoutes, syncBeatUI, onMidiMessage, renderMidiBindings };
   }
   init();
 })();
