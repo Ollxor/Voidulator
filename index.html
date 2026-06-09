@@ -2004,7 +2004,19 @@
         <div class="btn-row">
           <button class="btn" id="modAddRoute">+ Add route</button>
         </div>
-        <div class="hint">Routes audio/beat sources to parameters. Amount is bipolar &mdash; negative inverts. Needs mic listening.</div>
+        <div class="subgrid">
+          <label>LFO 1 (Hz)</label>
+          <div class="ctrl-row">
+            <input id="lfoRate1" type="range" min="0.01" max="4" step="0.01" value="0.25">
+            <input id="lfoRate1Num" type="number" min="0.01" max="4" step="0.01" value="0.25">
+          </div>
+          <label>LFO 2 (Hz)</label>
+          <div class="ctrl-row">
+            <input id="lfoRate2" type="range" min="0.01" max="4" step="0.01" value="0.05">
+            <input id="lfoRate2Num" type="number" min="0.01" max="4" step="0.01" value="0.05">
+          </div>
+        </div>
+        <div class="hint">Routes sources to parameters. Amount is bipolar &mdash; negative inverts. Audio sources need mic listening; LFOs always run.</div>
       </div>
     </div>
 
@@ -2345,8 +2357,13 @@
     },
     // Modulation matrix: routes of {source, target, amount, enabled}
     modRoutes: [],
-    // Runtime global hue offset (degrees) applied to all beam colors
+    // Runtime global color offsets applied to all beam colors —
+    // modulation-only, never persisted
     hueOffset: 0,
+    satOffset: 0,
+    lightOffset: 0,
+    // Free-running LFOs: modulation sources that need no audio input
+    lfo: { rate1: 0.25, rate2: 0.05, p1: 0, p2: 0 },
     // Pulse phase accumulator (radians) — runtime only, never persisted.
     // Advanced each frame from pulseSpeed/pulseFreq so the shader gets a
     // bounded, continuous phase even when speed changes mid-flight.
@@ -4199,8 +4216,12 @@ void main() {
         const segs = computePath(E, dir, beamBounces);
         totalSegs += segs.length;
         const col = palette[i % palette.length];
-        // hueOffset: runtime-only global hue rotation (modulation/beat events)
-        const rgb = hslToRgb((((col.h + S.hueOffset) % 360) + 360) % 360, col.s, col.l);
+        // Global color offsets: runtime-only (modulation matrix / beat events)
+        const rgb = hslToRgb(
+          (((col.h + S.hueOffset) % 360) + 360) % 360,
+          clamp(col.s + S.satOffset, 0, 100),
+          clamp(col.l + S.lightOffset, 0, 100)
+        );
         
         // Calculate layer score based on beam direction relative to center
         // Beams pointing AWAY from center (toward walls) = TOP layer
@@ -4859,6 +4880,12 @@ void main() {
     saveModConfig();
     renderModRoutes();
   });
+  const lfoRate1El = _el('lfoRate1'), lfoRate1NumEl = _el('lfoRate1Num');
+  const lfoRate2El = _el('lfoRate2'), lfoRate2NumEl = _el('lfoRate2Num');
+  _on(lfoRate1El, 'input', () => { S.lfo.rate1 = parseFloat(lfoRate1El.value) || 0.25; lfoRate1NumEl.value = S.lfo.rate1.toFixed(2); saveModConfig(); });
+  _on(lfoRate1NumEl, 'input', () => { S.lfo.rate1 = clamp(parseFloat(lfoRate1NumEl.value) || 0.25, 0.01, 4); lfoRate1El.value = S.lfo.rate1; saveModConfig(); });
+  _on(lfoRate2El, 'input', () => { S.lfo.rate2 = parseFloat(lfoRate2El.value) || 0.05; lfoRate2NumEl.value = S.lfo.rate2.toFixed(2); saveModConfig(); });
+  _on(lfoRate2NumEl, 'input', () => { S.lfo.rate2 = clamp(parseFloat(lfoRate2NumEl.value) || 0.05, 0.01, 4); lfoRate2El.value = S.lfo.rate2; saveModConfig(); });
 
   // Beat detection UI bindings
   function syncBeatUI() {
@@ -5137,7 +5164,15 @@ void main() {
     pulseAmp:      { label: 'Pulse amp',      get: () => S.pulseAmp,        set: v => S.pulseAmp = v,        min: 0,    max: () => 1,          range: () => 1 },
     pulseDuty:     { label: 'Pulse duty',     get: () => S.pulseDuty,       set: v => S.pulseDuty = v,       min: 0,    max: () => 1,          range: () => 1 },
     hue:           { label: 'Hue shift',      get: () => S.hueOffset,       set: v => S.hueOffset = v,       min: 0,    max: () => 360,        range: () => 180, wrap: true },
-    wwDuty:        { label: 'Shape wave size', get: () => S.widthWave.duty, set: v => S.widthWave.duty = v,  min: 0,    max: () => 1,          range: () => 1 }
+    saturation:    { label: 'Saturation',     get: () => S.satOffset,       set: v => S.satOffset = v,       min: -100, max: () => 100,        range: () => 80 },
+    brightness:    { label: 'Brightness',     get: () => S.lightOffset,     set: v => S.lightOffset = v,     min: -60,  max: () => 60,         range: () => 50 },
+    reflect:       { label: 'Reflectivity',   get: () => S.reflectSlider,   set: v => { S.reflectSlider = v; S.reflectivity = 1 - Math.pow(1 - v, 3.2); }, min: 0, max: () => 1, range: () => 0.4 },
+    speedMult:     { label: 'Beam anim speed', get: () => S.speedMultiplier, set: v => S.speedMultiplier = v, min: 0,   max: () => 2,          range: () => 0.2 },
+    trailsLength:  { label: 'Trail length',   get: () => S.trails.length,   set: v => S.trails.length = v,   min: 1,    max: () => 180,        range: () => 80 },
+    wwDuty:        { label: 'Shape wave size', get: () => S.widthWave.duty, set: v => S.widthWave.duty = v,  min: 0,    max: () => 1,          range: () => 1 },
+    wwFreq:        { label: 'Shape wave density', get: () => S.widthWave.freq, set: v => S.widthWave.freq = v, min: 0.02, max: () => 8,        range: () => 4 },
+    wwSpeed:       { label: 'Shape wave flow', get: () => S.widthWave.speed, set: v => S.widthWave.speed = v, min: -200, max: () => 200,       range: () => 100 },
+    wwRotation:    { label: 'Shape wave spin', get: () => S.widthWave.rotation, set: v => S.widthWave.rotation = v, min: -2, max: () => 2,     range: () => 1 }
   };
 
   const MOD_SOURCES = {
@@ -5145,7 +5180,9 @@ void main() {
     bass: 'Audio (bass)',
     mid: 'Audio (mids)',
     high: 'Audio (highs)',
-    beat: 'Beat envelope'
+    beat: 'Beat envelope',
+    lfo1: 'LFO 1',
+    lfo2: 'LFO 2'
   };
 
   // ---- Modulation Matrix ----
@@ -5162,7 +5199,9 @@ void main() {
       bass: S.audio.bands.bass,
       mid: S.audio.bands.mid,
       high: S.audio.bands.high,
-      beat: S.beat.env
+      beat: S.beat.env,
+      lfo1: 0.5 + 0.5 * Math.sin(S.lfo.p1),
+      lfo2: 0.5 + 0.5 * Math.sin(S.lfo.p2)
     };
     const offsets = {};
     for (const r of S.modRoutes) {
@@ -5207,7 +5246,8 @@ void main() {
           hueJump: S.beat.hueJump,
           hueStep: S.beat.hueStep
         },
-        midiNoteBeat: S.midi.noteBeat
+        midiNoteBeat: S.midi.noteBeat,
+        lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2 }
       }));
     } catch (e) { console.warn('Mod config save failed:', e); }
   }
@@ -5233,6 +5273,10 @@ void main() {
         S.beat.hueStep = cfg.beat.hueStep ?? 30;
       }
       S.midi.noteBeat = !!cfg.midiNoteBeat;
+      if (cfg.lfo) {
+        S.lfo.rate1 = cfg.lfo.rate1 ?? 0.25;
+        S.lfo.rate2 = cfg.lfo.rate2 ?? 0.05;
+      }
     } catch (e) { console.warn('Mod config load failed:', e); }
   }
 
@@ -5721,6 +5765,10 @@ void main() {
     // (restored after rendering — see restoreModulation below)
     updateAudio(dtSec);
     updateBeat(dtSec);
+    // LFO phases advance regardless of audio state — matrix sources that
+    // work without a mic
+    S.lfo.p1 = (S.lfo.p1 + Math.PI * 2 * S.lfo.rate1 * dtSec) % (Math.PI * 2);
+    S.lfo.p2 = (S.lfo.p2 + Math.PI * 2 * S.lfo.rate2 * dtSec) % (Math.PI * 2);
     applyModulation();
 
     // Center motion (before WASD so WASD overrides when active)
@@ -7272,6 +7320,8 @@ void main() {
     // Modulation matrix, beat detection, MIDI (global rig config)
     loadModConfig();
     renderModRoutes();
+    lfoRate1El.value = lfoRate1NumEl.value = S.lfo.rate1;
+    lfoRate2El.value = lfoRate2NumEl.value = S.lfo.rate2;
     loadMidiBindings();
     renderMidiBindings();
     for (const id in MOD_PARAMS) {
