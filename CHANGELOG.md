@@ -2,6 +2,37 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.1.0] - 2026-06-09
+
+### 🎛️ Performance Update
+
+#### Modulation Matrix
+- Route audio bands (full/bass/mids/highs) or the beat envelope to any parameter: beam width, spread, global speed, pulse speed/freq/amp/duty, hue shift, shape wave size
+- Bipolar amounts (negative inverts), unlimited stacked routes
+- Non-destructive: slider values are never overwritten by modulation
+- Replaces the old single audio target/strength controls (your old setting migrates to a route automatically)
+- Routes persist across sessions and are included in JSON preset export/import
+
+#### Beat Detection
+- Adaptive bass-onset detector with sensitivity and envelope decay controls
+- Beat envelope available as a modulation source ("thump on the kick")
+- Beat-triggered events: spawn a center ripple and/or jump the global hue
+- Live beat indicator dot
+
+#### MIDI (Chrome/Edge)
+- MIDI Learn: click Learn, move a hardware knob, done
+- CC bindings map absolutely onto any parameter; persist across sessions
+- Note-on can fire the beat actions (drum-pad triggering)
+
+#### Video Recording
+- Record WebM at 480p, 720p, 1080p, or 4K — higher resolutions are rendered natively, not upscaled
+- Width follows your window aspect; VP9 encoding with resolution-scaled bitrate
+
+#### Fixes & Infrastructure
+- Audio modulation no longer "ratchets" values upward permanently
+- Service worker is now network-first: deploys reach users immediately, cache is only an offline fallback
+- New `window.Voidulator` debug handle for console scripting
+
 ## [1.0.0] - 2026-03-17
 
 ### 🚀 Initial Public Release

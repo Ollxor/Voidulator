@@ -31,10 +31,12 @@
 - **Screensaver mode** — Auto-cycle through saved scenes
 - **Export/Import** — Share presets as JSON files
 
-### Audio Reactive
-- **Microphone input** — Beams react to sound
-- **Multiple targets** — Control width, pulse speed, or pulse frequency
-- **Adjustable sensitivity** — Fine-tune the audio response
+### Audio Reactive & Performance
+- **Microphone input** — Beams react to sound, with live level meter
+- **Modulation matrix** — Route any audio band (bass/mids/highs/full) or the beat envelope to any parameter (beam width, pulse, spread, speed, hue…) with bipolar amounts; stack as many routes as you like
+- **Beat detection** — Adaptive onset detector with a decaying beat envelope, plus beat-triggered events: spawn ripples and jump the hue on every kick
+- **MIDI control** — Plug in a controller, click Learn, twist a knob: hardware control of any parameter (Chrome/Edge)
+- **Video recording** — Export WebM at 480p, 720p, 1080p, or true native-rendered 4K
 
 ### Accessibility
 - **4 languages** — English, Spanish, Portuguese, French
