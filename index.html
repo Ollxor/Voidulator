@@ -2347,6 +2347,10 @@
     modRoutes: [],
     // Runtime global hue offset (degrees) applied to all beam colors
     hueOffset: 0,
+    // Pulse phase accumulator (radians) — runtime only, never persisted.
+    // Advanced each frame from pulseSpeed/pulseFreq so the shader gets a
+    // bounded, continuous phase even when speed changes mid-flight.
+    pulsePhase: 0,
     // Beat detection
     beat: {
       enabled: false,
@@ -3434,9 +3438,12 @@
     const W = glCanvas.width / S.dpr;
     const H = glCanvas.height / S.dpr;
     const cx = W / 2, cy = H / 2, margin = 16;
+    // Floor the room size: a hidden/collapsed stage can report near-zero
+    // dimensions, and a negative radius makes canvas arc() throw every frame
+    const safeR = Math.max(10, Math.min(W, H) / 2 - margin);
     if (S.polygonType === 'circle') {
       S.isCircle = true;
-      S.circle = { cx, cy, R: Math.min(W, H) / 2 - margin };
+      S.circle = { cx, cy, R: safeR };
       S.vertices = [];
       return;
     }
@@ -3451,14 +3458,14 @@
       }
       let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
       for (const p of verts) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
-      const scale = 0.98 * Math.min((W - 2 * margin) / (maxX - minX), (H - 2 * margin) / (maxY - minY));
+      const scale = Math.max(5, 0.98 * Math.min((W - 2 * margin) / (maxX - minX), (H - 2 * margin) / (maxY - minY)));
       for (const p of verts) { p.x = p.x * scale + cx; p.y = p.y * scale + cy; }
       S.vertices = verts; return;
     }
     if (S.polygonType === 'blob') {
       const steps = 720, L = 3, amp = 0.06;
       const ph1 = rand() * 6.28, ph2 = rand() * 6.28, ph3 = rand() * 6.28;
-      const R = Math.min(W, H) / 2 - margin; const out = [];
+      const R = safeR; const out = [];
       for (let i = 0; i < steps; i++) {
         const a = -Math.PI / 2 + i * 2 * Math.PI / steps;
         const f = 1 + amp * (0.7 * Math.cos(L * a + ph1) + 0.4 * Math.cos((L + 1) * a + ph2) + 0.3 * Math.cos((L - 1) * a + ph3));
@@ -3466,7 +3473,7 @@
       }
       S.vertices = out; return;
     }
-    const n = S.sides || 5; const R = Math.min(W, H) / 2 - margin; const verts = [];
+    const n = S.sides || 5; const R = safeR; const verts = [];
     for (let i = 0; i < n; i++) {
       const a = -Math.PI / 2 + i * 2 * Math.PI / n;
       verts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
@@ -3757,7 +3764,7 @@
 
   // WebGL
   let gl, prog, buf, a_pos, a_t, a_col, a_alpha;
-  let u_res, u_time, u_freqPx, u_speed, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+  let u_res, u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
   
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
@@ -3797,7 +3804,7 @@ void main() {
     const fs = `#version 300 es
 precision highp float;
 in float v_t; in vec3 v_col; in float v_alpha;
-uniform float u_time, u_freqPx, u_speed, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+uniform float u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
 out vec4 outColor;
 void main() {
   float a = v_alpha;
@@ -3806,7 +3813,10 @@ void main() {
     if (u_duty < 0.01) {
       a = 0.0;
     } else {
-      float phase = 6.2831853 * u_freqPx * (v_t - u_speed * u_time);
+      // u_phaseTime is a JS-side accumulator: stays bounded (no float
+      // precision drift in long sessions) and stays continuous when pulse
+      // speed/freq change mid-flight (e.g. via audio modulation)
+      float phase = 6.2831853 * u_freqPx * v_t - u_phaseTime;
       float s = sin(phase); // -1 to 1
       
       // Normalize sine to 0-1
@@ -3848,9 +3858,8 @@ void main() {
     a_col = gl.getAttribLocation(prog, 'a_col');
     a_alpha = gl.getAttribLocation(prog, 'a_alpha');
     u_res = gl.getUniformLocation(prog, 'u_res');
-    u_time = gl.getUniformLocation(prog, 'u_time');
+    u_phaseTime = gl.getUniformLocation(prog, 'u_phaseTime');
     u_freqPx = gl.getUniformLocation(prog, 'u_freqPx');
-    u_speed = gl.getUniformLocation(prog, 'u_speed');
     u_amp = gl.getUniformLocation(prog, 'u_amp');
     u_shape = gl.getUniformLocation(prog, 'u_shape');
     u_soft = gl.getUniformLocation(prog, 'u_soft');
@@ -4126,17 +4135,23 @@ void main() {
     vertCount = i;
   }
 
-  function renderBeamsGL(timeSec) {
+  // THE ONLY place beam-shader uniforms are uploaded. This block used to be
+  // copy-pasted in three render paths; a partial refactor of one copy once
+  // shipped a ReferenceError that black-screened the live site. Keep it single.
+  function uploadBeamUniforms() {
     gl.useProgram(prog);
     gl.uniform2f(u_res, glCanvas.width / S.dpr, glCanvas.height / S.dpr);
-    gl.uniform1f(u_time, timeSec);
+    gl.uniform1f(u_phaseTime, S.pulsePhase);
     gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
     gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
-    gl.uniform1f(u_speed, S.pulseSpeed);
     gl.uniform1f(u_amp, S.pulseAmp);
     gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
     gl.uniform1f(u_soft, S.pulseSoft);
     gl.uniform1f(u_duty, S.pulseDuty);
+  }
+
+  function renderBeamsGL(timeSec) {
+    uploadBeamUniforms();
 
     vertCount = 0; // Reuse the persistent vertBuf; pushQuad/pushShape write into it
     const base = S.angleDeg * Math.PI / 180;
@@ -4355,17 +4370,8 @@ void main() {
       gl.enable(gl.BLEND);
       
       // Draw current beams on top (to write FBO)
-      gl.useProgram(prog);
-      gl.uniform2f(u_res, w / S.dpr, h / S.dpr);
-      gl.uniform1f(u_time, timeSec);
-      gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
-      gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
-      gl.uniform1f(u_speed, S.pulseSpeed);
-      gl.uniform1f(u_amp, S.pulseAmp);
-      gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
-      gl.uniform1f(u_soft, S.pulseSoft);
-      gl.uniform1f(u_duty, S.pulseDuty);
-      
+      uploadBeamUniforms();
+
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, stride, 0);
       gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
@@ -4401,17 +4407,9 @@ void main() {
       trailPingPong = 1 - pp;
     } else {
       // No trails - simple render
-      gl.useProgram(prog);
-      gl.uniform2f(u_res, glCanvas.width / S.dpr, glCanvas.height / S.dpr);
-      gl.uniform1f(u_time, timeSec);
-      gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
-      gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
-      gl.uniform1f(u_speed, S.pulseSpeed);
-      gl.uniform1f(u_amp, S.pulseAmp);
-      gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
-      gl.uniform1f(u_soft, S.pulseSoft);
-      gl.uniform1f(u_duty, S.pulseDuty);
-      
+      uploadBeamUniforms();
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
       gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, stride, 0);
       gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
       gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
@@ -5679,7 +5677,38 @@ void main() {
     }
   }
 
+  // Crash visibility: the app's worst historical failure mode is a silent
+  // black canvas. A frame that throws gets logged + badged, and the loop
+  // keeps scheduling so a transient error can't permanently stop animation.
+  let loopErrorCount = 0;
+  let crashBadgeEl = null;
+  function showCrashBadge(err) {
+    if (!crashBadgeEl) {
+      crashBadgeEl = document.createElement('div');
+      crashBadgeEl.style.cssText = 'position:fixed;top:8px;left:8px;z-index:99999;background:#400;color:#f88;border:1px solid #f44;border-radius:4px;padding:4px 10px;font:11px monospace;cursor:pointer;max-width:60vw;';
+      crashBadgeEl.title = 'Click to dismiss';
+      crashBadgeEl.addEventListener('click', () => { crashBadgeEl.style.display = 'none'; });
+      document.body.appendChild(crashBadgeEl);
+    }
+    crashBadgeEl.style.display = 'block';
+    crashBadgeEl.textContent = '⚠ render error: ' + ((err && err.message) || err || 'unknown') + ' (see console)';
+  }
+  window.addEventListener('error', e => { if (e.error) showCrashBadge(e.error); });
+
   function loop(t) {
+    try {
+      loopBody(t);
+      loopErrorCount = 0;
+    } catch (err) {
+      loopErrorCount++;
+      restoreModulation(); // keep base values intact even when a frame fails
+      if (loopErrorCount <= 3) console.error('Voidulator frame error:', err);
+      showCrashBadge(err);
+    }
+    loopRafId = requestAnimationFrame(loop);
+  }
+
+  function loopBody(t) {
     const rawDt = t - last;
     last = t;
     // Clamp dt to prevent huge jumps after backgrounding (max 100ms = 10fps floor)
@@ -5739,11 +5768,15 @@ void main() {
     for (let i = 0; i < S.perBeamPhase.length; i++) {
       S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i] || 0) * S.speedMultiplier * dtSec) % 360;
     }
+    // Advance pulse phase using current (possibly modulated) speed/freq —
+    // d(phase) = 2π · freqPx · speed · dt, wrapped to stay float-precise forever
+    if (S.pulseOn) {
+      S.pulsePhase = (S.pulsePhase + Math.PI * 2 * (S.pulseFreqCP100 / 100) * S.pulseSpeed * dtSec) % (Math.PI * 2);
+    }
     renderBeamsGL(t / 1000);
     drawOverlay();
     captureRecFrame(t);
     restoreModulation();
-    loopRafId = requestAnimationFrame(loop);
   }
 
   // Pause render loop when tab is hidden — saves battery and prevents huge dt jumps
@@ -7266,7 +7299,13 @@ void main() {
 
     // Debug/scripting handle (console access to the otherwise closure-scoped
     // state — e.g. Voidulator.S.beat.env = 1 to simulate a beat)
-    window.Voidulator = { S, MOD_PARAMS, triggerBeatActions, startRecording, stopRecording, renderModRoutes, syncBeatUI, onMidiMessage, renderMidiBindings };
+    window.Voidulator = {
+      S, MOD_PARAMS, triggerBeatActions, startRecording, stopRecording,
+      renderModRoutes, syncBeatUI, onMidiMessage, renderMidiBindings,
+      // Manually advance one frame — testing/headless use (rAF doesn't fire
+      // in hidden tabs, but WebGL still renders when driven directly)
+      step: (t) => loopBody(t !== undefined ? t : performance.now())
+    };
   }
   init();
 })();
