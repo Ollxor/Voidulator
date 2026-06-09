@@ -1929,6 +1929,24 @@
       </div>
     </div>
 
+    <div class="group collapsible advanced-only" id="bloomGroup">
+      <div class="group-title">Glow</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Enable</label>
+          <button class="btn" id="bloomToggle">On</button>
+          <label>Strength</label>
+          <div class="ctrl-row">
+            <input id="bloomStrength" type="range" min="0" max="3" step="0.05" value="0.85">
+            <input id="bloomStrengthNum" type="number" min="0" max="3" step="0.05" value="0.85">
+          </div>
+          <label>Threshold</label>
+          <input id="bloomThreshold" type="range" min="0" max="1" step="0.01" value="0.3">
+        </div>
+        <div class="hint">Real laser glow &mdash; bright beams bleed light like through haze. Threshold: how bright a pixel must be to bloom.</div>
+      </div>
+    </div>
+
     <div class="group collapsible advanced-only">
       <div class="group-title" data-i18n="scenes">Scenes</div>
       <div class="group-content">
@@ -2257,6 +2275,11 @@
   const midiLearnBtn = _el('midiLearnBtn');
   const midiNoteBeatToggleBtn = _el('midiNoteBeatToggle');
   const midiBindingsEl = _el('midiBindings');
+  // Bloom
+  const bloomToggleBtn = _el('bloomToggle');
+  const bloomStrengthEl = _el('bloomStrength');
+  const bloomStrengthNumEl = _el('bloomStrengthNum');
+  const bloomThresholdEl = _el('bloomThreshold');
   // Recording
   const recResEl = _el('recRes');
   const recToggleBtn = _el('recToggle');
@@ -2307,6 +2330,12 @@
       length: 20,      // controls fade rate (1=fast, 180=slow)
       opacity: 1,      // intensity/brightness of trails (0.1-1)
       hueShift: 0      // degrees of hue shift (0=none, 180=complement)
+    },
+    // Bloom post-process (real laser glow)
+    bloom: {
+      enabled: true,
+      strength: 0.85,
+      threshold: 0.3
     },
     // Width wave effect (sine wave along beam width)
     widthWave: {
@@ -2830,6 +2859,11 @@
         opacity: S.trails.opacity,
         hueShift: S.trails.hueShift
       },
+      bloom: {
+        enabled: S.bloom.enabled,
+        strength: S.bloom.strength,
+        threshold: S.bloom.threshold
+      },
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -2894,6 +2928,11 @@
       S.trails.opacity = scene.trails.opacity ?? 1;
       S.trails.hueShift = scene.trails.hueShift ?? 0;
     }
+    if (scene.bloom) {
+      S.bloom.enabled = scene.bloom.enabled ?? true;
+      S.bloom.strength = scene.bloom.strength ?? 0.85;
+      S.bloom.threshold = scene.bloom.threshold ?? 0.3;
+    }
     
     // Shape (widthWave)
     if (scene.widthWave) {
@@ -2951,6 +2990,8 @@
     pulseSpeedEl.value = S.pulseSpeed;
     pulseQualityEl.value = S.pulseSoft;
     if (pulseDutyEl) pulseDutyEl.value = S.pulseDuty;
+    // Bloom
+    syncBloomUI();
     // Trails
     if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
     if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
@@ -3088,6 +3129,14 @@
     S.widthWave.duty = lerp(fromWave.duty, toWave.duty, t);
     S.widthWave.rotation = lerp(fromWave.rotation, toWave.rotation, t);
     
+    // Lerp bloom (older scenes without bloom keep the current settings)
+    const bloomNow = { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold };
+    const fromBloom = from.bloom || bloomNow;
+    const toBloom = to.bloom || bloomNow;
+    S.bloom.enabled = t > 0.5 ? (toBloom.enabled ?? true) : (fromBloom.enabled ?? true);
+    S.bloom.strength = lerp(fromBloom.strength ?? 0.85, toBloom.strength ?? 0.85, t);
+    S.bloom.threshold = lerp(fromBloom.threshold ?? 0.3, toBloom.threshold ?? 0.3, t);
+
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
     
@@ -3787,6 +3836,11 @@
   let trailFBO, trailTex, trailProg, trailBuf;
   let trailFBO2, trailTex2, trailPingPong = 0;
   let copyProg, copyBuf;
+
+  // Bloom post-process (quarter-res bright-pass + separable gaussian)
+  let sceneFBO, sceneTex;
+  let bloomFBOA, bloomTexA, bloomFBOB, bloomTexB;
+  let brightProg, blurProg, blitProg;
   
   // Reusable vertex buffer — grows as needed, never re-allocated per frame
   let vertBuf = new Float32Array(65536);
@@ -3963,9 +4017,64 @@ void main() {
     copyBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, copyBuf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-    
+
+    // === Bloom shaders ===
+    // Bright-pass: keep only pixels above threshold (smooth knee)
+    const brightFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_tex;
+uniform float u_threshold;
+out vec4 outColor;
+void main() {
+  vec3 c = texture(u_tex, v_uv).rgb;
+  float lum = max(max(c.r, c.g), c.b);
+  float k = smoothstep(u_threshold, u_threshold + 0.4, lum);
+  outColor = vec4(c * k, 1.0);
+}`;
+    // Separable 9-tap gaussian; u_dir selects horizontal/vertical pass.
+    // Taps spaced 1.5 texels apart for a wider glow at the same cost.
+    const blurFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_tex;
+uniform vec2 u_dir;
+out vec4 outColor;
+void main() {
+  vec3 sum = texture(u_tex, v_uv).rgb * 0.227027;
+  vec2 d1 = u_dir * 1.5, d2 = u_dir * 3.0, d3 = u_dir * 4.5, d4 = u_dir * 6.0;
+  sum += (texture(u_tex, v_uv + d1).rgb + texture(u_tex, v_uv - d1).rgb) * 0.1945946;
+  sum += (texture(u_tex, v_uv + d2).rgb + texture(u_tex, v_uv - d2).rgb) * 0.1216216;
+  sum += (texture(u_tex, v_uv + d3).rgb + texture(u_tex, v_uv - d3).rgb) * 0.054054;
+  sum += (texture(u_tex, v_uv + d4).rgb + texture(u_tex, v_uv - d4).rgb) * 0.016216;
+  outColor = vec4(sum, 1.0);
+}`;
+    // Blit with multiplier (used for scene copy at 1.0 and additive bloom at strength)
+    const blitFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_tex;
+uniform float u_mult;
+out vec4 outColor;
+void main() {
+  outColor = vec4(texture(u_tex, v_uv).rgb * u_mult, 1.0);
+}`;
+    brightProg = makeProgram(copyVs, brightFs);
+    blurProg = makeProgram(copyVs, blurFs);
+    blitProg = makeProgram(copyVs, blitFs);
+
     gl.enable(gl.BLEND);
     setBlendMode('normal');
+  }
+
+  function makeProgram(vsSrc, fsSrc) {
+    const v = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(v, vsSrc); gl.compileShader(v);
+    const f = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(f, fsSrc); gl.compileShader(f);
+    const p = gl.createProgram(); gl.attachShader(p, v); gl.attachShader(p, f); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      console.error('Shader link failed:', gl.getProgramInfoLog(p), gl.getShaderInfoLog(v), gl.getShaderInfoLog(f));
+    }
+    return p;
   }
   
   function setBlendMode(mode) {
@@ -4018,8 +4127,116 @@ void main() {
     
     // Track which is the "read" texture (starts with first)
     trailPingPong = 0;
-    
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  // ---- Bloom pipeline ----
+  function makeRenderTarget(w, h) {
+    const tex = gl.createTexture();
+    tex._w = w; tex._h = h;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    return { tex, fbo };
+  }
+
+  function ensureBloomTargets() {
+    const w = glCanvas.width, h = glCanvas.height;
+    if (sceneTex && sceneTex._w === w && sceneTex._h === h) return;
+    if (sceneFBO) gl.deleteFramebuffer(sceneFBO);
+    if (sceneTex) gl.deleteTexture(sceneTex);
+    if (bloomFBOA) gl.deleteFramebuffer(bloomFBOA);
+    if (bloomTexA) gl.deleteTexture(bloomTexA);
+    if (bloomFBOB) gl.deleteFramebuffer(bloomFBOB);
+    if (bloomTexB) gl.deleteTexture(bloomTexB);
+    const scene = makeRenderTarget(w, h);
+    sceneFBO = scene.fbo; sceneTex = scene.tex;
+    // Quarter resolution: blur cost stays trivial even at 4K, and the
+    // upscale itself widens the glow
+    const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2);
+    const a = makeRenderTarget(bw, bh);
+    bloomFBOA = a.fbo; bloomTexA = a.tex;
+    const b = makeRenderTarget(bw, bh);
+    bloomFBOB = b.fbo; bloomTexB = b.tex;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  // Draws a fullscreen quad with the given post program (a_pos from copyBuf).
+  // Beam attribs are disabled first: leaving them enabled while pointing into
+  // a smaller (or empty) vertex buffer makes the draw INVALID_OPERATION.
+  function drawPostQuad(p) {
+    gl.disableVertexAttribArray(a_pos);
+    gl.disableVertexAttribArray(a_t);
+    gl.disableVertexAttribArray(a_col);
+    gl.disableVertexAttribArray(a_alpha);
+    gl.bindBuffer(gl.ARRAY_BUFFER, copyBuf);
+    const loc = gl.getAttribLocation(p, 'a_pos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  // Bright-pass srcTex into bloomA, then blur A→B→A. Leaves result in bloomTexA.
+  function runBloom(srcTex) {
+    const bw = bloomTexA._w, bh = bloomTexA._h;
+    gl.disable(gl.BLEND);
+    gl.activeTexture(gl.TEXTURE0);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, bloomFBOA);
+    gl.viewport(0, 0, bw, bh);
+    gl.useProgram(brightProg);
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.uniform1i(gl.getUniformLocation(brightProg, 'u_tex'), 0);
+    gl.uniform1f(gl.getUniformLocation(brightProg, 'u_threshold'), S.bloom.threshold);
+    drawPostQuad(brightProg);
+
+    gl.useProgram(blurProg);
+    gl.uniform1i(gl.getUniformLocation(blurProg, 'u_tex'), 0);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, bloomFBOB);
+    gl.bindTexture(gl.TEXTURE_2D, bloomTexA);
+    gl.uniform2f(gl.getUniformLocation(blurProg, 'u_dir'), 1 / bw, 0);
+    drawPostQuad(blurProg);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, bloomFBOA);
+    gl.bindTexture(gl.TEXTURE_2D, bloomTexB);
+    gl.uniform2f(gl.getUniformLocation(blurProg, 'u_dir'), 0, 1 / bh);
+    drawPostQuad(blurProg);
+
+    gl.enable(gl.BLEND);
+  }
+
+  // Final composite to screen: scene blit + additive bloom
+  function compositeWithBloom(srcTex) {
+    const w = glCanvas.width, h = glCanvas.height;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, w, h);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(blitProg);
+    gl.uniform1i(gl.getUniformLocation(blitProg, 'u_tex'), 0);
+    gl.activeTexture(gl.TEXTURE0);
+
+    gl.disable(gl.BLEND);
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.uniform1f(gl.getUniformLocation(blitProg, 'u_mult'), 1);
+    drawPostQuad(blitProg);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE); // pure additive for the glow layer
+    gl.bindTexture(gl.TEXTURE_2D, bloomTexA);
+    gl.uniform1f(gl.getUniformLocation(blitProg, 'u_mult'), S.bloom.strength);
+    drawPostQuad(blitProg);
+
+    setBlendMode(S.blendMode); // restore the blend state beams expect
   }
 
   // Helper: draw a polygon (circle or n-gon) at a point
@@ -4404,30 +4621,32 @@ void main() {
         gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
       }
       
-      // Step 2: Copy write FBO to screen
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, w, h);
-      gl.clearColor(0, 0, 0, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      
-      gl.useProgram(copyProg);
-      gl.bindBuffer(gl.ARRAY_BUFFER, copyBuf);
-      const caPosLoc = gl.getAttribLocation(copyProg, 'a_pos');
-      gl.enableVertexAttribArray(caPosLoc);
-      gl.vertexAttribPointer(caPosLoc, 2, gl.FLOAT, false, 0, 0);
-      
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, writeTex);
-      gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
-      
-      gl.disable(gl.BLEND);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.enable(gl.BLEND);
-      
+      // Step 2: composite to screen — with glow when bloom is on
+      if (S.bloom.enabled && S.bloom.strength > 0.001) {
+        ensureBloomTargets();
+        runBloom(writeTex);
+        compositeWithBloom(writeTex);
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(copyProg);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, writeTex);
+        gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+
+        gl.disable(gl.BLEND);
+        drawPostQuad(copyProg);
+        gl.enable(gl.BLEND);
+      }
+
       // Swap ping-pong for next frame
       trailPingPong = 1 - pp;
     } else {
-      // No trails - simple render
+      // No trails - simple render (into the scene FBO when bloom is on)
+      const useBloom = S.bloom.enabled && S.bloom.strength > 0.001;
       uploadBeamUniforms();
 
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -4435,11 +4654,23 @@ void main() {
       gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
       gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
       gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
-      
+
+      if (useBloom) {
+        ensureBloomTargets();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       if (vertexCount > 0) {
         gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
+      }
+
+      if (useBloom) {
+        runBloom(sceneTex);
+        compositeWithBloom(sceneTex);
       }
     }
   }
@@ -4717,6 +4948,7 @@ void main() {
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
       pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft, duty: S.pulseDuty },
+      bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -4769,6 +5001,11 @@ void main() {
       S.motion.range = P.motion.range ?? 0.2;
       S.motion.ratio = P.motion.ratio ?? 1.5;
       S.motion.phaseOffset = P.motion.phaseOffset ?? 90;
+    }
+    if (P.bloom) {
+      S.bloom.enabled = P.bloom.enabled ?? true;
+      S.bloom.strength = P.bloom.strength ?? 0.85;
+      S.bloom.threshold = P.bloom.threshold ?? 0.3;
     }
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
@@ -4880,6 +5117,18 @@ void main() {
     saveModConfig();
     renderModRoutes();
   });
+  // Bloom UI bindings
+  function syncBloomUI() {
+    if (!bloomToggleBtn) return;
+    bloomToggleBtn.textContent = S.bloom.enabled ? 'On' : 'Off';
+    bloomStrengthEl.value = bloomStrengthNumEl.value = S.bloom.strength;
+    bloomThresholdEl.value = S.bloom.threshold;
+  }
+  _on(bloomToggleBtn, 'click', () => { S.bloom.enabled = !S.bloom.enabled; syncBloomUI(); });
+  _on(bloomStrengthEl, 'input', () => { S.bloom.strength = parseFloat(bloomStrengthEl.value) || 0; bloomStrengthNumEl.value = S.bloom.strength.toFixed(2); });
+  _on(bloomStrengthNumEl, 'input', () => { S.bloom.strength = clamp(parseFloat(bloomStrengthNumEl.value) || 0, 0, 3); bloomStrengthEl.value = S.bloom.strength; });
+  _on(bloomThresholdEl, 'input', () => { S.bloom.threshold = parseFloat(bloomThresholdEl.value) || 0; });
+
   const lfoRate1El = _el('lfoRate1'), lfoRate1NumEl = _el('lfoRate1Num');
   const lfoRate2El = _el('lfoRate2'), lfoRate2NumEl = _el('lfoRate2Num');
   _on(lfoRate1El, 'input', () => { S.lfo.rate1 = parseFloat(lfoRate1El.value) || 0.25; lfoRate1NumEl.value = S.lfo.rate1.toFixed(2); saveModConfig(); });
@@ -5172,7 +5421,8 @@ void main() {
     wwDuty:        { label: 'Shape wave size', get: () => S.widthWave.duty, set: v => S.widthWave.duty = v,  min: 0,    max: () => 1,          range: () => 1 },
     wwFreq:        { label: 'Shape wave density', get: () => S.widthWave.freq, set: v => S.widthWave.freq = v, min: 0.02, max: () => 8,        range: () => 4 },
     wwSpeed:       { label: 'Shape wave flow', get: () => S.widthWave.speed, set: v => S.widthWave.speed = v, min: -200, max: () => 200,       range: () => 100 },
-    wwRotation:    { label: 'Shape wave spin', get: () => S.widthWave.rotation, set: v => S.widthWave.rotation = v, min: -2, max: () => 2,     range: () => 1 }
+    wwRotation:    { label: 'Shape wave spin', get: () => S.widthWave.rotation, set: v => S.widthWave.rotation = v, min: -2, max: () => 2,     range: () => 1 },
+    bloom:         { label: 'Glow strength',   get: () => S.bloom.strength,  set: v => S.bloom.strength = v,  min: 0,    max: () => 3,          range: () => 1.5 }
   };
 
   const MOD_SOURCES = {
