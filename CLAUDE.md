@@ -39,6 +39,17 @@ The entire application state is a single plain object `S`. Sliders, dropdowns, t
 
 Matrix routes + beat settings persist in `localStorage['voidulator-mod']` (global rig config, deliberately **not** per-scene — scenes are visual compositions, the matrix is the performance rig). They are also included in JSON preset export/import. MIDI bindings persist separately in `localStorage['voidulator-midi']`.
 
+## Bloom (Glow) pipeline
+
+`S.bloom = {enabled, strength, threshold}`, persisted per-scene (lerped in transitions) and in presets. GL flow in `renderBeamsGL`:
+
+- **No-trails path**: beams render into `sceneFBO` (full res) instead of the screen, then `runBloom(sceneTex)` → `compositeWithBloom(sceneTex)`.
+- **Trails path**: the existing trail composite texture (`writeTex`) is the bloom source; the final screen copy is replaced by `compositeWithBloom(writeTex)`.
+- `runBloom`: bright-pass (smooth knee above `threshold`) into a **quarter-res** target, then separable 9-tap gaussian (H then V, taps 1.5 texels apart). Result lands in `bloomTexA`.
+- `compositeWithBloom`: blit scene (blend off), then additive blit (`gl.ONE, gl.ONE`) of `bloomTexA × strength`, then `setBlendMode(S.blendMode)` to restore the state beams expect.
+- `drawPostQuad` **disables the beam vertex attribs first** — leaving them enabled while pointing into a smaller/empty vertex buffer makes the fullscreen draw `INVALID_OPERATION`.
+- All render targets resize lazily by checking `tex._w/_h` against the canvas (same pattern as trails), so recording's resolution switch just works.
+
 ## Beat detection
 
 `updateBeat(dtSec)` in the render loop. Adaptive threshold: a beat fires when raw (unsmoothed) bass energy exceeds its ~0.7 s rolling mean × sensitivity, gated by a 0.18 s re-trigger interval and a 0.08 absolute floor. On detect: `S.beat.env = 1` (decays as `exp(-decay·dt)`, usable as a matrix source) and `triggerBeatActions()` fires the enabled one-shots. MIDI note-on can fire the same path when `S.midi.noteBeat` is on.
@@ -102,6 +113,9 @@ Hosted at [voidulator.ollebjerkas.se](https://voidulator.ollebjerkas.se) via Git
 - `requestAnimationFrame` IDs are tracked in `rafId`; always cancel before re-requesting to avoid duplicate loops.
 - Audio context must be created on a user gesture; `audioToggle` handles this gate. Same for `requestMIDIAccess` (the Enable MIDI button).
 - The `spread` value (beam fan angle) is in degrees in `S` but converted to radians before the ray-trace loop.
-- The shader uniform upload block in `renderBeamsGL()` exists in **three** copies (initial, trails-on, no-trails paths). A refactor that updates only one copy compiles fine but throws `ReferenceError` at render time in the others — this killed the live site once. Update all three, or better, extract them into one function.
-- `applyModulation()` must run **before** the rotation/phase integration in `loop()` (so a modulated `rotationSpeed` actually spins faster) and `restoreModulation()` **after** `drawOverlay()`/`captureRecFrame()`. Don't reorder.
-- New UI labels in the modulation/beat/MIDI/record panels are English-only (no `data-i18n` keys yet); add keys to all four language tables if you internationalize them.
+- Beam shader uniforms are uploaded in exactly ONE place: `uploadBeamUniforms()`. It used to be three copy-pasted blocks, and a partial refactor of one copy black-screened the live site. Never duplicate it again.
+- The render loop is `loop()` (try/catch + rAF rescheduling + error badge) wrapping `loopBody()` (the actual frame). A throwing frame must never stop the loop — keep that structure. `Voidulator.step(t)` drives `loopBody` directly for tests (rAF doesn't fire in hidden tabs).
+- `applyModulation()` must run **before** the rotation/phase integration in `loopBody()` (so a modulated `rotationSpeed` actually spins faster) and `restoreModulation()` **after** `drawOverlay()`/`captureRecFrame()`. Don't reorder.
+- `S.pulsePhase` (radians, runtime-only) is the pulse clock: integrated in `loopBody` from `pulseFreqCP100 × pulseSpeed`, uploaded as `u_phaseTime`. Don't reintroduce a raw `time × speed` term in the shader — it drifts in long sessions and jumps when speed is modulated.
+- `buildShape()` floors the room radius at 10px (`safeR`) — a hidden/collapsed stage reports near-zero size and a negative radius makes canvas `arc()` throw.
+- New UI labels in the modulation/beat/MIDI/record/glow panels are English-only (no `data-i18n` keys yet); add keys to all four language tables if you internationalize them.

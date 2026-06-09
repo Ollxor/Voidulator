@@ -18,6 +18,7 @@
 - **Pulse animation** — Sine/square wave patterns traveling along beams with adjustable frequency, speed, amplitude, softness, and duty cycle
 - **Shape effects** — Animated circles/ellipses flowing along beams
 - **Trails** — Persistent afterglow with hue shifting
+- **Glow (bloom)** — Bright beams bleed light like real lasers in haze, with strength and threshold controls
 - **Blend modes** — Normal or additive blending
 
 ### Color & Style
@@ -33,7 +34,7 @@
 
 ### Audio Reactive & Performance
 - **Microphone input** — Beams react to sound, with live level meter
-- **Modulation matrix** — Route any audio band (bass/mids/highs/full) or the beat envelope to any parameter (beam width, pulse, spread, speed, hue…) with bipolar amounts; stack as many routes as you like
+- **Modulation matrix** — Route any audio band (bass/mids/highs/full), the beat envelope, or two free-running LFOs to any of 17 parameters (beam width, pulse, spread, speed, hue, brightness, glow…) with bipolar amounts; stack as many routes as you like
 - **Beat detection** — Adaptive onset detector with a decaying beat envelope, plus beat-triggered events: spawn ripples and jump the hue on every kick
 - **MIDI control** — Plug in a controller, click Learn, twist a knob: hardware control of any parameter (Chrome/Edge)
 - **Video recording** — Export WebM at 480p, 720p, 1080p, or true native-rendered 4K

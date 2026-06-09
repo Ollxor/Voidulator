@@ -2,6 +2,27 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.2.0] - 2026-06-10
+
+### ✨ Glow Update
+
+#### Glow (Bloom)
+- New post-process: bright beams bleed light like real lasers in haze
+- Enable / Strength / Threshold controls in the new Glow panel, on by default
+- "Glow strength" is a modulation matrix target — route bass to it and the room breathes with the music
+- Saved per-scene with smooth interpolation during transitions; ~0.1 ms/frame
+
+#### Modulation Matrix expansion
+- 8 new targets (17 total): Saturation, Brightness, Reflectivity, Beam anim speed, Trail length, Shape wave density/flow/spin, Glow strength
+- 2 new sources: free-running LFOs with rate controls (0.01–4 Hz) — the matrix now works without a microphone
+
+#### Stability & fixes
+- A crashing frame now shows a dismissible on-screen error badge and the animation keeps running — no more silent black canvas
+- Fixed pulse stutter when pulse speed/frequency changed mid-flight (e.g. driven by audio): the shader now gets a continuous bounded phase
+- Fixed crash when the window/stage became extremely small (negative room radius)
+- The beam shader uniform upload now lives in exactly one function (a stale triple-copy of it caused the March black-screen bug)
+- `Voidulator.step()` debug API: drive frames manually in hidden tabs
+
 ## [1.1.0] - 2026-06-09
 
 ### 🎛️ Performance Update
