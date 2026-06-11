@@ -1747,6 +1747,14 @@
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
+      <div class="row advanced-only"><label>Edge softness</label>
+        <input id="edgeWidth" type="range" min="0" max="1" step="0.01" value="0.6">
+      </div>
+
+      <div class="row advanced-only"><label>Edge intensity</label>
+        <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
+      </div>
+
       <div class="row advanced-only"><label>Layer mode</label>
         <button class="btn" id="layerModeToggle">Depth</button>
       </div>
@@ -2275,6 +2283,9 @@
   const midiLearnBtn = _el('midiLearnBtn');
   const midiNoteBeatToggleBtn = _el('midiNoteBeatToggle');
   const midiBindingsEl = _el('midiBindings');
+  // Beam edge gradient
+  const edgeWidthEl = _el('edgeWidth');
+  const edgeIntensityEl = _el('edgeIntensity');
   // Bloom
   const bloomToggleBtn = _el('bloomToggle');
   const bloomStrengthEl = _el('bloomStrength');
@@ -2297,6 +2308,8 @@
     reflectivity: 0.8,
     maxBounces: 234,
     beamWidth: 2,
+    // Edge gradient: soft alpha falloff across the beam width
+    beamEdge: { width: 0.6, intensity: 0 },
     beamCount: 1,
     spreadDeg: 0,
     angleDeg: 0,
@@ -2864,6 +2877,7 @@
         strength: S.bloom.strength,
         threshold: S.bloom.threshold
       },
+      beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -2933,6 +2947,10 @@
       S.bloom.strength = scene.bloom.strength ?? 0.85;
       S.bloom.threshold = scene.bloom.threshold ?? 0.3;
     }
+    if (scene.beamEdge) {
+      S.beamEdge.width = scene.beamEdge.width ?? 0.6;
+      S.beamEdge.intensity = scene.beamEdge.intensity ?? 0;
+    }
     
     // Shape (widthWave)
     if (scene.widthWave) {
@@ -2990,6 +3008,9 @@
     pulseSpeedEl.value = S.pulseSpeed;
     pulseQualityEl.value = S.pulseSoft;
     if (pulseDutyEl) pulseDutyEl.value = S.pulseDuty;
+    // Beam edge gradient
+    if (edgeWidthEl) edgeWidthEl.value = S.beamEdge.width;
+    if (edgeIntensityEl) edgeIntensityEl.value = S.beamEdge.intensity;
     // Bloom
     syncBloomUI();
     // Trails
@@ -3129,6 +3150,13 @@
     S.widthWave.duty = lerp(fromWave.duty, toWave.duty, t);
     S.widthWave.rotation = lerp(fromWave.rotation, toWave.rotation, t);
     
+    // Lerp beam edge gradient (older scenes keep current settings)
+    const edgeNow = { width: S.beamEdge.width, intensity: S.beamEdge.intensity };
+    const fromEdge = from.beamEdge || edgeNow;
+    const toEdge = to.beamEdge || edgeNow;
+    S.beamEdge.width = lerp(fromEdge.width ?? 0.6, toEdge.width ?? 0.6, t);
+    S.beamEdge.intensity = lerp(fromEdge.intensity ?? 0, toEdge.intensity ?? 0, t);
+
     // Lerp bloom (older scenes without bloom keep the current settings)
     const bloomNow = { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold };
     const fromBloom = from.bloom || bloomNow;
@@ -3829,8 +3857,9 @@
   }
 
   // WebGL
-  let gl, prog, buf, a_pos, a_t, a_col, a_alpha;
+  let gl, prog, buf, a_pos, a_t, a_col, a_alpha, a_edge;
   let u_res, u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+  let u_edgeWidth, u_edgeIntensity;
   
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
@@ -3862,23 +3891,32 @@
     // === Main beam shader ===
     const vs = `#version 300 es
 precision highp float;
-in vec2 a_pos; in float a_t; in vec3 a_col; in float a_alpha;
+in vec2 a_pos; in float a_t; in vec3 a_col; in float a_alpha; in float a_edge;
 uniform vec2 u_res;
-out float v_t; out vec3 v_col; out float v_alpha;
+out float v_t; out vec3 v_col; out float v_alpha; out float v_edge;
 void main() {
   vec2 clip = (a_pos / u_res) * 2.0 - 1.0;
   clip.y = -clip.y;
   gl_Position = vec4(clip, 0.0, 1.0);
-  v_t = a_t; v_col = a_col; v_alpha = a_alpha;
+  v_t = a_t; v_col = a_col; v_alpha = a_alpha; v_edge = a_edge;
 }`;
 
     const fs = `#version 300 es
 precision highp float;
-in float v_t; in vec3 v_col; in float v_alpha;
+in float v_t; in vec3 v_col; in float v_alpha; in float v_edge;
 uniform float u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+uniform float u_edgeWidth, u_edgeIntensity;
 out vec4 outColor;
 void main() {
   float a = v_alpha;
+  // Edge gradient: soft falloff across the beam width.
+  // |v_edge| runs 0 (core) → 1 (side); u_edgeWidth sets how far the gradient
+  // reaches inward, u_edgeIntensity how strongly the sides fade out.
+  if (u_edgeIntensity > 0.001 && u_edgeWidth > 0.001) {
+    float d = abs(v_edge);
+    float falloff = smoothstep(1.0, 1.0 - u_edgeWidth, d);
+    a *= mix(1.0, falloff, u_edgeIntensity);
+  }
   if (u_pulseOn > 0.5) {
     // Explicit check: duty=0 means completely black
     if (u_duty < 0.01) {
@@ -3928,6 +3966,7 @@ void main() {
     a_t = gl.getAttribLocation(prog, 'a_t');
     a_col = gl.getAttribLocation(prog, 'a_col');
     a_alpha = gl.getAttribLocation(prog, 'a_alpha');
+    a_edge = gl.getAttribLocation(prog, 'a_edge');
     u_res = gl.getUniformLocation(prog, 'u_res');
     u_phaseTime = gl.getUniformLocation(prog, 'u_phaseTime');
     u_freqPx = gl.getUniformLocation(prog, 'u_freqPx');
@@ -3936,6 +3975,8 @@ void main() {
     u_soft = gl.getUniformLocation(prog, 'u_soft');
     u_pulseOn = gl.getUniformLocation(prog, 'u_pulseOn');
     u_duty = gl.getUniformLocation(prog, 'u_duty');
+    u_edgeWidth = gl.getUniformLocation(prog, 'u_edgeWidth');
+    u_edgeIntensity = gl.getUniformLocation(prog, 'u_edgeIntensity');
 
     buf = gl.createBuffer();
     
@@ -4176,6 +4217,7 @@ void main() {
     gl.disableVertexAttribArray(a_t);
     gl.disableVertexAttribArray(a_col);
     gl.disableVertexAttribArray(a_alpha);
+    gl.disableVertexAttribArray(a_edge);
     gl.bindBuffer(gl.ARRAY_BUFFER, copyBuf);
     const loc = gl.getAttribLocation(p, 'a_pos');
     gl.enableVertexAttribArray(loc);
@@ -4240,29 +4282,32 @@ void main() {
   }
 
   // Helper: draw a polygon (circle or n-gon) at a point
+  // Vertex layout (8 floats): x, y, t, r, g, b, alpha, edge
+  // edge = cross-beam coordinate: 0 at the core, ±1 at the sides (drives the
+  // edge gradient in the fragment shader; shapes use 0 center → 1 rim)
   function pushShape(cx, cy, radius, sides, rotation, t, rgb, alpha) {
     // For circles, use 16 sides (good balance of smoothness vs performance)
     const n = (sides === 0) ? 16 : sides;
-    const floatsNeeded = n * 3 * 7; // n triangles × 3 verts × 7 floats
+    const floatsNeeded = n * 3 * 8; // n triangles × 3 verts × 8 floats
     vertReserve(floatsNeeded);
     const buf = vertBuf;
     let i = vertCount;
     const r0 = rgb[0], r1 = rgb[1], r2 = rgb[2];
-    
+
     // Draw main shape
     for (let k = 0; k < n; k++) {
       const a0 = rotation + (k / n) * Math.PI * 2;
       const a1 = rotation + ((k + 1) / n) * Math.PI * 2;
-      
+
       const x0 = cx + Math.cos(a0) * radius;
       const y0 = cy + Math.sin(a0) * radius;
       const x1 = cx + Math.cos(a1) * radius;
       const y1 = cy + Math.sin(a1) * radius;
-      
+
       // Triangle from center to edge
-      buf[i]=cx;   buf[i+1]=cy;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
-      buf[i]=x0;   buf[i+1]=y0;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
-      buf[i]=x1;   buf[i+1]=y1;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+      buf[i]=cx;   buf[i+1]=cy;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=0; i+=8;
+      buf[i]=x0;   buf[i+1]=y0;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1; i+=8;
+      buf[i]=x1;   buf[i+1]=y1;   buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1; i+=8;
     }
     vertCount = i;
   }
@@ -4349,8 +4394,10 @@ void main() {
       return;
     }
     
-    // No width wave - single quad (normal beam), 2 triangles = 6 verts × 7 floats
-    vertReserve(42);
+    // No width wave - single quad (normal beam), 2 triangles = 6 verts × 8 floats
+    // Left side verts carry edge=+1, right side edge=-1; the GPU interpolates
+    // across the width so the fragment shader knows its distance from the core
+    vertReserve(48);
     const buf = vertBuf;
     let i = vertCount;
     const r0 = rgb[0], r1 = rgb[1], r2 = rgb[2];
@@ -4359,13 +4406,13 @@ void main() {
     const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
     const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
     // Triangle 1
-    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
-    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
-    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
     // Triangle 2
-    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
-    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
-    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; i+=7;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
+    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
     vertCount = i;
   }
 
@@ -4382,6 +4429,8 @@ void main() {
     gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
     gl.uniform1f(u_soft, S.pulseSoft);
     gl.uniform1f(u_duty, S.pulseDuty);
+    gl.uniform1f(u_edgeWidth, S.beamEdge.width);
+    gl.uniform1f(u_edgeIntensity, S.beamEdge.intensity);
   }
 
   function renderBeamsGL(timeSec) {
@@ -4554,8 +4603,8 @@ void main() {
     // Upload only the populated range — no reallocation, no copy
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
     gl.bufferData(gl.ARRAY_BUFFER, vertBuf.subarray(0, vertCount), gl.DYNAMIC_DRAW);
-    const stride = 7 * 4;
-    const vertexCount = vertCount / 7;
+    const stride = 8 * 4;
+    const vertexCount = vertCount / 8;
     
     // Set blend mode
     setBlendMode(S.blendMode);
@@ -4615,7 +4664,8 @@ void main() {
       gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
       gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
       gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
-      
+      gl.enableVertexAttribArray(a_edge); gl.vertexAttribPointer(a_edge, 1, gl.FLOAT, false, stride, 28);
+
       setBlendMode(S.blendMode);
       if (vertexCount > 0) {
         gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
@@ -4654,6 +4704,7 @@ void main() {
       gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
       gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
       gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
+      gl.enableVertexAttribArray(a_edge); gl.vertexAttribPointer(a_edge, 1, gl.FLOAT, false, stride, 28);
 
       if (useBloom) {
         ensureBloomTargets();
@@ -4949,6 +5000,7 @@ void main() {
       blendMode: S.blendMode,
       pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft, duty: S.pulseDuty },
       bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
+      beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -5006,6 +5058,10 @@ void main() {
       S.bloom.enabled = P.bloom.enabled ?? true;
       S.bloom.strength = P.bloom.strength ?? 0.85;
       S.bloom.threshold = P.bloom.threshold ?? 0.3;
+    }
+    if (P.beamEdge) {
+      S.beamEdge.width = P.beamEdge.width ?? 0.6;
+      S.beamEdge.intensity = P.beamEdge.intensity ?? 0;
     }
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
@@ -5117,6 +5173,10 @@ void main() {
     saveModConfig();
     renderModRoutes();
   });
+  // Beam edge gradient UI bindings
+  _on(edgeWidthEl, 'input', () => { S.beamEdge.width = parseFloat(edgeWidthEl.value) || 0; });
+  _on(edgeIntensityEl, 'input', () => { S.beamEdge.intensity = parseFloat(edgeIntensityEl.value) || 0; });
+
   // Bloom UI bindings
   function syncBloomUI() {
     if (!bloomToggleBtn) return;
@@ -5422,7 +5482,9 @@ void main() {
     wwFreq:        { label: 'Shape wave density', get: () => S.widthWave.freq, set: v => S.widthWave.freq = v, min: 0.02, max: () => 8,        range: () => 4 },
     wwSpeed:       { label: 'Shape wave flow', get: () => S.widthWave.speed, set: v => S.widthWave.speed = v, min: -200, max: () => 200,       range: () => 100 },
     wwRotation:    { label: 'Shape wave spin', get: () => S.widthWave.rotation, set: v => S.widthWave.rotation = v, min: -2, max: () => 2,     range: () => 1 },
-    bloom:         { label: 'Glow strength',   get: () => S.bloom.strength,  set: v => S.bloom.strength = v,  min: 0,    max: () => 3,          range: () => 1.5 }
+    bloom:         { label: 'Glow strength',   get: () => S.bloom.strength,  set: v => S.bloom.strength = v,  min: 0,    max: () => 3,          range: () => 1.5 },
+    edgeWidth:     { label: 'Edge softness',   get: () => S.beamEdge.width,  set: v => S.beamEdge.width = v,  min: 0,    max: () => 1,          range: () => 1 },
+    edgeIntensity: { label: 'Edge intensity',  get: () => S.beamEdge.intensity, set: v => S.beamEdge.intensity = v, min: 0, max: () => 1,       range: () => 1 }
   };
 
   const MOD_SOURCES = {
