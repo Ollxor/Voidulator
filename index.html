@@ -2031,11 +2031,36 @@
           <button class="btn" id="modAddRoute">+ Add route</button>
         </div>
         <div class="subgrid">
+          <label>Tempo (BPM)</label>
+          <div class="ctrl-row">
+            <input id="bpmNum" type="number" min="30" max="300" step="0.1" value="120">
+            <button class="btn" id="tapTempo">Tap</button>
+          </div>
+          <label>LFO 1 sync</label>
+          <select id="lfoSync1">
+            <option value="off" selected="">Free (Hz)</option>
+            <option value="16">4 bars</option>
+            <option value="8">2 bars</option>
+            <option value="4">1 bar</option>
+            <option value="2">1/2</option>
+            <option value="1">1/4</option>
+            <option value="0.5">1/8</option>
+          </select>
           <label>LFO 1 (Hz)</label>
           <div class="ctrl-row">
             <input id="lfoRate1" type="range" min="0.01" max="4" step="0.01" value="0.25">
             <input id="lfoRate1Num" type="number" min="0.01" max="4" step="0.01" value="0.25">
           </div>
+          <label>LFO 2 sync</label>
+          <select id="lfoSync2">
+            <option value="off" selected="">Free (Hz)</option>
+            <option value="16">4 bars</option>
+            <option value="8">2 bars</option>
+            <option value="4">1 bar</option>
+            <option value="2">1/2</option>
+            <option value="1">1/4</option>
+            <option value="0.5">1/8</option>
+          </select>
           <label>LFO 2 (Hz)</label>
           <div class="ctrl-row">
             <input id="lfoRate2" type="range" min="0.01" max="4" step="0.01" value="0.05">
@@ -2434,8 +2459,11 @@
     hueOffset: 0,
     satOffset: 0,
     lightOffset: 0,
-    // Free-running LFOs: modulation sources that need no audio input
-    lfo: { rate1: 0.25, rate2: 0.05, p1: 0, p2: 0 },
+    // Free-running LFOs: modulation sources that need no audio input.
+    // sync = 'off' (use rateN in Hz) or beats-per-cycle ('16' = 4 bars … '0.5' = 1/8)
+    lfo: { rate1: 0.25, rate2: 0.05, p1: 0, p2: 0, sync1: 'off', sync2: 'off' },
+    // Global tempo for BPM-synced LFOs (set numerically or by tap)
+    bpm: 120,
     // Pulse phase accumulator (radians) — runtime only, never persisted.
     // Advanced each frame from pulseSpeed/pulseFreq so the shader gets a
     // bounded, continuous phase even when speed changes mid-flight.
@@ -5357,6 +5385,27 @@ void main() {
 
   const lfoRate1El = _el('lfoRate1'), lfoRate1NumEl = _el('lfoRate1Num');
   const lfoRate2El = _el('lfoRate2'), lfoRate2NumEl = _el('lfoRate2Num');
+  const lfoSync1El = _el('lfoSync1'), lfoSync2El = _el('lfoSync2');
+  const bpmNumEl = _el('bpmNum'), tapTempoBtn = _el('tapTempo');
+
+  // Tap tempo: average the intervals of recent taps (resets after a 2s pause)
+  let tapTimes = [];
+  _on(tapTempoBtn, 'click', () => {
+    const now = performance.now();
+    if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2000) tapTimes = [];
+    tapTimes.push(now);
+    if (tapTimes.length > 8) tapTimes.shift();
+    if (tapTimes.length >= 2) {
+      const avg = (tapTimes[tapTimes.length - 1] - tapTimes[0]) / (tapTimes.length - 1);
+      S.bpm = clamp(Math.round(600000 / avg) / 10, 30, 300);
+      bpmNumEl.value = S.bpm;
+      saveModConfig();
+    }
+    tapTempoBtn.textContent = 'Tap ' + S.bpm.toFixed(1);
+  });
+  _on(bpmNumEl, 'input', () => { S.bpm = clamp(parseFloat(bpmNumEl.value) || 120, 30, 300); saveModConfig(); });
+  _on(lfoSync1El, 'change', () => { S.lfo.sync1 = lfoSync1El.value; saveModConfig(); });
+  _on(lfoSync2El, 'change', () => { S.lfo.sync2 = lfoSync2El.value; saveModConfig(); });
   _on(lfoRate1El, 'input', () => { S.lfo.rate1 = parseFloat(lfoRate1El.value) || 0.25; lfoRate1NumEl.value = S.lfo.rate1.toFixed(2); saveModConfig(); });
   _on(lfoRate1NumEl, 'input', () => { S.lfo.rate1 = clamp(parseFloat(lfoRate1NumEl.value) || 0.25, 0.01, 4); lfoRate1El.value = S.lfo.rate1; saveModConfig(); });
   _on(lfoRate2El, 'input', () => { S.lfo.rate2 = parseFloat(lfoRate2El.value) || 0.05; lfoRate2NumEl.value = S.lfo.rate2.toFixed(2); saveModConfig(); });
@@ -5727,7 +5776,8 @@ void main() {
           hueStep: S.beat.hueStep
         },
         midiNoteBeat: S.midi.noteBeat,
-        lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2 }
+        lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2, sync1: S.lfo.sync1, sync2: S.lfo.sync2 },
+        bpm: S.bpm
       }));
     } catch (e) { console.warn('Mod config save failed:', e); }
   }
@@ -5756,7 +5806,10 @@ void main() {
       if (cfg.lfo) {
         S.lfo.rate1 = cfg.lfo.rate1 ?? 0.25;
         S.lfo.rate2 = cfg.lfo.rate2 ?? 0.05;
+        S.lfo.sync1 = cfg.lfo.sync1 ?? 'off';
+        S.lfo.sync2 = cfg.lfo.sync2 ?? 'off';
       }
+      S.bpm = cfg.bpm ?? 120;
     } catch (e) { console.warn('Mod config load failed:', e); }
   }
 
@@ -6246,9 +6299,11 @@ void main() {
     updateAudio(dtSec);
     updateBeat(dtSec);
     // LFO phases advance regardless of audio state — matrix sources that
-    // work without a mic
-    S.lfo.p1 = (S.lfo.p1 + Math.PI * 2 * S.lfo.rate1 * dtSec) % (Math.PI * 2);
-    S.lfo.p2 = (S.lfo.p2 + Math.PI * 2 * S.lfo.rate2 * dtSec) % (Math.PI * 2);
+    // work without a mic. BPM-synced LFOs derive their rate from the tempo.
+    const lfoHz1 = S.lfo.sync1 !== 'off' ? S.bpm / 60 / parseFloat(S.lfo.sync1) : S.lfo.rate1;
+    const lfoHz2 = S.lfo.sync2 !== 'off' ? S.bpm / 60 / parseFloat(S.lfo.sync2) : S.lfo.rate2;
+    S.lfo.p1 = (S.lfo.p1 + Math.PI * 2 * lfoHz1 * dtSec) % (Math.PI * 2);
+    S.lfo.p2 = (S.lfo.p2 + Math.PI * 2 * lfoHz2 * dtSec) % (Math.PI * 2);
     applyModulation();
 
     // Center motion (before WASD so WASD overrides when active)
@@ -7802,6 +7857,9 @@ void main() {
     renderModRoutes();
     lfoRate1El.value = lfoRate1NumEl.value = S.lfo.rate1;
     lfoRate2El.value = lfoRate2NumEl.value = S.lfo.rate2;
+    lfoSync1El.value = S.lfo.sync1;
+    lfoSync2El.value = S.lfo.sync2;
+    bpmNumEl.value = S.bpm;
     loadMidiBindings();
     renderMidiBindings();
     for (const id in MOD_PARAMS) {
