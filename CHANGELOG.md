@@ -2,6 +2,23 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.6.0] - 2026-06-11
+
+### 💥 Burst Update
+
+#### Wave bursts
+- **Wave burst** selector: spawn one-shot expanding rings on the **detected beat** or on **BPM clock divisions** (2 per beat, 1 per beat, 1 per 2/4/8 beats — uses the tap tempo)
+- Bursts work in **both** emission modes: shockwaves ripple over your rotating beams too
+- MIDI note-on (Notes → beat) also fires bursts
+
+#### Wave controls
+- **Wave reach** slider (0.5–6 room diagonals): how far rings travel before recycling/dying — from clean single-bounce rings to long folded chaos
+- **Wave taper** slider (−1…+1): rings thin to nothing (+) or swell (−) as they expand
+- Both are modulation matrix targets and persist in scenes/presets
+
+#### Beam count zero
+- Beam count can now be 0 — no rotating beams / no continuous rings, useful when bursts are the only emission
+
 ## [1.5.0] - 2026-06-11
 
 ### 🌊 Wave Update

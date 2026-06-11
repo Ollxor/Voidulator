@@ -1750,6 +1750,26 @@
         <button class="btn" id="waveRainbowToggle">On</button>
       </div>
 
+      <div class="row advanced-only"><label data-i18n="waveBurst">Wave burst</label>
+        <select id="waveBurstSel">
+          <option value="off" selected="" data-i18n="burstOff">Off</option>
+          <option value="beat" data-i18n="burstBeat">On detected beat</option>
+          <option value="0.5" data-i18n="burst2">2 per beat</option>
+          <option value="1" data-i18n="burst1">1 per beat</option>
+          <option value="2" data-i18n="burstHalf">1 per 2 beats</option>
+          <option value="4" data-i18n="burstQuarter">1 per 4 beats</option>
+          <option value="8" data-i18n="burstEighth">1 per 8 beats</option>
+        </select>
+      </div>
+
+      <div class="row advanced-only"><label data-i18n="waveReach">Wave reach</label>
+        <input id="waveReach" type="range" min="0.5" max="6" step="0.1" value="2.5">
+      </div>
+
+      <div class="row advanced-only"><label data-i18n="waveTaper">Wave taper</label>
+        <input id="waveTaper" type="range" min="-1" max="1" step="0.01" value="0">
+      </div>
+
       <div class="row"><label>Max bounces</label>
         <input id="bounces" type="range" min="1" max="375" step="1" value="234">
       </div>
@@ -2257,7 +2277,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.5.0';
+  const APP_VERSION = 'v1.6.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2403,6 +2423,15 @@
     // wavefronts from the emitter that fold and reflect off the walls)
     emissionMode: 'beams',
     waveRainbow: true,
+    // Wave bursts: one-shot rings spawned on the detected beat ('beat') or on
+    // BPM clock divisions (beats between bursts: '0.5'…'8'). Works in both
+    // emission modes — shockwaves over rotating beams included.
+    waveBurst: 'off',
+    // Ring travel distance before recycling/dying, in room diagonals
+    waveReach: 2.5,
+    // Ring width taper over travel: +1 thins to nothing at full reach,
+    // -1 doubles, 0 constant
+    waveTaper: 0,
     beamCount: 1,
     spreadDeg: 0,
     angleDeg: 0,
@@ -2986,6 +3015,9 @@
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       emissionMode: S.emissionMode,
       waveRainbow: S.waveRainbow,
+      waveBurst: S.waveBurst,
+      waveReach: S.waveReach,
+      waveTaper: S.waveTaper,
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -3069,6 +3101,9 @@
     }
     S.emissionMode = scene.emissionMode === 'waves' ? 'waves' : 'beams';
     S.waveRainbow = scene.waveRainbow ?? true;
+    S.waveBurst = scene.waveBurst ?? 'off';
+    S.waveReach = scene.waveReach ?? 2.5;
+    S.waveTaper = scene.waveTaper ?? 0;
     
     // Shape (widthWave)
     if (scene.widthWave) {
@@ -3301,9 +3336,12 @@
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
 
-    // Emission mode (instant at midpoint)
+    // Emission mode (instant at midpoint), wave reach/taper lerp smoothly
     S.emissionMode = t > 0.5 ? (to.emissionMode ?? 'beams') : (from.emissionMode ?? 'beams');
     S.waveRainbow = t > 0.5 ? (to.waveRainbow ?? true) : (from.waveRainbow ?? true);
+    S.waveBurst = t > 0.5 ? (to.waveBurst ?? 'off') : (from.waveBurst ?? 'off');
+    S.waveReach = lerp(from.waveReach ?? S.waveReach, to.waveReach ?? S.waveReach, t);
+    S.waveTaper = lerp(from.waveTaper ?? S.waveTaper, to.waveTaper ?? S.waveTaper, t);
     
     // Throttle UI sync to ~10Hz during transition — sliders don't need 60fps updates,
     // and writing to dozens of form fields every frame causes measurable layout work
@@ -4554,6 +4592,9 @@ void main() {
   let waveCycleLen = 1;
 
   function ensureWaveRays() {
+    // Reach is live-tunable: cycle length derives from it every call
+    const W = glCanvas.width / S.dpr, H = glCanvas.height / S.dpr;
+    waveCycleLen = Math.max(50, S.waveReach * Math.hypot(W, H));
     const emKey = S.emitters.map(e => ((e.x * 4) | 0) + ',' + ((e.y * 4) | 0)).join(';');
     const geoKey = S.isCircle
       ? 'c' + S.circle.cx.toFixed(0) + ',' + S.circle.cy.toFixed(0) + ',' + S.circle.R.toFixed(0)
@@ -4563,8 +4604,6 @@ void main() {
         waveKey.verts === (S.isCircle ? null : S.vertices) &&
         waveKey.geo === geoKey && waveKey.em === emKey && waveKey.cap === cap) return;
     waveKey = { verts: S.isCircle ? null : S.vertices, geo: geoKey, em: emKey, cap };
-    const W = glCanvas.width / S.dpr, H = glCanvas.height / S.dpr;
-    waveCycleLen = 2.5 * Math.hypot(W, H);
     waveRays = S.emitters.map(E => {
       const rays = [];
       for (let k = 0; k < WAVE_RAYS; k++) {
@@ -4592,11 +4631,37 @@ void main() {
     return (S.perBeamSpeed[i] || 1) * S.speedMultiplier * 1200;
   }
 
+  // One-shot burst rings: spawned on the detected beat or on BPM divisions,
+  // alive in BOTH emission modes (shockwaves over rotating beams included)
+  let waveBursts = [];
+  let burstAccum = 0;
+  let burstColorIdx = 0;
+
+  function spawnWaveBurst() {
+    if (waveBursts.length > 24) waveBursts.shift();
+    waveBursts.push({ d: 0, prev: 0, ci: burstColorIdx++ });
+  }
+
   function advanceWaves(dtSec) {
-    if (S.emissionMode !== 'waves') return;
-    for (let i = 0; i < waveD.length; i++) {
-      wavePrevD[i] = waveD[i];
-      waveD[i] += waveSpeedPx(i) * dtSec;
+    if (S.emissionMode === 'waves') {
+      for (let i = 0; i < waveD.length; i++) {
+        wavePrevD[i] = waveD[i];
+        waveD[i] += waveSpeedPx(i) * dtSec;
+      }
+    }
+    // Bursts expand at the first ring slot's speed and die at full reach
+    if (waveBursts.length) {
+      const sp = waveSpeedPx(0);
+      for (const b of waveBursts) { b.prev = b.d; b.d += sp * dtSec; }
+      waveBursts = waveBursts.filter(b => b.d < waveCycleLen);
+    }
+    // BPM-clock spawning ('beat' mode spawns from triggerBeatActions instead)
+    if (S.waveBurst !== 'off' && S.waveBurst !== 'beat') {
+      burstAccum += (S.bpm / 60 / parseFloat(S.waveBurst)) * dtSec;
+      if (burstAccum >= 1) {
+        burstAccum %= 1;
+        spawnWaveBurst();
+      }
     }
   }
 
@@ -4623,15 +4688,29 @@ void main() {
     vertCount = i;
   }
 
-  function buildWaveGeometry() {
+  function buildWaveGeometry(includeContinuous) {
     ensureWaveRays();
     ensureWaveDistances();
-    const half = (S.beamWidth || 2) / 2;
+    const baseHalf = (S.beamWidth || 2) / 2;
     const phosOn = S.phosphor.enabled && phosPoints;
 
-    for (let w = 0; w < waveD.length; w++) {
-      const d = waveD[w] % waveCycleLen;
-      const prev = wavePrevD[w] % waveCycleLen;
+    // Render list: continuous rings (wave mode) + one-shot bursts (any mode)
+    const rings = [];
+    if (includeContinuous) {
+      for (let w = 0; w < waveD.length; w++) {
+        rings.push({ d: waveD[w] % waveCycleLen, prev: wavePrevD[w] % waveCycleLen, ci: w });
+      }
+    }
+    for (const b of waveBursts) {
+      rings.push({ d: b.d, prev: b.prev, ci: b.ci });
+    }
+
+    for (const ring of rings) {
+      const d = ring.d;
+      const prev = ring.prev;
+      // Taper: ring width shrinks (+) or grows (-) with travelled distance
+      const progress = d / waveCycleLen;
+      const half = baseHalf * clamp(1 - S.waveTaper * progress, 0.05, 3);
       // Folded wavefront points can be far apart where adjacent rays took
       // different bounces — skip those connections instead of drawing
       // segments that cut across the room
@@ -4641,7 +4720,7 @@ void main() {
       for (let em = 0; em < S.emitters.length; em++) {
         const rays = waveRays[em];
         const palette = S.emitterPalettes[em] || S.beamPalette;
-        const col = palette[w % palette.length] || { h: 0, s: 0, l: 80 };
+        const col = palette[ring.ci % Math.max(1, palette.length)] || { h: 0, s: 0, l: 80 };
         const colRGB = hslToRgb(
           (((col.h + S.hueOffset) % 360) + 360) % 360,
           clamp(col.s + S.satOffset, 0, 100),
@@ -4968,7 +5047,8 @@ void main() {
 
     vertCount = 0; // Reuse the persistent vertBuf; pushQuad/pushShape write into it
     const waveMode = S.emissionMode === 'waves';
-    if (waveMode) buildWaveGeometry();
+    if (waveMode) buildWaveGeometry(true);
+    else if (waveBursts.length) buildWaveGeometry(false); // shockwaves over beams
     const base = S.angleDeg * Math.PI / 180;
     const spread = (S.spreadDeg || 0) * Math.PI / 180;
     const n = waveMode ? 0 : S.beamCount | 0; // wave mode skips the beam loop
@@ -5425,7 +5505,9 @@ void main() {
   });
 
   const syncCount = (v) => {
-    v = clamp(v, 1, 24) | 0;
+    // 0 is allowed: no rotating beams / no continuous rings — useful when
+    // wave bursts are the only emission
+    v = clamp(v, 0, 24) | 0;
     const oldCount = S.beamCount;
     S.beamCount = v;
     beamCountValEl.textContent = v;
@@ -5576,6 +5658,9 @@ void main() {
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       emissionMode: S.emissionMode,
       waveRainbow: S.waveRainbow,
+      waveBurst: S.waveBurst,
+      waveReach: S.waveReach,
+      waveTaper: S.waveTaper,
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -5646,6 +5731,9 @@ void main() {
     }
     S.emissionMode = P.emissionMode === 'waves' ? 'waves' : 'beams';
     S.waveRainbow = P.waveRainbow ?? true;
+    S.waveBurst = P.waveBurst ?? 'off';
+    S.waveReach = P.waveReach ?? 2.5;
+    S.waveTaper = P.waveTaper ?? 0;
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
       renderModRoutes();
@@ -5763,10 +5851,16 @@ void main() {
   // Emission mode UI bindings
   const emissionModeEl = _el('emissionMode');
   const waveRainbowToggleBtn = _el('waveRainbowToggle');
+  const waveBurstSelEl = _el('waveBurstSel');
+  const waveReachEl = _el('waveReach');
+  const waveTaperEl = _el('waveTaper');
   function syncEmissionUI() {
     if (!emissionModeEl) return;
     emissionModeEl.value = S.emissionMode;
     waveRainbowToggleBtn.textContent = S.waveRainbow ? 'On' : 'Off';
+    waveBurstSelEl.value = S.waveBurst;
+    waveReachEl.value = S.waveReach;
+    waveTaperEl.value = S.waveTaper;
   }
   _on(emissionModeEl, 'change', () => {
     S.emissionMode = emissionModeEl.value === 'waves' ? 'waves' : 'beams';
@@ -5775,6 +5869,12 @@ void main() {
     S.waveRainbow = !S.waveRainbow;
     syncEmissionUI();
   });
+  _on(waveBurstSelEl, 'change', () => {
+    S.waveBurst = waveBurstSelEl.value;
+    burstAccum = 0;
+  });
+  _on(waveReachEl, 'input', () => { S.waveReach = parseFloat(waveReachEl.value) || 2.5; });
+  _on(waveTaperEl, 'input', () => { S.waveTaper = parseFloat(waveTaperEl.value) || 0; });
 
   // Phosphor walls UI bindings
   const phosToggleBtn = _el('phosToggle');
@@ -6102,6 +6202,7 @@ void main() {
     const B = S.beat;
     if (B.ripple) spawnRippleAtCenter();
     if (B.hueJump) S.hueOffset = (S.hueOffset + B.hueStep) % 360;
+    if (S.waveBurst === 'beat') spawnWaveBurst();
   }
 
   // ---- Parameter Registry ----
@@ -6131,7 +6232,9 @@ void main() {
     edgeIntensity: { label: 'Edge intensity',  get: () => S.beamEdge.intensity, set: v => S.beamEdge.intensity = v, min: 0, max: () => 1,       range: () => 1 },
     wallBend:      { label: 'Wall bend',       get: () => S.wallBend,        set: v => { S.wallBend = v; bendWalls(); }, min: -0.8, max: () => 1, range: () => 0.6 },
     eccentricity:  { label: 'Eccentricity',    get: () => S.eccentricity,    set: v => { S.eccentricity = v; if (S.polygonType === 'ellipse') buildShape(); }, min: 0, max: () => 0.95, range: () => 0.5 },
-    phosphor:      { label: 'Phosphor intensity', get: () => S.phosphor.intensity, set: v => S.phosphor.intensity = v, min: 0, max: () => 2, range: () => 1.5 }
+    phosphor:      { label: 'Phosphor intensity', get: () => S.phosphor.intensity, set: v => S.phosphor.intensity = v, min: 0, max: () => 2, range: () => 1.5 },
+    waveReach:     { label: 'Wave reach',       get: () => S.waveReach,       set: v => S.waveReach = v,       min: 0.5,  max: () => 6,          range: () => 2 },
+    waveTaper:     { label: 'Wave taper',       get: () => S.waveTaper,       set: v => S.waveTaper = v,       min: -1,   max: () => 1,          range: () => 1 }
   };
 
   const MOD_SOURCES = {
@@ -7793,6 +7896,16 @@ void main() {
       optBeams: 'Beams',
       optWaves: 'Waves (circles)',
       waveRainbow: 'Wave rainbow',
+      waveBurst: 'Wave burst',
+      burstOff: 'Off',
+      burstBeat: 'On detected beat',
+      burst2: '2 per beat',
+      burst1: '1 per beat',
+      burstHalf: '1 per 2 beats',
+      burstQuarter: '1 per 4 beats',
+      burstEighth: '1 per 8 beats',
+      waveReach: 'Wave reach',
+      waveTaper: 'Wave taper',
       modMatrix: 'Modulation Matrix',
       beatDetection: 'Beat Detection',
       midiTitle: 'MIDI',
@@ -7929,6 +8042,16 @@ void main() {
       optBeams: 'Haces',
       optWaves: 'Ondas (círculos)',
       waveRainbow: 'Arcoíris de onda',
+      waveBurst: 'Ráfaga de onda',
+      burstOff: 'No',
+      burstBeat: 'Al detectar ritmo',
+      burst2: '2 por pulso',
+      burst1: '1 por pulso',
+      burstHalf: '1 cada 2 pulsos',
+      burstQuarter: '1 cada 4 pulsos',
+      burstEighth: '1 cada 8 pulsos',
+      waveReach: 'Alcance de onda',
+      waveTaper: 'Afinado de onda',
       modMatrix: 'Matriz de modulación',
       beatDetection: 'Detección de ritmo',
       midiTitle: 'MIDI',
@@ -8065,6 +8188,16 @@ void main() {
       optBeams: 'Feixes',
       optWaves: 'Ondas (círculos)',
       waveRainbow: 'Arco-íris da onda',
+      waveBurst: 'Rajada de onda',
+      burstOff: 'Não',
+      burstBeat: 'Na batida detectada',
+      burst2: '2 por batida',
+      burst1: '1 por batida',
+      burstHalf: '1 a cada 2 batidas',
+      burstQuarter: '1 a cada 4 batidas',
+      burstEighth: '1 a cada 8 batidas',
+      waveReach: 'Alcance da onda',
+      waveTaper: 'Afilamento da onda',
       modMatrix: 'Matriz de modulação',
       beatDetection: 'Detecção de batida',
       midiTitle: 'MIDI',
@@ -8201,6 +8334,16 @@ void main() {
       optBeams: 'Faisceaux',
       optWaves: 'Ondes (cercles)',
       waveRainbow: 'Arc-en-ciel d\'onde',
+      waveBurst: 'Salve d\'onde',
+      burstOff: 'Non',
+      burstBeat: 'Sur le temps détecté',
+      burst2: '2 par temps',
+      burst1: '1 par temps',
+      burstHalf: '1 tous les 2 temps',
+      burstQuarter: '1 tous les 4 temps',
+      burstEighth: '1 tous les 8 temps',
+      waveReach: 'Portée de l\'onde',
+      waveTaper: 'Effilage de l\'onde',
       modMatrix: 'Matrice de modulation',
       beatDetection: 'Détection du rythme',
       midiTitle: 'MIDI',
