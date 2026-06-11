@@ -9,6 +9,7 @@
 ## ✨ Features
 
 ### Core Simulation
+- **Two emission modes** — Classic rotating beams, or expanding circular wavefronts that fold and reflect like real waves (with an optional rainbow swept around each ring)
 - **Multiple room shapes** — Circle, ellipse (with eccentricity and marked foci), triangle, square, pentagon, hexagon, randomgon, organic blob, parabolic resonator
 - **Bendable walls** — Curve any polygon's walls from pillow-bulge to pinched focusing mirrors
 - **Phosphor walls** — Beams paint decaying glow onto the walls where they strike

@@ -101,6 +101,10 @@ Two framebuffers (`fbA`, `fbB`) alternate each frame. The previous frame is blen
 - **Collapsible groups:** `.group.collapsible` sections toggle with `.collapsed` class; state is not persisted.
 - **Clickable labels:** `label.clickable` elements reset their paired slider to default on click.
 
+## Wave emission mode
+
+`S.emissionMode === 'waves'` replaces the beam loop (the loop runs with `n = 0`; `buildWaveGeometry()` fills `vertBuf` instead). Each ring is `WAVE_RAYS` (240) rays traced once via `computePath` and cached (`waveRays`, keyed on geometry + emitter positions + bounce cap ≤ 24); the wavefront at expansion distance `d` is the point at distance `d` along each folded ray. Per-ring distances accumulate in `waveD[]` (advanced in `loopBody` from the per-beam speed system ×1200 px/s), wrapping at `waveCycleLen` (2.5 diagonals). Adjacent points whose connection exceeds ~4× the expected arc gap are skipped — that's where the wavefront folded. `pushWaveQuad` writes beam-format vertices with `t = d`, so the pulse shader rings waves radially. Phosphor deposits fire when a segment's wall-hit distance falls between the previous and current frame's `d`.
+
 ## Phosphor walls
 
 512 perimeter energy bins (`phosR/G/B`); beam bounce points deposit color via an angle→bin LUT (`phosLUT`, built in `ensurePhosphorGeometry` whenever the wall geometry changes — keyed on the `S.vertices` array reference). Bins decay exponentially in `updatePhosphor`. `appendPhosphorQuads()` writes inward-fading quads into `vertBuf` **after** the beam geometry; `drawBeamGeometry()` draws beams first, then the phosphor range with `u_pulseOn`/`u_edgeIntensity` zeroed so the wall glow doesn't pulse. Because phosphor lives in the same draw call, it inherits trails, bloom, and blend modes with no pipeline changes.

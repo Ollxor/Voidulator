@@ -1739,6 +1739,17 @@
         <input id="reflect" type="range" min="0" max="1" step="0.001" value="0.80">
       </div>
 
+      <div class="row"><label data-i18n="emission">Emission</label>
+        <select id="emissionMode">
+          <option value="beams" selected="" data-i18n="optBeams">Beams</option>
+          <option value="waves" data-i18n="optWaves">Waves (circles)</option>
+        </select>
+      </div>
+
+      <div class="row advanced-only"><label data-i18n="waveRainbow">Wave rainbow</label>
+        <button class="btn" id="waveRainbowToggle">On</button>
+      </div>
+
       <div class="row"><label>Max bounces</label>
         <input id="bounces" type="range" min="1" max="375" step="1" value="234">
       </div>
@@ -2246,7 +2257,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.4.0';
+  const APP_VERSION = 'v1.5.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2388,6 +2399,10 @@
     beamWidth: 2,
     // Edge gradient: soft alpha falloff across the beam width
     beamEdge: { width: 0.6, intensity: 0 },
+    // Emission mode: 'beams' (rotating lines) or 'waves' (expanding circular
+    // wavefronts from the emitter that fold and reflect off the walls)
+    emissionMode: 'beams',
+    waveRainbow: true,
     beamCount: 1,
     spreadDeg: 0,
     angleDeg: 0,
@@ -2969,6 +2984,8 @@
       },
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
+      emissionMode: S.emissionMode,
+      waveRainbow: S.waveRainbow,
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -3050,6 +3067,8 @@
       S.phosphor.intensity = scene.phosphor.intensity ?? 1;
       S.phosphor.width = scene.phosphor.width ?? 12;
     }
+    S.emissionMode = scene.emissionMode === 'waves' ? 'waves' : 'beams';
+    S.waveRainbow = scene.waveRainbow ?? true;
     
     // Shape (widthWave)
     if (scene.widthWave) {
@@ -3114,6 +3133,8 @@
     // Beam edge gradient
     if (edgeWidthEl) edgeWidthEl.value = S.beamEdge.width;
     if (edgeIntensityEl) edgeIntensityEl.value = S.beamEdge.intensity;
+    // Emission mode
+    syncEmissionUI();
     // Phosphor
     syncPhosphorUI();
     // Bloom
@@ -3279,6 +3300,10 @@
 
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
+
+    // Emission mode (instant at midpoint)
+    S.emissionMode = t > 0.5 ? (to.emissionMode ?? 'beams') : (from.emissionMode ?? 'beams');
+    S.waveRainbow = t > 0.5 ? (to.waveRainbow ?? true) : (from.waveRainbow ?? true);
     
     // Throttle UI sync to ~10Hz during transition — sliders don't need 60fps updates,
     // and writing to dozens of form fields every frame causes measurable layout work
@@ -4514,6 +4539,168 @@ void main() {
     }
   }
 
+  // ---- Wave emission: expanding circular wavefronts ----
+  // Each ring is WAVE_RAYS rays traced once through the existing reflection
+  // engine (computePath). The visible wavefront at expansion distance d is
+  // the set of points at distance d along each folded ray — so rings bend,
+  // fold, and refocus like real wavefronts in any room shape. Ray paths are
+  // cached and rebuilt only when geometry/emitters/bounce cap change.
+  const WAVE_RAYS = 240;
+  const WAVE_BOUNCE_CAP = 24; // folds beyond this are visual mush — cap the trace cost
+  let waveRays = null;        // per emitter: [{segs, total}] per ray
+  let waveKey = null;
+  let waveD = [];             // per-ring expansion distance (runtime accumulator)
+  let wavePrevD = [];         // previous frame's distance (for phosphor strikes)
+  let waveCycleLen = 1;
+
+  function ensureWaveRays() {
+    const emKey = S.emitters.map(e => ((e.x * 4) | 0) + ',' + ((e.y * 4) | 0)).join(';');
+    const geoKey = S.isCircle
+      ? 'c' + S.circle.cx.toFixed(0) + ',' + S.circle.cy.toFixed(0) + ',' + S.circle.R.toFixed(0)
+      : null;
+    const cap = Math.min(S.maxBounces, WAVE_BOUNCE_CAP);
+    if (waveKey &&
+        waveKey.verts === (S.isCircle ? null : S.vertices) &&
+        waveKey.geo === geoKey && waveKey.em === emKey && waveKey.cap === cap) return;
+    waveKey = { verts: S.isCircle ? null : S.vertices, geo: geoKey, em: emKey, cap };
+    const W = glCanvas.width / S.dpr, H = glCanvas.height / S.dpr;
+    waveCycleLen = 2.5 * Math.hypot(W, H);
+    waveRays = S.emitters.map(E => {
+      const rays = [];
+      for (let k = 0; k < WAVE_RAYS; k++) {
+        const a = k * 2 * Math.PI / WAVE_RAYS;
+        const segs = computePath(E, { x: Math.cos(a), y: Math.sin(a) }, cap);
+        const last = segs[segs.length - 1];
+        rays.push({ segs, total: last ? last.cum + last.len : 0 });
+      }
+      return rays;
+    });
+  }
+
+  function ensureWaveDistances() {
+    const n = S.beamCount | 0;
+    if (waveD.length === n) return;
+    waveD = []; wavePrevD = [];
+    for (let i = 0; i < n; i++) {
+      const d0 = ((S.perBeamPhase[i] || 0) / 360) * waveCycleLen;
+      waveD.push(d0); wavePrevD.push(d0);
+    }
+  }
+
+  // Per-ring expansion speed reuses the per-beam speed system (px/s)
+  function waveSpeedPx(i) {
+    return (S.perBeamSpeed[i] || 1) * S.speedMultiplier * 1200;
+  }
+
+  function advanceWaves(dtSec) {
+    if (S.emissionMode !== 'waves') return;
+    for (let i = 0; i < waveD.length; i++) {
+      wavePrevD[i] = waveD[i];
+      waveD[i] += waveSpeedPx(i) * dtSec;
+    }
+  }
+
+  // Plain quad writer for wavefront segments — t is the expansion distance,
+  // so the pulse shader rings the wave radially; edge coords like beams
+  function pushWaveQuad(x0, y0, x1, y1, halfW, t, rgb, alpha) {
+    const dx = x1 - x0, dy = y1 - y0;
+    const segLen = Math.hypot(dx, dy) || 1;
+    const nx = -dy / segLen, ny = dx / segLen;
+    vertReserve(48);
+    const buf = vertBuf;
+    let i = vertCount;
+    const r0 = rgb[0], r1 = rgb[1], r2 = rgb[2];
+    const lx0 = x0 + nx * halfW, ly0 = y0 + ny * halfW;
+    const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
+    const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
+    const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
+    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
+    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
+    vertCount = i;
+  }
+
+  function buildWaveGeometry() {
+    ensureWaveRays();
+    ensureWaveDistances();
+    const half = (S.beamWidth || 2) / 2;
+    const phosOn = S.phosphor.enabled && phosPoints;
+
+    for (let w = 0; w < waveD.length; w++) {
+      const d = waveD[w] % waveCycleLen;
+      const prev = wavePrevD[w] % waveCycleLen;
+      // Folded wavefront points can be far apart where adjacent rays took
+      // different bounces — skip those connections instead of drawing
+      // segments that cut across the room
+      const expectedGap = 2 * Math.PI * Math.max(d, 40) / WAVE_RAYS;
+      const segLimit = expectedGap * 4 + half * 4;
+
+      for (let em = 0; em < S.emitters.length; em++) {
+        const rays = waveRays[em];
+        const palette = S.emitterPalettes[em] || S.beamPalette;
+        const col = palette[w % palette.length] || { h: 0, s: 0, l: 80 };
+        const colRGB = hslToRgb(
+          (((col.h + S.hueOffset) % 360) + 360) % 360,
+          clamp(col.s + S.satOffset, 0, 100),
+          clamp(col.l + S.lightOffset, 0, 100)
+        );
+
+        let px = 0, py = 0, pAlive = false;
+        for (let k = 0; k <= WAVE_RAYS; k++) {
+          const ki = k % WAVE_RAYS;
+          const ray = rays[ki];
+          let x = 0, y = 0, alive = false, inten = 0;
+          if (d <= ray.total) {
+            const segs = ray.segs;
+            for (let j = 0; j < segs.length; j++) {
+              const sg = segs[j];
+              if (d <= sg.cum + sg.len) {
+                const f = (d - sg.cum) / (sg.len || 1);
+                x = sg.from.x + (sg.to.x - sg.from.x) * f;
+                y = sg.from.y + (sg.to.y - sg.from.y) * f;
+                inten = sg.intensity;
+                alive = true;
+                break;
+              }
+            }
+          }
+          if (k > 0 && alive && pAlive) {
+            const ddx = x - px, ddy = y - py;
+            if (ddx * ddx + ddy * ddy < segLimit * segLimit) {
+              const rgb = S.waveRainbow
+                ? hslToRgb(((ki / WAVE_RAYS * 360 + S.hueOffset) % 360 + 360) % 360,
+                           clamp(85 + S.satOffset, 0, 100), clamp(55 + S.lightOffset, 0, 100))
+                : colRGB;
+              pushWaveQuad(px, py, x, y, half, d, rgb, inten);
+            }
+          }
+          px = x; py = y; pAlive = alive;
+        }
+
+        // Phosphor: deposit where the ring crossed a wall this frame
+        if (phosOn && d !== prev) {
+          for (let k = 0; k < WAVE_RAYS; k++) {
+            const segs = rays[k].segs;
+            for (let j = 0; j < segs.length; j++) {
+              const sg = segs[j];
+              const bcum = sg.cum + sg.len; // every segment ends on a wall
+              const crossed = d >= prev ? (bcum > prev && bcum <= d) : (bcum > prev || bcum <= d);
+              if (crossed) {
+                const rgb = S.waveRainbow
+                  ? hslToRgb(((k / WAVE_RAYS * 360 + S.hueOffset) % 360 + 360) % 360, 85, 55)
+                  : colRGB;
+                phosphorDeposit(sg.to.x, sg.to.y, rgb, sg.intensity * 0.6);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   // ---- Bloom pipeline ----
   function makeRenderTarget(w, h) {
     const tex = gl.createTexture();
@@ -4780,9 +4967,11 @@ void main() {
     if (S.phosphor.enabled) ensurePhosphorGeometry();
 
     vertCount = 0; // Reuse the persistent vertBuf; pushQuad/pushShape write into it
+    const waveMode = S.emissionMode === 'waves';
+    if (waveMode) buildWaveGeometry();
     const base = S.angleDeg * Math.PI / 180;
     const spread = (S.spreadDeg || 0) * Math.PI / 180;
-    const n = S.beamCount | 0;
+    const n = waveMode ? 0 : S.beamCount | 0; // wave mode skips the beam loop
     const half = (S.beamWidth || 2) / 2;
     let totalSegs = 0;
     
@@ -5385,6 +5574,8 @@ void main() {
       bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
+      emissionMode: S.emissionMode,
+      waveRainbow: S.waveRainbow,
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -5453,6 +5644,8 @@ void main() {
       S.phosphor.intensity = P.phosphor.intensity ?? 1;
       S.phosphor.width = P.phosphor.width ?? 12;
     }
+    S.emissionMode = P.emissionMode === 'waves' ? 'waves' : 'beams';
+    S.waveRainbow = P.waveRainbow ?? true;
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
       renderModRoutes();
@@ -5566,6 +5759,22 @@ void main() {
   // Beam edge gradient UI bindings
   _on(edgeWidthEl, 'input', () => { S.beamEdge.width = parseFloat(edgeWidthEl.value) || 0; });
   _on(edgeIntensityEl, 'input', () => { S.beamEdge.intensity = parseFloat(edgeIntensityEl.value) || 0; });
+
+  // Emission mode UI bindings
+  const emissionModeEl = _el('emissionMode');
+  const waveRainbowToggleBtn = _el('waveRainbowToggle');
+  function syncEmissionUI() {
+    if (!emissionModeEl) return;
+    emissionModeEl.value = S.emissionMode;
+    waveRainbowToggleBtn.textContent = S.waveRainbow ? 'On' : 'Off';
+  }
+  _on(emissionModeEl, 'change', () => {
+    S.emissionMode = emissionModeEl.value === 'waves' ? 'waves' : 'beams';
+  });
+  _on(waveRainbowToggleBtn, 'click', () => {
+    S.waveRainbow = !S.waveRainbow;
+    syncEmissionUI();
+  });
 
   // Phosphor walls UI bindings
   const phosToggleBtn = _el('phosToggle');
@@ -6580,6 +6789,8 @@ void main() {
     if (S.pulseOn) {
       S.pulsePhase = (S.pulsePhase + Math.PI * 2 * (S.pulseFreqCP100 / 100) * S.pulseSpeed * dtSec) % (Math.PI * 2);
     }
+    // Expanding wavefronts advance with the (possibly modulated) speed system
+    advanceWaves(dtSec);
     renderBeamsGL(t / 1000);
     drawOverlay();
     captureRecFrame(t);
@@ -7578,6 +7789,10 @@ void main() {
       // Alerts
       noSavedScenes: 'No saved scenes! Save some scenes first (Shift+Click on slot numbers)',
       // v1.1+ panels
+      emission: 'Emission',
+      optBeams: 'Beams',
+      optWaves: 'Waves (circles)',
+      waveRainbow: 'Wave rainbow',
       modMatrix: 'Modulation Matrix',
       beatDetection: 'Beat Detection',
       midiTitle: 'MIDI',
@@ -7710,6 +7925,10 @@ void main() {
       micDenied: 'Mic denegado',
       // Alerts
       noSavedScenes: '¡No hay escenas guardadas! Guarda algunas primero (Shift+Clic en los números)',
+      emission: 'Emisión',
+      optBeams: 'Haces',
+      optWaves: 'Ondas (círculos)',
+      waveRainbow: 'Arcoíris de onda',
       modMatrix: 'Matriz de modulación',
       beatDetection: 'Detección de ritmo',
       midiTitle: 'MIDI',
@@ -7842,6 +8061,10 @@ void main() {
       micDenied: 'Mic negado',
       // Alerts
       noSavedScenes: 'Sem cenas salvas! Salve algumas primeiro (Shift+Clique nos números)',
+      emission: 'Emissão',
+      optBeams: 'Feixes',
+      optWaves: 'Ondas (círculos)',
+      waveRainbow: 'Arco-íris da onda',
       modMatrix: 'Matriz de modulação',
       beatDetection: 'Detecção de batida',
       midiTitle: 'MIDI',
@@ -7974,6 +8197,10 @@ void main() {
       micDenied: 'Mic refusé',
       // Alerts
       noSavedScenes: 'Aucune scène sauvegardée! Sauvegardez-en d\'abord (Shift+Clic sur les numéros)',
+      emission: 'Émission',
+      optBeams: 'Faisceaux',
+      optWaves: 'Ondes (cercles)',
+      waveRainbow: 'Arc-en-ciel d\'onde',
       modMatrix: 'Matrice de modulation',
       beatDetection: 'Détection du rythme',
       midiTitle: 'MIDI',

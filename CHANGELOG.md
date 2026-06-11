@@ -2,6 +2,18 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.5.0] - 2026-06-11
+
+### 🌊 Wave Update
+
+#### Wave emission mode
+- New **Emission** selector: "Beams" (the classic rotating lines) or **"Waves (circles)"** — the emitter radiates expanding circular wavefronts that bend, fold, and reflect off the walls like real waves
+- Beam count = number of rings; each ring expands at its own per-beam speed; Beam width = ring thickness
+- **Wave rainbow** toggle: hue sweeps around each ring's circumference (the hue-shift modulation rotates the rainbow); off = rings use your palette colors
+- Wavefronts re-converge on the second focus in an ellipse, collimate in the parabolic resonator, and fold into caustics against bent walls
+- Pulse (radial rings), edge gradient, trails, glow, and phosphor all work on waves — phosphor lights up exactly where a ring strikes the wall
+- Saved in scenes and presets
+
 ## [1.4.0] - 2026-06-11
 
 ### 🌒 Resonance Update
