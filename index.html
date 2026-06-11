@@ -2191,7 +2191,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.3.0';
+  const APP_VERSION = 'v1.3.1';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2318,6 +2318,9 @@
     // baseVertices caches the unbent corners so bending is non-destructive.
     wallBend: 0,
     baseVertices: null,
+    // Cached randomness for resize-stable shapes (cleared when re-picked)
+    randomUnit: null,
+    blobPhases: null,
     reflectSlider: 0.8,
     reflectivity: 0.8,
     maxBounces: 234,
@@ -3585,13 +3588,20 @@
       return;
     }
     if (S.polygonType === 'random') {
-      const n = S.sides || 5; const verts = [];
-      for (let i = 0; i < n; i++) {
-        const base = i * 2 * Math.PI / n;
-        const a = base + (rand() * 2 - 1) * (Math.PI / n * 0.45);
-        const r = 0.9 * (0.8 + 0.3 * rand());
-        verts.push({ x: r * Math.cos(a), y: r * Math.sin(a) });
+      // Unit-space corners are cached: window resizes (and recording's
+      // resolution switch, which calls resize()) must NOT re-roll the shape.
+      // Picking Randomgon in the dropdown clears the cache to re-roll.
+      const n = S.sides || 5;
+      if (!S.randomUnit || S.randomUnit.length !== n) {
+        S.randomUnit = [];
+        for (let i = 0; i < n; i++) {
+          const base = i * 2 * Math.PI / n;
+          const a = base + (rand() * 2 - 1) * (Math.PI / n * 0.45);
+          const r = 0.9 * (0.8 + 0.3 * rand());
+          S.randomUnit.push({ x: r * Math.cos(a), y: r * Math.sin(a) });
+        }
       }
+      const verts = S.randomUnit.map(p => ({ x: p.x, y: p.y }));
       let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
       for (const p of verts) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
       const scale = Math.max(5, 0.98 * Math.min((W - 2 * margin) / (maxX - minX), (H - 2 * margin) / (maxY - minY)));
@@ -3601,8 +3611,12 @@
       return;
     }
     if (S.polygonType === 'blob') {
+      // Blob phases cached for the same reason as randomUnit above
+      if (!S.blobPhases) {
+        S.blobPhases = { ph1: rand() * 6.28, ph2: rand() * 6.28, ph3: rand() * 6.28 };
+      }
       const steps = 720, L = 3, amp = 0.06;
-      const ph1 = rand() * 6.28, ph2 = rand() * 6.28, ph3 = rand() * 6.28;
+      const { ph1, ph2, ph3 } = S.blobPhases;
       const R = safeR; const out = [];
       for (let i = 0; i < steps; i++) {
         const a = -Math.PI / 2 + i * 2 * Math.PI / steps;
@@ -4914,8 +4928,8 @@ void main() {
     if (v === 'circle') S.polygonType = 'circle';
     else if (v === 'parabolic') S.polygonType = 'parabolic';
     else if (v.startsWith('regular-')) { S.polygonType = 'regular'; S.sides = parseInt(v.split('-')[1], 10) || 5; }
-    else if (v.startsWith('random-')) { S.polygonType = 'random'; S.sides = 5 + Math.floor(rand() * 6); }
-    else S.polygonType = 'blob';
+    else if (v.startsWith('random-')) { S.polygonType = 'random'; S.sides = 5 + Math.floor(rand() * 6); S.randomUnit = null; }
+    else { S.polygonType = 'blob'; S.blobPhases = null; }
     buildShape();
     randomizeEmitters();
   }

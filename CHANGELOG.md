@@ -2,6 +2,11 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.3.1] - 2026-06-10
+
+### 🔧 Fix
+- Randomgon and Blob no longer change shape on window resize (or when starting/stopping a recording, which switches resolution internally). Their randomness is cached; re-selecting the shape in the dropdown still rolls a new one.
+
 ## [1.3.0] - 2026-06-10
 
 ### 🔬 Optics Update
