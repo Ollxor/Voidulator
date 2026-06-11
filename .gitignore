@@ -30,3 +30,11 @@ index (*.html
 *.bak
 *.backup
 *~
+
+# Node (local Playwright for tests/smoke.mjs)
+node_modules/
+package.json
+package-lock.json
+
+# Local Claude Code config
+.claude/
