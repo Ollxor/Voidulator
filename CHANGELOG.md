@@ -2,6 +2,28 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.4.0] - 2026-06-11
+
+### 🌒 Resonance Update
+
+#### Ellipse room
+- New room shape with an **Eccentricity** slider (0 = circle … 0.95): beams through one focus reflect through the other forever — emitter on a focus gives resonator orbits, off-focus gives whispering-gallery caustics
+- Both foci are marked with subtle crosses (the parabolic resonator's focus too); eccentricity is a matrix target
+
+#### Phosphor Walls
+- Beams paint glow onto the walls where they strike, fading over a configurable persistence — hot spots reveal the caustics of bent walls
+- Enable / Persistence / Intensity / Width controls; works with trails, bloom, and both blend modes; intensity is a matrix target; saved per-scene
+
+#### Tempo
+- **Tap tempo** + BPM input in the Modulation Matrix panel
+- LFOs can sync to musical divisions (4 bars … 1/8) derived from the tempo instead of free-running Hz
+
+#### Languages
+- The Modulation Matrix, Beat Detection, MIDI, Record, Glow, and Phosphor panels are now translated to Spanish, Portuguese, and French
+
+#### Infrastructure
+- CI smoke test: every push renders the app headlessly (all seven room shapes + trails/bloom/phosphor) and fails on errors or a black canvas
+
 ## [1.3.1] - 2026-06-10
 
 ### 🔧 Fix

@@ -9,8 +9,9 @@
 ## ✨ Features
 
 ### Core Simulation
-- **Multiple room shapes** — Circle, triangle, square, pentagon, hexagon, randomgon, organic blob, parabolic resonator
+- **Multiple room shapes** — Circle, ellipse (with eccentricity and marked foci), triangle, square, pentagon, hexagon, randomgon, organic blob, parabolic resonator
 - **Bendable walls** — Curve any polygon's walls from pillow-bulge to pinched focusing mirrors
+- **Phosphor walls** — Beams paint decaying glow onto the walls where they strike
 - **Realistic reflections** — Adjustable reflectivity with up to 375 bounces
 - **Multiple emitters** — Up to 4 draggable laser emitters with WASD movement
 - **Beam spread** — Fan beams from focused to wide angles

@@ -101,6 +101,14 @@ Two framebuffers (`fbA`, `fbB`) alternate each frame. The previous frame is blen
 - **Collapsible groups:** `.group.collapsible` sections toggle with `.collapsed` class; state is not persisted.
 - **Clickable labels:** `label.clickable` elements reset their paired slider to default on click.
 
+## Phosphor walls
+
+512 perimeter energy bins (`phosR/G/B`); beam bounce points deposit color via an angle→bin LUT (`phosLUT`, built in `ensurePhosphorGeometry` whenever the wall geometry changes — keyed on the `S.vertices` array reference). Bins decay exponentially in `updatePhosphor`. `appendPhosphorQuads()` writes inward-fading quads into `vertBuf` **after** the beam geometry; `drawBeamGeometry()` draws beams first, then the phosphor range with `u_pulseOn`/`u_edgeIntensity` zeroed so the wall glow doesn't pulse. Because phosphor lives in the same draw call, it inherits trails, bloom, and blend modes with no pipeline changes.
+
+## CI
+
+`.github/workflows/smoke.yml` runs `tests/smoke.mjs` on every push: headless Chromium (SwiftShader WebGL2) loads the app, drives frames via `Voidulator.step()`, exercises all seven room shapes plus trails/bloom/phosphor, and fails on console errors, GL errors, or a black canvas. Run locally with `npm install playwright && npx playwright install chromium && node tests/smoke.mjs`.
+
 ## Deployment
 
 Hosted at [voidulator.ollebjerkas.se](https://voidulator.ollebjerkas.se) via GitHub Pages (CNAME in repo). Push to `main` → live in seconds. No CI needed.
