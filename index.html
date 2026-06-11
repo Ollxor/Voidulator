@@ -2128,8 +2128,15 @@
             <option value="regular-6">Hexagon</option>
             <option value="random-5">Randomgon</option>
             <option value="blob">Blob</option>
+            <option value="ellipse">Ellipse</option>
             <option value="parabolic">Parabolic resonator</option>
           </select>
+
+          <label>Eccentricity</label>
+          <div class="ctrl-row">
+            <input id="eccentricity" type="range" min="0" max="0.95" step="0.01" value="0.6">
+            <input id="eccentricityNum" type="number" min="0" max="0.95" step="0.01" value="0.6">
+          </div>
 
           <label>Wall bend</label>
           <div class="ctrl-row">
@@ -2293,6 +2300,9 @@
   // Wall bend
   const wallBendEl = _el('wallBend');
   const wallBendNumEl = _el('wallBendNum');
+  // Ellipse eccentricity
+  const eccentricityEl = _el('eccentricity');
+  const eccentricityNumEl = _el('eccentricityNum');
   // Beam edge gradient
   const edgeWidthEl = _el('edgeWidth');
   const edgeIntensityEl = _el('edgeIntensity');
@@ -2321,6 +2331,9 @@
     // Cached randomness for resize-stable shapes (cleared when re-picked)
     randomUnit: null,
     blobPhases: null,
+    // Ellipse eccentricity (0 = circle … 0.95) and focus markers (ellipse/parabola)
+    eccentricity: 0.6,
+    foci: null,
     reflectSlider: 0.8,
     reflectivity: 0.8,
     maxBounces: 234,
@@ -2855,6 +2868,7 @@
       polygonType: S.polygonType,
       sides: S.sides,
       wallBend: S.wallBend,
+      eccentricity: S.eccentricity,
       // Optics
       reflectSlider: S.reflectSlider,
       maxBounces: S.maxBounces,
@@ -2922,6 +2936,7 @@
     S.polygonType = scene.polygonType;
     S.sides = scene.sides;
     S.wallBend = scene.wallBend ?? 0;
+    S.eccentricity = scene.eccentricity ?? 0.6;
     S.beamCount = scene.beamCount;
     S.beamScheme = scene.beamScheme;
     S.speedPattern = scene.speedPattern;
@@ -3007,8 +3022,10 @@
     shapeSel.value = S.polygonType === 'circle' ? 'circle' :
       (S.polygonType === 'random' ? 'random-5' :
       (S.polygonType === 'blob' ? 'blob' :
-      (S.polygonType === 'parabolic' ? 'parabolic' : 'regular-' + S.sides)));
+      (S.polygonType === 'parabolic' ? 'parabolic' :
+      (S.polygonType === 'ellipse' ? 'ellipse' : 'regular-' + S.sides))));
     if (wallBendEl) wallBendEl.value = wallBendNumEl.value = S.wallBend;
+    if (eccentricityEl) eccentricityEl.value = eccentricityNumEl.value = S.eccentricity;
     reflectEl.value = S.reflectSlider;
     bouncesEl.value = S.maxBounces;
     widthEl.value = S.beamWidth;
@@ -3564,6 +3581,7 @@
     // dimensions, and a negative radius makes canvas arc() throw every frame
     const safeR = Math.max(10, Math.min(W, H) / 2 - margin);
     S.baseVertices = null;
+    S.foci = null;
     if (S.polygonType === 'circle') {
       S.isCircle = true;
       S.circle = { cx, cy, R: safeR };
@@ -3571,6 +3589,25 @@
       return;
     }
     S.isCircle = false;
+    if (S.polygonType === 'ellipse') {
+      // Elliptical room: every beam through one focus reflects through the
+      // other — emitters at a focus give period-2 orbits, off-focus gives
+      // caustic envelopes (whispering gallery). e=0 degenerates to a circle.
+      const e = clamp(S.eccentricity, 0, 0.95);
+      const ratio = Math.sqrt(1 - e * e); // b/a
+      // Fit horizontally-oriented ellipse into the room
+      const a = Math.max(10, Math.min(W / 2 - margin, (H / 2 - margin) / ratio));
+      const b = a * ratio;
+      const steps = 256, out = [];
+      for (let i = 0; i < steps; i++) {
+        const ang = i * 2 * Math.PI / steps;
+        out.push({ x: cx + a * Math.cos(ang), y: cy + b * Math.sin(ang) });
+      }
+      S.vertices = out;
+      // Foci at (±c, 0) — stored for the overlay markers
+      S.foci = [{ x: cx - a * e, y: cy }, { x: cx + a * e, y: cy }];
+      return;
+    }
     if (S.polygonType === 'parabolic') {
       // Parabolic resonator: parabola opening upward, closed by a flat cap
       // across the aperture. Walls reflect specularly (Neumann boundary) like
@@ -3585,6 +3622,8 @@
       }
       // The polygon closes straight from (+a, top) back to (-a, top): the cap
       S.vertices = out;
+      // Focal length f = a²/(4D); marked in the overlay
+      S.foci = [{ x: cx, y: yB - (a * a) / (4 * D) }];
       return;
     }
     if (S.polygonType === 'random') {
@@ -4842,6 +4881,19 @@ void main() {
     }
     octx.stroke();
 
+    // Focus markers (ellipse: two foci, parabola: one) — subtle crosses;
+    // drop an emitter on one to get the resonator orbits
+    if (S.foci && S.showEmitter) {
+      octx.strokeStyle = 'rgba(255, 159, 28, 0.45)';
+      octx.lineWidth = 1;
+      for (const f of S.foci) {
+        octx.beginPath();
+        octx.moveTo(f.x - 5, f.y); octx.lineTo(f.x + 5, f.y);
+        octx.moveTo(f.x, f.y - 5); octx.lineTo(f.x, f.y + 5);
+        octx.stroke();
+      }
+    }
+
     // Emitters (only if visible)
     if (S.showEmitter) {
       for (const e of S.emitters) {
@@ -4926,6 +4978,7 @@ void main() {
   function setShapeFromSelect() {
     const v = shapeSel.value;
     if (v === 'circle') S.polygonType = 'circle';
+    else if (v === 'ellipse') S.polygonType = 'ellipse';
     else if (v === 'parabolic') S.polygonType = 'parabolic';
     else if (v.startsWith('regular-')) { S.polygonType = 'regular'; S.sides = parseInt(v.split('-')[1], 10) || 5; }
     else if (v.startsWith('random-')) { S.polygonType = 'random'; S.sides = 5 + Math.floor(rand() * 6); S.randomUnit = null; }
@@ -4945,6 +4998,16 @@ void main() {
     wallBendEl.value = S.wallBend;
     bendWalls();
   });
+  function setEccentricity(v) {
+    S.eccentricity = clamp(v, 0, 0.95);
+    eccentricityEl.value = eccentricityNumEl.value = S.eccentricity;
+    if (S.polygonType === 'ellipse') {
+      buildShape();
+      updateEmittersFromNorm();
+    }
+  }
+  _on(eccentricityEl, 'input', () => setEccentricity(parseFloat(eccentricityEl.value) || 0));
+  _on(eccentricityNumEl, 'input', () => setEccentricity(parseFloat(eccentricityNumEl.value) || 0));
   _on(reflectEl, 'input', updateReflect);
 
   _on(bouncesEl, 'input', () => { S.maxBounces = parseInt(bouncesEl.value, 10) || 1; });
@@ -5089,7 +5152,7 @@ void main() {
   // Presets
   function currentPreset() {
     return {
-      polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, beamWidth: S.beamWidth,
+      polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, eccentricity: S.eccentricity, beamWidth: S.beamWidth,
       reflectSlider: S.reflectSlider, maxBounces: S.maxBounces, beamCount: S.beamCount,
       spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
       speedMax: S.speedMax, speedMultiplier: S.speedMultiplier,
@@ -5112,7 +5175,7 @@ void main() {
 
   function applyPreset(P) {
     Object.assign(S, {
-      polygonType: P.polygonType || 'circle', sides: P.sides || 5, wallBend: P.wallBend ?? 0, beamWidth: P.beamWidth || 2,
+      polygonType: P.polygonType || 'circle', sides: P.sides || 5, wallBend: P.wallBend ?? 0, eccentricity: P.eccentricity ?? 0.6, beamWidth: P.beamWidth || 2,
       reflectSlider: P.reflectSlider ?? 0.8, maxBounces: P.maxBounces || 8, beamCount: P.beamCount || 1,
       spreadDeg: P.spreadDeg ?? 0, angleDeg: P.angleDeg ?? 0, rotationSpeed: P.rotationSpeed ?? 0,
       speedMax: P.speedMax || 5, speedMultiplier: P.speedMultiplier ?? 0.01,
@@ -5588,7 +5651,8 @@ void main() {
     bloom:         { label: 'Glow strength',   get: () => S.bloom.strength,  set: v => S.bloom.strength = v,  min: 0,    max: () => 3,          range: () => 1.5 },
     edgeWidth:     { label: 'Edge softness',   get: () => S.beamEdge.width,  set: v => S.beamEdge.width = v,  min: 0,    max: () => 1,          range: () => 1 },
     edgeIntensity: { label: 'Edge intensity',  get: () => S.beamEdge.intensity, set: v => S.beamEdge.intensity = v, min: 0, max: () => 1,       range: () => 1 },
-    wallBend:      { label: 'Wall bend',       get: () => S.wallBend,        set: v => { S.wallBend = v; bendWalls(); }, min: -0.8, max: () => 1, range: () => 0.6 }
+    wallBend:      { label: 'Wall bend',       get: () => S.wallBend,        set: v => { S.wallBend = v; bendWalls(); }, min: -0.8, max: () => 1, range: () => 0.6 },
+    eccentricity:  { label: 'Eccentricity',    get: () => S.eccentricity,    set: v => { S.eccentricity = v; if (S.polygonType === 'ellipse') buildShape(); }, min: 0, max: () => 0.95, range: () => 0.5 }
   };
 
   const MOD_SOURCES = {
