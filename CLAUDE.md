@@ -101,13 +101,16 @@ Two framebuffers (`fbA`, `fbB`) alternate each frame. The previous frame is blen
 - **Collapsible groups:** `.group.collapsible` sections toggle with `.collapsed` class; state is not persisted.
 - **Clickable labels:** `label.clickable` elements reset their paired slider to default on click.
 
-## Wave emission mode
+## Rings system
 
-`S.emissionMode === 'waves'` replaces the beam loop (the loop runs with `n = 0`; `buildWaveGeometry()` fills `vertBuf` instead). Each ring is `WAVE_RAYS` (240) rays traced once via `computePath` and cached (`waveRays`, keyed on geometry + emitter positions + bounce cap ≤ 24); the wavefront at expansion distance `d` is the point at distance `d` along each folded ray. Per-ring distances accumulate in `waveD[]` (advanced in `loopBody` from the per-beam speed system ×1200 px/s), wrapping at `waveCycleLen` (2.5 diagonals). Adjacent points whose connection exceeds ~4× the expected arc gap are skipped — that's where the wavefront folded. `pushWaveQuad` writes beam-format vertices with `t = d`, so the pulse shader rings waves radially. Phosphor deposits fire when a segment's wall-hit distance falls between the previous and current frame's `d`.
+`S.rings` (own panel) is an independent emission layer that coexists with beams — `renderBeamsGL` calls `buildRingGeometry()` whenever `rings.enabled`, before/alongside the beam loop (`S.beamCount` may be 0 for rings only). Key pieces:
 
-### Wave bursts
-
-`waveBursts[]` holds one-shot rings (`{d, prev, ci}`) advanced in `advanceWaves` at the ring-0 speed and culled at `waveCycleLen` (= `S.waveReach` × diagonal, recomputed every `ensureWaveRays` call so the reach slider is live). Spawning: `spawnWaveBurst()` from `triggerBeatActions` when `S.waveBurst === 'beat'`, or from a BPM accumulator in `advanceWaves` when it's a beats-per-burst number string. Bursts render in BOTH emission modes — `renderBeamsGL` calls `buildWaveGeometry(false)` in beams mode when bursts exist. Taper is applied per ring in `buildWaveGeometry`: `half × clamp(1 − waveTaper × d/cycleLen, 0.05, 3)`. `S.beamCount` may be 0 (no beams / no continuous rings).
+- **Own emitters**: `S.rings.emittersNorm` (norm coords like beam emitters, teal dots in the overlay, draggable via `S.ringDraggingIdx`). `arrangeRingEmittersGeometric(anchor)` places N emitters as a regular polygon around the room center through the anchor dot (the most recently dragged one, `ringLastMoved`).
+- **Folded-wavefront renderer**: `RING_RAYS` (240) rays per emitter traced once via `computePath` and cached (`ringRays`, keyed on geometry + ring-emitter positions + bounce cap). The ring at expansion distance `d` is the point at distance `d` along each folded ray. Fold detection skips connections > ~4× the expected arc gap.
+- **Lifetime in legs**: per-ray death at `lifetime × ray.firstLeg` (1 = birth→wall, 2 = back at center…), then alpha fades over `rings.fade` seconds. Bounce cap for tracing = `ceil(lifetime/2)+4`, max 64.
+- **Spawning**: `advanceRings` runs a randomized scheduler — activation every `randIn(interval)` s, each activation queues `randIn(perActivation)` rings spaced `randIn(spacing)` s apart (`pendingRings` countdowns). `activateRings()` is also the manual button / debug API. Rings are ALWAYS born at d=0 (at the emitter).
+- **Dual-range sliders**: `makeDualRange(slotId, …)` builds the two-thumb min/max control; `randIn(range)` draws the value. Reuse this for any future [min,max] randomized parameter.
+- Ring width floors at ~1.2px (sub-pixel quads alias into moiré). Taper uses per-ray life progress.
 
 ## Phosphor walls
 

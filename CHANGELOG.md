@@ -2,6 +2,26 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.7.0] - 2026-06-11
+
+### 💍 Rings Update
+
+The wave/burst system is reborn as **Rings** — an independent emission system with its own panel that coexists with beams (set Beam count 0 for rings only).
+
+#### Rings panel
+- **Own emitters** (teal dots, center by default, up to 6, draggable). **Geometric** mode: drag one dot and the rest arrange as a perfect regular polygon around the room center
+- **Lifetime in bounces**: 1 = born→wall, 2 = back through the center, 3 = wall again… up to 60; each direction lives the same number of legs in its own geometry, then **fades out** over a configurable time (default 1 s)
+- Rings are always **born at the emitter** (no more pre-grown rings popping into existence) and no longer vanish mid-flight
+- **Activate button** for manual firing
+- **Predictable spawning**: Interval (s between activations), Per activation (rings per burst), Spacing (s between rings in a burst) — each on a **dual-handle range slider** that draws a random value between your min/max markers
+- Speed, Taper, Rainbow, Fade controls; speed/lifetime/taper are matrix targets
+
+#### Fixes
+- Sub-pixel ring widths no longer alias into moiré (width floored at ~1.2px)
+- Eccentricity slider now always does something: moving it switches the room to Ellipse
+- Bent-wall beam jumpiness reduced (wall subdivisions 24→48). Note: some jumpiness at high bounce counts is physics — bent rooms are chaotic billiards where tiny wall changes amplify per bounce
+- UI polish: collapse chevrons on section titles, hover highlight, subtle group separators, calmer hint text
+
 ## [1.6.0] - 2026-06-11
 
 ### 💥 Burst Update

@@ -64,6 +64,13 @@ const result = await page.evaluate(() => {
   const litKitchen = countLit();
   V.S.trails.enabled = false; V.S.phosphor.enabled = false;
 
+  // Rings system: enable, activate, expand
+  V.S.rings.enabled = true;
+  V.activateRings();
+  drive(20);
+  const litRings = countLit();
+  V.S.rings.enabled = false;
+
   // Exercise every room shape
   const shapes = ['regular-3', 'regular-6', 'random-5', 'blob', 'ellipse', 'parabolic', 'circle'];
   const sel = document.getElementById('shape');
@@ -75,7 +82,7 @@ const result = await page.evaluate(() => {
     shapeLit[s] = countLit();
   }
 
-  return { litPlain, litKitchen, shapeLit, glError: ctx.getError(), canvas: gl.width + 'x' + gl.height };
+  return { litPlain, litKitchen, litRings, shapeLit, glError: ctx.getError(), canvas: gl.width + 'x' + gl.height };
 });
 
 await browser.close();
@@ -92,6 +99,10 @@ if (result.glError !== 0) {
 }
 if (result.litPlain < 50) {
   console.error('FAIL: canvas (nearly) black on plain render — lit=' + result.litPlain);
+  process.exit(1);
+}
+if (result.litRings < 50) {
+  console.error('FAIL: rings system rendered (nearly) nothing — lit=' + result.litRings);
   process.exit(1);
 }
 const blackShapes = Object.entries(result.shapeLit).filter(([, lit]) => lit < 50);

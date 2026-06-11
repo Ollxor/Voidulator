@@ -1539,6 +1539,72 @@
   /* Recording */
   .rec-time { font-size: 11px; opacity: 0.8; align-self: center; }
   .recording { border-color: #e33 !important; color: #e33; }
+
+  /* Dual-handle range slider: two overlaid inputs, only thumbs interactive */
+  .dual-range {
+    position: relative;
+    height: 26px;
+    display: flex;
+    align-items: center;
+  }
+  .dual-range .dr-track {
+    position: absolute;
+    left: 0; right: 34px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .dual-range .dr-fill {
+    position: absolute;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--accent);
+    opacity: 0.55;
+  }
+  .dual-range input[type=range] {
+    position: absolute;
+    left: 0; right: 34px;
+    width: calc(100% - 34px);
+    margin: 0;
+    background: transparent;
+    pointer-events: none;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 26px;
+  }
+  .dual-range input[type=range]::-webkit-slider-runnable-track { background: transparent; }
+  .dual-range input[type=range]::-webkit-slider-thumb { pointer-events: auto; }
+  .dual-range input[type=range]::-moz-range-track { background: transparent; }
+  .dual-range input[type=range]::-moz-range-thumb { pointer-events: auto; }
+  .dual-range .dr-label {
+    position: absolute;
+    right: 0;
+    width: 32px;
+    font-size: 9px;
+    line-height: 1.15;
+    text-align: right;
+    opacity: 0.8;
+    white-space: pre;
+  }
+
+  /* === UI polish === */
+  /* Collapse chevron on group titles */
+  .group.collapsible .group-title { position: relative; transition: color 120ms ease; }
+  .group.collapsible .group-title::after {
+    content: '▾';
+    position: absolute;
+    right: 2px;
+    font-size: 9px;
+    opacity: 0.5;
+    transition: transform 150ms ease;
+  }
+  .group.collapsible.collapsed .group-title::after { transform: rotate(-90deg); }
+  .group.collapsible .group-title:hover { color: var(--accent); }
+  /* Subtle group separation */
+  .group { border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; }
+  .group:last-child { border-bottom: none; }
+  /* Calmer hints */
+  .hint { opacity: 0.55; line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -1739,37 +1805,6 @@
         <input id="reflect" type="range" min="0" max="1" step="0.001" value="0.80">
       </div>
 
-      <div class="row"><label data-i18n="emission">Emission</label>
-        <select id="emissionMode">
-          <option value="beams" selected="" data-i18n="optBeams">Beams</option>
-          <option value="waves" data-i18n="optWaves">Waves (circles)</option>
-        </select>
-      </div>
-
-      <div class="row advanced-only"><label data-i18n="waveRainbow">Wave rainbow</label>
-        <button class="btn" id="waveRainbowToggle">On</button>
-      </div>
-
-      <div class="row advanced-only"><label data-i18n="waveBurst">Wave burst</label>
-        <select id="waveBurstSel">
-          <option value="off" selected="" data-i18n="burstOff">Off</option>
-          <option value="beat" data-i18n="burstBeat">On detected beat</option>
-          <option value="0.5" data-i18n="burst2">2 per beat</option>
-          <option value="1" data-i18n="burst1">1 per beat</option>
-          <option value="2" data-i18n="burstHalf">1 per 2 beats</option>
-          <option value="4" data-i18n="burstQuarter">1 per 4 beats</option>
-          <option value="8" data-i18n="burstEighth">1 per 8 beats</option>
-        </select>
-      </div>
-
-      <div class="row advanced-only"><label data-i18n="waveReach">Wave reach</label>
-        <input id="waveReach" type="range" min="0.5" max="6" step="0.1" value="2.5">
-      </div>
-
-      <div class="row advanced-only"><label data-i18n="waveTaper">Wave taper</label>
-        <input id="waveTaper" type="range" min="-1" max="1" step="0.01" value="0">
-      </div>
-
       <div class="row"><label>Max bounces</label>
         <input id="bounces" type="range" min="1" max="375" step="1" value="234">
       </div>
@@ -1950,6 +1985,49 @@
           <input id="widthWaveRotation" type="range" min="-2" max="2" step="0.1" value="0">
         </div>
         <div class="hint" data-i18n="hintShape">Click labels to reset. Flow: left=in, right=out.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible advanced-only" id="ringsGroup">
+      <div class="group-title" data-i18n="ringsTitle">Rings</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label data-i18n="enable">Enable</label>
+          <button class="btn" id="ringsToggle">Off</button>
+          <label data-i18n="activateNow">Activate</label>
+          <button class="btn" id="ringsActivate">&#9678; Now</button>
+          <label data-i18n="ringEmitters">Emitters</label>
+          <div class="stepper">
+            <button class="btn step-btn" id="ringEmDown">&#9660;</button>
+            <span class="step-val" id="ringEmVal">1</span>
+            <button class="btn step-btn" id="ringEmUp">&#9650;</button>
+          </div>
+          <label data-i18n="geometric">Geometric</label>
+          <button class="btn" id="ringGeoToggle">On</button>
+          <label data-i18n="ringSpeed">Speed (px/s)</label>
+          <div class="ctrl-row">
+            <input id="ringSpeed" type="range" min="20" max="1500" step="5" value="300">
+            <input id="ringSpeedNum" type="number" min="20" max="1500" step="5" value="300">
+          </div>
+          <label data-i18n="ringLifetime">Lifetime (bounces)</label>
+          <div class="ctrl-row">
+            <input id="ringLifetime" type="range" min="0.5" max="60" step="0.5" value="12">
+            <input id="ringLifetimeNum" type="number" min="0.5" max="60" step="0.5" value="12">
+          </div>
+          <label data-i18n="ringFade">Fade (s)</label>
+          <input id="ringFade" type="range" min="0" max="3" step="0.1" value="1">
+          <label data-i18n="ringTaper">Taper</label>
+          <input id="ringTaper" type="range" min="-1" max="1" step="0.01" value="0">
+          <label data-i18n="ringRainbow">Rainbow</label>
+          <button class="btn" id="ringRainbowToggle">On</button>
+          <label data-i18n="ringInterval">Interval (s)</label>
+          <div class="dual-range-slot" id="ringIntervalSlot"></div>
+          <label data-i18n="ringPerAct">Per activation</label>
+          <div class="dual-range-slot" id="ringPerActSlot"></div>
+          <label data-i18n="ringSpacing">Spacing (s)</label>
+          <div class="dual-range-slot" id="ringSpacingSlot"></div>
+        </div>
+        <div class="hint" data-i18n="hintRings">Expanding rings from their own emitters (teal dots). Lifetime in bounces: 1 = reach the wall, 2 = back through center. Range sliders pick a random value between the two markers.</div>
       </div>
     </div>
 
@@ -2277,7 +2355,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.6.0';
+  const APP_VERSION = 'v1.7.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2419,19 +2497,24 @@
     beamWidth: 2,
     // Edge gradient: soft alpha falloff across the beam width
     beamEdge: { width: 0.6, intensity: 0 },
-    // Emission mode: 'beams' (rotating lines) or 'waves' (expanding circular
-    // wavefronts from the emitter that fold and reflect off the walls)
-    emissionMode: 'beams',
-    waveRainbow: true,
-    // Wave bursts: one-shot rings spawned on the detected beat ('beat') or on
-    // BPM clock divisions (beats between bursts: '0.5'…'8'). Works in both
-    // emission modes — shockwaves over rotating beams included.
-    waveBurst: 'off',
-    // Ring travel distance before recycling/dying, in room diagonals
-    waveReach: 2.5,
-    // Ring width taper over travel: +1 thins to nothing at full reach,
-    // -1 doubles, 0 constant
-    waveTaper: 0,
+    // Rings: an independent emission system — expanding circular wavefronts
+    // from their own emitters that fold and reflect off the walls. Coexists
+    // with beams (set beam count 0 for rings only).
+    rings: {
+      enabled: false,
+      emittersNorm: [{ nx: 0.5, ny: 0.5 }], // own emitters, center by default
+      geometric: true,    // dragging one dot arranges all as a regular polygon
+      speed: 300,         // expansion speed, px/s
+      lifetime: 12,       // in "legs": 1 = birth→wall, 2 = back at center, …
+      fade: 1,            // seconds of fade-out at end of life
+      taper: 0,           // +1 thins to nothing over life, -1 swells
+      rainbow: true,      // hue sweeps the circumference; off = palette colors
+      // Spawning: [min, max] ranges — actual values drawn randomly per use
+      interval: [1, 3],       // s between activations
+      perActivation: [1, 2],  // rings per activation
+      spacing: [0.1, 0.3]     // s between rings within one activation
+    },
+    ringDraggingIdx: -1,
     beamCount: 1,
     spreadDeg: 0,
     angleDeg: 0,
@@ -3013,11 +3096,7 @@
       },
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
-      emissionMode: S.emissionMode,
-      waveRainbow: S.waveRainbow,
-      waveBurst: S.waveBurst,
-      waveReach: S.waveReach,
-      waveTaper: S.waveTaper,
+      rings: JSON.parse(JSON.stringify(S.rings)),
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -3099,11 +3178,17 @@
       S.phosphor.intensity = scene.phosphor.intensity ?? 1;
       S.phosphor.width = scene.phosphor.width ?? 12;
     }
-    S.emissionMode = scene.emissionMode === 'waves' ? 'waves' : 'beams';
-    S.waveRainbow = scene.waveRainbow ?? true;
-    S.waveBurst = scene.waveBurst ?? 'off';
-    S.waveReach = scene.waveReach ?? 2.5;
-    S.waveTaper = scene.waveTaper ?? 0;
+    if (scene.rings) {
+      S.rings = JSON.parse(JSON.stringify(scene.rings));
+      if (!Array.isArray(S.rings.emittersNorm) || !S.rings.emittersNorm.length) {
+        S.rings.emittersNorm = [{ nx: 0.5, ny: 0.5 }];
+      }
+    } else if (scene.emissionMode === 'waves') {
+      // Legacy wave-mode scenes map onto the rings system
+      S.rings.enabled = true;
+      S.rings.rainbow = scene.waveRainbow ?? true;
+      S.rings.taper = scene.waveTaper ?? 0;
+    }
     
     // Shape (widthWave)
     if (scene.widthWave) {
@@ -3168,8 +3253,8 @@
     // Beam edge gradient
     if (edgeWidthEl) edgeWidthEl.value = S.beamEdge.width;
     if (edgeIntensityEl) edgeIntensityEl.value = S.beamEdge.intensity;
-    // Emission mode
-    syncEmissionUI();
+    // Rings
+    syncRingsUI();
     // Phosphor
     syncPhosphorUI();
     // Bloom
@@ -3336,12 +3421,16 @@
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
 
-    // Emission mode (instant at midpoint), wave reach/taper lerp smoothly
-    S.emissionMode = t > 0.5 ? (to.emissionMode ?? 'beams') : (from.emissionMode ?? 'beams');
-    S.waveRainbow = t > 0.5 ? (to.waveRainbow ?? true) : (from.waveRainbow ?? true);
-    S.waveBurst = t > 0.5 ? (to.waveBurst ?? 'off') : (from.waveBurst ?? 'off');
-    S.waveReach = lerp(from.waveReach ?? S.waveReach, to.waveReach ?? S.waveReach, t);
-    S.waveTaper = lerp(from.waveTaper ?? S.waveTaper, to.waveTaper ?? S.waveTaper, t);
+    // Rings: numeric fields lerp, the rest switches at the midpoint
+    const ringsNow = S.rings;
+    const fromRings = from.rings || ringsNow;
+    const toRings = to.rings || ringsNow;
+    S.rings.enabled = t > 0.5 ? (toRings.enabled ?? false) : (fromRings.enabled ?? false);
+    S.rings.rainbow = t > 0.5 ? (toRings.rainbow ?? true) : (fromRings.rainbow ?? true);
+    S.rings.speed = lerp(fromRings.speed ?? 300, toRings.speed ?? 300, t);
+    S.rings.lifetime = lerp(fromRings.lifetime ?? 12, toRings.lifetime ?? 12, t);
+    S.rings.fade = lerp(fromRings.fade ?? 1, toRings.fade ?? 1, t);
+    S.rings.taper = lerp(fromRings.taper ?? 0, toRings.taper ?? 0, t);
     
     // Throttle UI sync to ~10Hz during transition — sliders don't need 60fps updates,
     // and writing to dozens of form fields every frame causes measurable layout work
@@ -3811,7 +3900,10 @@
     if (!bend || Math.abs(bend) < 0.001) return corners.slice();
     const c = centroid(corners);
     const out = [];
-    const K = 24; // subdivisions per wall — plenty smooth, cheap to trace
+    // More subdivisions = smoother normal transitions along the curve, which
+    // reduces (but can't eliminate) beam jumpiness when bend animates: bent
+    // rooms are chaotic billiards — tiny wall changes amplify per bounce
+    const K = 48;
     for (let i = 0; i < corners.length; i++) {
       const p0 = corners[i], p1 = corners[(i + 1) % corners.length];
       const ex = p1.x - p0.x, ey = p1.y - p0.y;
@@ -4577,97 +4669,110 @@ void main() {
     }
   }
 
-  // ---- Wave emission: expanding circular wavefronts ----
-  // Each ring is WAVE_RAYS rays traced once through the existing reflection
-  // engine (computePath). The visible wavefront at expansion distance d is
-  // the set of points at distance d along each folded ray — so rings bend,
-  // fold, and refocus like real wavefronts in any room shape. Ray paths are
-  // cached and rebuilt only when geometry/emitters/bounce cap change.
-  const WAVE_RAYS = 240;
-  const WAVE_BOUNCE_CAP = 24; // folds beyond this are visual mush — cap the trace cost
-  let waveRays = null;        // per emitter: [{segs, total}] per ray
-  let waveKey = null;
-  let waveD = [];             // per-ring expansion distance (runtime accumulator)
-  let wavePrevD = [];         // previous frame's distance (for phosphor strikes)
-  let waveCycleLen = 1;
+  // ---- Rings: expanding circular wavefronts from their own emitters ----
+  // Each ring is RING_RAYS rays traced once through the reflection engine;
+  // the visible ring at expansion distance d is the point at distance d
+  // along each folded ray. Per-ray lifetime: a ray dies after travelling
+  // lifetime x (its own first-leg length), fading out over rings.fade
+  // seconds — so "lifetime 2" means out to the wall and back to the center.
+  const RING_RAYS = 240;
+  let ringRays = null;       // per ring-emitter: [{segs, total, firstLeg}]
+  let ringRaysKey = null;
+  let ringEmitters = [];     // px positions derived from rings.emittersNorm
+  let liveRings = [];        // {d, prev, ci} — expanding rings in flight
+  let pendingRings = [];     // countdown timers (s) for scheduled spawns
+  let ringClock = 0;         // time since last activation
+  let nextActivationIn = 0;  // s until next automatic activation
+  let ringColorIdx = 0;
+  let ringLastMoved = 0;     // most recently dragged ring emitter (geo anchor)
 
-  function ensureWaveRays() {
-    // Reach is live-tunable: cycle length derives from it every call
-    const W = glCanvas.width / S.dpr, H = glCanvas.height / S.dpr;
-    waveCycleLen = Math.max(50, S.waveReach * Math.hypot(W, H));
-    const emKey = S.emitters.map(e => ((e.x * 4) | 0) + ',' + ((e.y * 4) | 0)).join(';');
+  const randIn = (range) => range[0] + Math.random() * Math.max(0, range[1] - range[0]);
+
+  function ringBounceCap() {
+    // Distance-based lifetime needs roughly lifetime/2 wall bounces, padded
+    return clamp(Math.ceil(S.rings.lifetime / 2) + 4, 6, 64);
+  }
+
+  function updateRingEmitters() {
+    const bounds = getRoomBounds();
+    const w = bounds.maxX - bounds.minX, h = bounds.maxY - bounds.minY;
+    ringEmitters = S.rings.emittersNorm.map(n => constrainToRoom({
+      x: bounds.minX + n.nx * w,
+      y: bounds.minY + n.ny * h
+    }));
+  }
+
+  function ensureRingRays() {
+    updateRingEmitters();
+    const cap = ringBounceCap();
+    const emKey = ringEmitters.map(e => ((e.x * 4) | 0) + ',' + ((e.y * 4) | 0)).join(';');
     const geoKey = S.isCircle
       ? 'c' + S.circle.cx.toFixed(0) + ',' + S.circle.cy.toFixed(0) + ',' + S.circle.R.toFixed(0)
       : null;
-    const cap = Math.min(S.maxBounces, WAVE_BOUNCE_CAP);
-    if (waveKey &&
-        waveKey.verts === (S.isCircle ? null : S.vertices) &&
-        waveKey.geo === geoKey && waveKey.em === emKey && waveKey.cap === cap) return;
-    waveKey = { verts: S.isCircle ? null : S.vertices, geo: geoKey, em: emKey, cap };
-    waveRays = S.emitters.map(E => {
+    const verts = S.isCircle ? null : S.vertices;
+    if (ringRaysKey && ringRaysKey.verts === verts && ringRaysKey.geo === geoKey &&
+        ringRaysKey.em === emKey && ringRaysKey.cap === cap) return;
+    ringRaysKey = { verts, geo: geoKey, em: emKey, cap };
+    ringRays = ringEmitters.map(E => {
       const rays = [];
-      for (let k = 0; k < WAVE_RAYS; k++) {
-        const a = k * 2 * Math.PI / WAVE_RAYS;
+      for (let k = 0; k < RING_RAYS; k++) {
+        const a = k * 2 * Math.PI / RING_RAYS;
         const segs = computePath(E, { x: Math.cos(a), y: Math.sin(a) }, cap);
         const last = segs[segs.length - 1];
-        rays.push({ segs, total: last ? last.cum + last.len : 0 });
+        rays.push({
+          segs,
+          total: last ? last.cum + last.len : 0,
+          firstLeg: segs.length ? segs[0].len : 1
+        });
       }
       return rays;
     });
   }
 
-  function ensureWaveDistances() {
-    const n = S.beamCount | 0;
-    if (waveD.length === n) return;
-    waveD = []; wavePrevD = [];
+  // Spawns one activation: a small burst of rings spaced in time
+  function activateRings() {
+    const n = Math.round(randIn(S.rings.perActivation));
+    let delay = 0;
     for (let i = 0; i < n; i++) {
-      const d0 = ((S.perBeamPhase[i] || 0) / 360) * waveCycleLen;
-      waveD.push(d0); wavePrevD.push(d0);
+      pendingRings.push(delay);
+      delay += randIn(S.rings.spacing);
     }
   }
 
-  // Per-ring expansion speed reuses the per-beam speed system (px/s)
-  function waveSpeedPx(i) {
-    return (S.perBeamSpeed[i] || 1) * S.speedMultiplier * 1200;
+  function spawnRing() {
+    if (liveRings.length > 64) liveRings.shift();
+    liveRings.push({ d: 0, prev: 0, ci: ringColorIdx++ });
   }
 
-  // One-shot burst rings: spawned on the detected beat or on BPM divisions,
-  // alive in BOTH emission modes (shockwaves over rotating beams included)
-  let waveBursts = [];
-  let burstAccum = 0;
-  let burstColorIdx = 0;
-
-  function spawnWaveBurst() {
-    if (waveBursts.length > 24) waveBursts.shift();
-    waveBursts.push({ d: 0, prev: 0, ci: burstColorIdx++ });
+  function roomMaxLeg() {
+    const W = glCanvas.width / S.dpr, H = glCanvas.height / S.dpr;
+    return Math.hypot(W, H); // generous upper bound on any first leg
   }
 
-  function advanceWaves(dtSec) {
-    if (S.emissionMode === 'waves') {
-      for (let i = 0; i < waveD.length; i++) {
-        wavePrevD[i] = waveD[i];
-        waveD[i] += waveSpeedPx(i) * dtSec;
-      }
+  function advanceRings(dtSec) {
+    if (!S.rings.enabled) return;
+    // Scheduler: activations on a randomized interval
+    ringClock += dtSec;
+    if (ringClock >= nextActivationIn) {
+      ringClock = 0;
+      nextActivationIn = Math.max(0.05, randIn(S.rings.interval));
+      activateRings();
     }
-    // Bursts expand at the first ring slot's speed and die at full reach
-    if (waveBursts.length) {
-      const sp = waveSpeedPx(0);
-      for (const b of waveBursts) { b.prev = b.d; b.d += sp * dtSec; }
-      waveBursts = waveBursts.filter(b => b.d < waveCycleLen);
+    // Pending spawns count down to birth
+    for (let i = pendingRings.length - 1; i >= 0; i--) {
+      pendingRings[i] -= dtSec;
+      if (pendingRings[i] <= 0) { pendingRings.splice(i, 1); spawnRing(); }
     }
-    // BPM-clock spawning ('beat' mode spawns from triggerBeatActions instead)
-    if (S.waveBurst !== 'off' && S.waveBurst !== 'beat') {
-      burstAccum += (S.bpm / 60 / parseFloat(S.waveBurst)) * dtSec;
-      if (burstAccum >= 1) {
-        burstAccum %= 1;
-        spawnWaveBurst();
-      }
-    }
+    // Expansion + cull once even the longest-lived ray has fully faded
+    const sp = S.rings.speed;
+    const maxDeath = S.rings.lifetime * roomMaxLeg() + S.rings.fade * sp;
+    for (const ring of liveRings) { ring.prev = ring.d; ring.d += sp * dtSec; }
+    liveRings = liveRings.filter(r => r.d < maxDeath);
   }
 
-  // Plain quad writer for wavefront segments — t is the expansion distance,
-  // so the pulse shader rings the wave radially; edge coords like beams
-  function pushWaveQuad(x0, y0, x1, y1, halfW, t, rgb, alpha) {
+  // Plain quad writer for ring segments — t is the expansion distance so the
+  // pulse shader rings radially; edge coords across the thickness like beams
+  function pushRingQuad(x0, y0, x1, y1, halfW, t, rgb, alpha) {
     const dx = x1 - x0, dy = y1 - y0;
     const segLen = Math.hypot(dx, dy) || 1;
     const nx = -dy / segLen, ny = dx / segLen;
@@ -4688,38 +4793,23 @@ void main() {
     vertCount = i;
   }
 
-  function buildWaveGeometry(includeContinuous) {
-    ensureWaveRays();
-    ensureWaveDistances();
-    const baseHalf = (S.beamWidth || 2) / 2;
+  function buildRingGeometry() {
+    ensureRingRays();
+    if (!liveRings.length) return;
+    // Sub-pixel ring widths alias badly into moire patterns — floor at ~1.2px
+    const baseHalf = Math.max(0.6, (S.beamWidth || 2) / 2);
     const phosOn = S.phosphor.enabled && phosPoints;
+    const fadePx = Math.max(1, S.rings.fade * S.rings.speed);
+    const L = S.rings.lifetime;
 
-    // Render list: continuous rings (wave mode) + one-shot bursts (any mode)
-    const rings = [];
-    if (includeContinuous) {
-      for (let w = 0; w < waveD.length; w++) {
-        rings.push({ d: waveD[w] % waveCycleLen, prev: wavePrevD[w] % waveCycleLen, ci: w });
-      }
-    }
-    for (const b of waveBursts) {
-      rings.push({ d: b.d, prev: b.prev, ci: b.ci });
-    }
-
-    for (const ring of rings) {
+    for (const ring of liveRings) {
       const d = ring.d;
       const prev = ring.prev;
-      // Taper: ring width shrinks (+) or grows (-) with travelled distance
-      const progress = d / waveCycleLen;
-      const half = baseHalf * clamp(1 - S.waveTaper * progress, 0.05, 3);
-      // Folded wavefront points can be far apart where adjacent rays took
-      // different bounces — skip those connections instead of drawing
-      // segments that cut across the room
-      const expectedGap = 2 * Math.PI * Math.max(d, 40) / WAVE_RAYS;
-      const segLimit = expectedGap * 4 + half * 4;
+      const expectedGap = 2 * Math.PI * Math.max(d, 40) / RING_RAYS;
 
-      for (let em = 0; em < S.emitters.length; em++) {
-        const rays = waveRays[em];
-        const palette = S.emitterPalettes[em] || S.beamPalette;
+      for (let em = 0; em < ringEmitters.length; em++) {
+        const rays = ringRays[em];
+        const palette = S.emitterPalettes[0] || S.beamPalette;
         const col = palette[ring.ci % Math.max(1, palette.length)] || { h: 0, s: 0, l: 80 };
         const colRGB = hslToRgb(
           (((col.h + S.hueOffset) % 360) + 360) % 360,
@@ -4727,12 +4817,14 @@ void main() {
           clamp(col.l + S.lightOffset, 0, 100)
         );
 
-        let px = 0, py = 0, pAlive = false;
-        for (let k = 0; k <= WAVE_RAYS; k++) {
-          const ki = k % WAVE_RAYS;
+        let px = 0, py = 0, pAlive = false, pFade = 0;
+        for (let k = 0; k <= RING_RAYS; k++) {
+          const ki = k % RING_RAYS;
           const ray = rays[ki];
-          let x = 0, y = 0, alive = false, inten = 0;
-          if (d <= ray.total) {
+          let x = 0, y = 0, alive = false, inten = 0, fadeF = 0;
+          // Per-ray death distance: lifetime legs of THIS ray's first leg
+          const deathD = L * ray.firstLeg;
+          if (d <= ray.total && d < deathD + fadePx) {
             const segs = ray.segs;
             for (let j = 0; j < segs.length; j++) {
               const sg = segs[j];
@@ -4741,6 +4833,7 @@ void main() {
                 x = sg.from.x + (sg.to.x - sg.from.x) * f;
                 y = sg.from.y + (sg.to.y - sg.from.y) * f;
                 inten = sg.intensity;
+                fadeF = clamp((deathD + fadePx - d) / fadePx, 0, 1);
                 alive = true;
                 break;
               }
@@ -4748,28 +4841,33 @@ void main() {
           }
           if (k > 0 && alive && pAlive) {
             const ddx = x - px, ddy = y - py;
+            // Taper uses per-ray life progress so rings thin as they age
+            const progress = clamp(d / (deathD + fadePx), 0, 1);
+            const half = baseHalf * clamp(1 - S.rings.taper * progress, 0.05, 3);
+            const segLimit = expectedGap * 4 + half * 4;
             if (ddx * ddx + ddy * ddy < segLimit * segLimit) {
-              const rgb = S.waveRainbow
-                ? hslToRgb(((ki / WAVE_RAYS * 360 + S.hueOffset) % 360 + 360) % 360,
+              const rgb = S.rings.rainbow
+                ? hslToRgb(((ki / RING_RAYS * 360 + S.hueOffset) % 360 + 360) % 360,
                            clamp(85 + S.satOffset, 0, 100), clamp(55 + S.lightOffset, 0, 100))
                 : colRGB;
-              pushWaveQuad(px, py, x, y, half, d, rgb, inten);
+              pushRingQuad(px, py, x, y, half, d, rgb, inten * Math.min(fadeF, pFade || fadeF));
             }
           }
-          px = x; py = y; pAlive = alive;
+          px = x; py = y; pAlive = alive; pFade = fadeF;
         }
 
         // Phosphor: deposit where the ring crossed a wall this frame
         if (phosOn && d !== prev) {
-          for (let k = 0; k < WAVE_RAYS; k++) {
-            const segs = rays[k].segs;
+          for (let k = 0; k < RING_RAYS; k++) {
+            const ray = rays[k];
+            if (d > L * ray.firstLeg) continue; // dead rays stop depositing
+            const segs = ray.segs;
             for (let j = 0; j < segs.length; j++) {
               const sg = segs[j];
-              const bcum = sg.cum + sg.len; // every segment ends on a wall
-              const crossed = d >= prev ? (bcum > prev && bcum <= d) : (bcum > prev || bcum <= d);
-              if (crossed) {
-                const rgb = S.waveRainbow
-                  ? hslToRgb(((k / WAVE_RAYS * 360 + S.hueOffset) % 360 + 360) % 360, 85, 55)
+              const bcum = sg.cum + sg.len;
+              if (bcum > prev && bcum <= d) {
+                const rgb = S.rings.rainbow
+                  ? hslToRgb(((k / RING_RAYS * 360 + S.hueOffset) % 360 + 360) % 360, 85, 55)
                   : colRGB;
                 phosphorDeposit(sg.to.x, sg.to.y, rgb, sg.intensity * 0.6);
               }
@@ -5046,12 +5144,10 @@ void main() {
     if (S.phosphor.enabled) ensurePhosphorGeometry();
 
     vertCount = 0; // Reuse the persistent vertBuf; pushQuad/pushShape write into it
-    const waveMode = S.emissionMode === 'waves';
-    if (waveMode) buildWaveGeometry(true);
-    else if (waveBursts.length) buildWaveGeometry(false); // shockwaves over beams
+    if (S.rings.enabled) buildRingGeometry(); // rings coexist with beams
     const base = S.angleDeg * Math.PI / 180;
     const spread = (S.spreadDeg || 0) * Math.PI / 180;
-    const n = waveMode ? 0 : S.beamCount | 0; // wave mode skips the beam loop
+    const n = S.beamCount | 0; // 0 allowed: rings-only emission
     const half = (S.beamWidth || 2) / 2;
     let totalSegs = 0;
     
@@ -5391,6 +5487,18 @@ void main() {
         octx.fill();
         octx.stroke();
       }
+      // Ring emitters in teal — visually distinct from beam emitters
+      if (S.rings.enabled) {
+        for (const e of ringEmitters) {
+          octx.fillStyle = '#1cd3d3';
+          octx.strokeStyle = '#0a0b0e';
+          octx.lineWidth = 1.5;
+          octx.beginPath();
+          octx.arc(e.x, e.y, 4, 0, Math.PI * 2);
+          octx.fill();
+          octx.stroke();
+        }
+      }
     }
   }
 
@@ -5398,21 +5506,41 @@ void main() {
   ovCanvas.addEventListener('pointerdown', (e) => {
     const r = ovCanvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
-    
-    // Check emitters
+
+    // Check beam emitters first, then ring emitters
     let idx = -1, best = 20;
     for (let i = 0; i < S.emitters.length; i++) {
       const d = Math.hypot(x - S.emitters[i].x, y - S.emitters[i].y);
       if (d < best) { best = d; idx = i; }
     }
-    if (idx >= 0) { S.draggingIdx = idx; ovCanvas.setPointerCapture(e.pointerId); }
+    let ringIdx = -1;
+    if (S.rings.enabled) {
+      updateRingEmitters();
+      for (let i = 0; i < ringEmitters.length; i++) {
+        const d = Math.hypot(x - ringEmitters[i].x, y - ringEmitters[i].y);
+        if (d < best) { best = d; ringIdx = i; idx = -1; }
+      }
+    }
+    if (ringIdx >= 0) { S.ringDraggingIdx = ringIdx; ovCanvas.setPointerCapture(e.pointerId); }
+    else if (idx >= 0) { S.draggingIdx = idx; ovCanvas.setPointerCapture(e.pointerId); }
   });
 
   ovCanvas.addEventListener('pointermove', (e) => {
-    if (S.draggingIdx < 0) return;
+    if (S.draggingIdx < 0 && S.ringDraggingIdx < 0) return;
     const r = ovCanvas.getBoundingClientRect();
     const newX = e.clientX - r.left, newY = e.clientY - r.top;
     const newPos = { x: newX, y: newY };
+    if (S.ringDraggingIdx >= 0) {
+      const p = constrainToRoom(newPos);
+      const bounds = getRoomBounds();
+      const bw = bounds.maxX - bounds.minX, bh = bounds.maxY - bounds.minY;
+      S.rings.emittersNorm[S.ringDraggingIdx] = { nx: (p.x - bounds.minX) / bw, ny: (p.y - bounds.minY) / bh };
+      ringLastMoved = S.ringDraggingIdx;
+      if (S.rings.geometric && S.rings.emittersNorm.length > 1) {
+        arrangeRingEmittersGeometric(S.ringDraggingIdx);
+      }
+      return;
+    }
     if (S.emitterSymmetry && S.emitters.length > 1) {
       moveEmitterSymmetric(S.draggingIdx, newPos);
     } else {
@@ -5423,12 +5551,14 @@ void main() {
 
   // Use window to catch pointer release anywhere (fixes sticky dragging)
   window.addEventListener('pointerup', () => {
-    const wasDragging = S.draggingIdx >= 0;
+    const wasDragging = S.draggingIdx >= 0 || S.ringDraggingIdx >= 0;
     S.draggingIdx = -1;
+    S.ringDraggingIdx = -1;
     if (wasDragging) requestAutosave();
   });
   window.addEventListener('pointercancel', () => {
     S.draggingIdx = -1;
+    S.ringDraggingIdx = -1;
   });
 
   // Double-tap on stage to toggle fullscreen (but not when dragging the emitter)
@@ -5487,10 +5617,14 @@ void main() {
   function setEccentricity(v) {
     S.eccentricity = clamp(v, 0, 0.95);
     eccentricityEl.value = eccentricityNumEl.value = S.eccentricity;
-    if (S.polygonType === 'ellipse') {
-      buildShape();
-      updateEmittersFromNorm();
+    // The slider only makes sense for ellipses — switch the room over so
+    // moving it always has a visible effect
+    if (S.polygonType !== 'ellipse') {
+      S.polygonType = 'ellipse';
+      shapeSel.value = 'ellipse';
     }
+    buildShape();
+    updateEmittersFromNorm();
   }
   _on(eccentricityEl, 'input', () => setEccentricity(parseFloat(eccentricityEl.value) || 0));
   _on(eccentricityNumEl, 'input', () => setEccentricity(parseFloat(eccentricityNumEl.value) || 0));
@@ -5656,11 +5790,7 @@ void main() {
       bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
-      emissionMode: S.emissionMode,
-      waveRainbow: S.waveRainbow,
-      waveBurst: S.waveBurst,
-      waveReach: S.waveReach,
-      waveTaper: S.waveTaper,
+      rings: JSON.parse(JSON.stringify(S.rings)),
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -5729,11 +5859,16 @@ void main() {
       S.phosphor.intensity = P.phosphor.intensity ?? 1;
       S.phosphor.width = P.phosphor.width ?? 12;
     }
-    S.emissionMode = P.emissionMode === 'waves' ? 'waves' : 'beams';
-    S.waveRainbow = P.waveRainbow ?? true;
-    S.waveBurst = P.waveBurst ?? 'off';
-    S.waveReach = P.waveReach ?? 2.5;
-    S.waveTaper = P.waveTaper ?? 0;
+    if (P.rings) {
+      S.rings = JSON.parse(JSON.stringify(P.rings));
+      if (!Array.isArray(S.rings.emittersNorm) || !S.rings.emittersNorm.length) {
+        S.rings.emittersNorm = [{ nx: 0.5, ny: 0.5 }];
+      }
+    } else if (P.emissionMode === 'waves') {
+      S.rings.enabled = true;
+      S.rings.rainbow = P.waveRainbow ?? true;
+      S.rings.taper = P.waveTaper ?? 0;
+    }
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
       renderModRoutes();
@@ -5848,33 +5983,123 @@ void main() {
   _on(edgeWidthEl, 'input', () => { S.beamEdge.width = parseFloat(edgeWidthEl.value) || 0; });
   _on(edgeIntensityEl, 'input', () => { S.beamEdge.intensity = parseFloat(edgeIntensityEl.value) || 0; });
 
-  // Emission mode UI bindings
-  const emissionModeEl = _el('emissionMode');
-  const waveRainbowToggleBtn = _el('waveRainbowToggle');
-  const waveBurstSelEl = _el('waveBurstSel');
-  const waveReachEl = _el('waveReach');
-  const waveTaperEl = _el('waveTaper');
-  function syncEmissionUI() {
-    if (!emissionModeEl) return;
-    emissionModeEl.value = S.emissionMode;
-    waveRainbowToggleBtn.textContent = S.waveRainbow ? 'On' : 'Off';
-    waveBurstSelEl.value = S.waveBurst;
-    waveReachEl.value = S.waveReach;
-    waveTaperEl.value = S.waveTaper;
+  // ---- Dual-handle range slider component ----
+  // Two overlaid <input type=range>; getRange/setRange work on a [min,max]
+  // pair, with a tiny two-line value label. Returns { sync } for UI refresh.
+  function makeDualRange(slotId, min, max, step, getRange, setRange, fmt) {
+    const slot = _el(slotId);
+    if (!slot) return { sync: () => {} };
+    slot.className = 'dual-range';
+    const track = document.createElement('div'); track.className = 'dr-track';
+    const fill = document.createElement('div'); fill.className = 'dr-fill';
+    track.appendChild(fill);
+    const lo = document.createElement('input'); lo.type = 'range';
+    const hi = document.createElement('input'); hi.type = 'range';
+    for (const inp of [lo, hi]) { inp.min = min; inp.max = max; inp.step = step; }
+    const label = document.createElement('span'); label.className = 'dr-label';
+    slot.appendChild(track); slot.appendChild(lo); slot.appendChild(hi); slot.appendChild(label);
+    const f = fmt || (v => v);
+    const refresh = () => {
+      const r = getRange();
+      lo.value = r[0]; hi.value = r[1];
+      const p0 = (r[0] - min) / (max - min) * 100, p1 = (r[1] - min) / (max - min) * 100;
+      fill.style.left = p0 + '%';
+      fill.style.width = Math.max(0, p1 - p0) + '%';
+      label.textContent = f(r[0]) + '\n' + f(r[1]);
+    };
+    lo.addEventListener('input', () => {
+      const r = getRange();
+      r[0] = Math.min(parseFloat(lo.value), r[1]);
+      setRange(r); refresh();
+    });
+    hi.addEventListener('input', () => {
+      const r = getRange();
+      r[1] = Math.max(parseFloat(hi.value), r[0]);
+      setRange(r); refresh();
+    });
+    refresh();
+    return { sync: refresh };
   }
-  _on(emissionModeEl, 'change', () => {
-    S.emissionMode = emissionModeEl.value === 'waves' ? 'waves' : 'beams';
+
+  // ---- Rings UI bindings ----
+  const ringsToggleBtn = _el('ringsToggle');
+  const ringsActivateBtn = _el('ringsActivate');
+  const ringEmUpBtn = _el('ringEmUp'), ringEmDownBtn = _el('ringEmDown'), ringEmValEl = _el('ringEmVal');
+  const ringGeoToggleBtn = _el('ringGeoToggle');
+  const ringSpeedEl = _el('ringSpeed'), ringSpeedNumEl = _el('ringSpeedNum');
+  const ringLifetimeEl = _el('ringLifetime'), ringLifetimeNumEl = _el('ringLifetimeNum');
+  const ringFadeEl = _el('ringFade');
+  const ringTaperEl = _el('ringTaper');
+  const ringRainbowToggleBtn = _el('ringRainbowToggle');
+  const ringIntervalDR = makeDualRange('ringIntervalSlot', 0.05, 10, 0.05,
+    () => S.rings.interval, r => S.rings.interval = r, v => (+v).toFixed(2));
+  const ringPerActDR = makeDualRange('ringPerActSlot', 1, 8, 1,
+    () => S.rings.perActivation, r => S.rings.perActivation = r, v => (+v).toFixed(0));
+  const ringSpacingDR = makeDualRange('ringSpacingSlot', 0, 2, 0.05,
+    () => S.rings.spacing, r => S.rings.spacing = r, v => (+v).toFixed(2));
+
+  function syncRingsUI() {
+    if (!ringsToggleBtn) return;
+    ringsToggleBtn.textContent = S.rings.enabled ? 'On' : 'Off';
+    ringsToggleBtn.style.borderColor = S.rings.enabled ? 'var(--accent)' : '';
+    ringGeoToggleBtn.textContent = S.rings.geometric ? 'On' : 'Off';
+    ringRainbowToggleBtn.textContent = S.rings.rainbow ? 'On' : 'Off';
+    ringEmValEl.textContent = S.rings.emittersNorm.length;
+    ringSpeedEl.value = ringSpeedNumEl.value = S.rings.speed;
+    ringLifetimeEl.value = ringLifetimeNumEl.value = S.rings.lifetime;
+    ringFadeEl.value = S.rings.fade;
+    ringTaperEl.value = S.rings.taper;
+    ringIntervalDR.sync(); ringPerActDR.sync(); ringSpacingDR.sync();
+  }
+  _on(ringsToggleBtn, 'click', () => {
+    S.rings.enabled = !S.rings.enabled;
+    if (S.rings.enabled) { ringClock = 0; nextActivationIn = 0; }
+    syncRingsUI();
   });
-  _on(waveRainbowToggleBtn, 'click', () => {
-    S.waveRainbow = !S.waveRainbow;
-    syncEmissionUI();
+  _on(ringsActivateBtn, 'click', () => { activateRings(); });
+
+  // Arrange ring emitters as a regular polygon around the room center,
+  // anchored on the given dot (used for geometric mode and count changes)
+  function arrangeRingEmittersGeometric(anchorIdx) {
+    const n = S.rings.emittersNorm.length;
+    if (n < 2) return;
+    updateRingEmitters();
+    const W = glCanvas.width / S.dpr, H = glCanvas.height / S.dpr;
+    const c = S.isCircle ? { x: S.circle.cx, y: S.circle.cy } : centroid(S.vertices);
+    const a0 = ringEmitters[anchorIdx] || { x: c.x, y: c.y - 50 };
+    const radius = Math.max(8, Math.hypot(a0.x - c.x, a0.y - c.y));
+    const baseAng = Math.atan2(a0.y - c.y, a0.x - c.x);
+    const bounds = getRoomBounds();
+    const bw = bounds.maxX - bounds.minX, bh = bounds.maxY - bounds.minY;
+    for (let i = 0; i < n; i++) {
+      const ang = baseAng + ((i - anchorIdx + n) % n) * 2 * Math.PI / n;
+      const p = constrainToRoom({ x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
+      S.rings.emittersNorm[i] = { nx: (p.x - bounds.minX) / bw, ny: (p.y - bounds.minY) / bh };
+    }
+  }
+
+  function setRingEmitterCount(n) {
+    n = clamp(n, 1, 6) | 0;
+    const arr = S.rings.emittersNorm;
+    while (arr.length > n) arr.pop();
+    while (arr.length < n) arr.push({ nx: 0.5, ny: 0.5 });
+    if (S.rings.geometric && n > 1) arrangeRingEmittersGeometric(ringLastMoved < n ? ringLastMoved : 0);
+    syncRingsUI();
+  }
+  _on(ringEmUpBtn, 'click', () => setRingEmitterCount(S.rings.emittersNorm.length + 1));
+  _on(ringEmDownBtn, 'click', () => setRingEmitterCount(S.rings.emittersNorm.length - 1));
+  _on(ringGeoToggleBtn, 'click', () => {
+    S.rings.geometric = !S.rings.geometric;
+    if (S.rings.geometric) arrangeRingEmittersGeometric(ringLastMoved < S.rings.emittersNorm.length ? ringLastMoved : 0);
+    syncRingsUI();
   });
-  _on(waveBurstSelEl, 'change', () => {
-    S.waveBurst = waveBurstSelEl.value;
-    burstAccum = 0;
-  });
-  _on(waveReachEl, 'input', () => { S.waveReach = parseFloat(waveReachEl.value) || 2.5; });
-  _on(waveTaperEl, 'input', () => { S.waveTaper = parseFloat(waveTaperEl.value) || 0; });
+  _on(ringSpeedEl, 'input', () => { S.rings.speed = parseFloat(ringSpeedEl.value) || 300; ringSpeedNumEl.value = S.rings.speed; });
+  _on(ringSpeedNumEl, 'input', () => { S.rings.speed = clamp(parseFloat(ringSpeedNumEl.value) || 300, 20, 1500); ringSpeedEl.value = S.rings.speed; });
+  _on(ringLifetimeEl, 'input', () => { S.rings.lifetime = parseFloat(ringLifetimeEl.value) || 12; ringLifetimeNumEl.value = S.rings.lifetime; });
+  _on(ringLifetimeNumEl, 'input', () => { S.rings.lifetime = clamp(parseFloat(ringLifetimeNumEl.value) || 12, 0.5, 60); ringLifetimeEl.value = S.rings.lifetime; });
+  _on(ringFadeEl, 'input', () => { S.rings.fade = parseFloat(ringFadeEl.value) || 0; });
+  _on(ringTaperEl, 'input', () => { S.rings.taper = parseFloat(ringTaperEl.value) || 0; });
+  _on(ringRainbowToggleBtn, 'click', () => { S.rings.rainbow = !S.rings.rainbow; syncRingsUI(); });
 
   // Phosphor walls UI bindings
   const phosToggleBtn = _el('phosToggle');
@@ -6202,7 +6427,6 @@ void main() {
     const B = S.beat;
     if (B.ripple) spawnRippleAtCenter();
     if (B.hueJump) S.hueOffset = (S.hueOffset + B.hueStep) % 360;
-    if (S.waveBurst === 'beat') spawnWaveBurst();
   }
 
   // ---- Parameter Registry ----
@@ -6233,8 +6457,9 @@ void main() {
     wallBend:      { label: 'Wall bend',       get: () => S.wallBend,        set: v => { S.wallBend = v; bendWalls(); }, min: -0.8, max: () => 1, range: () => 0.6 },
     eccentricity:  { label: 'Eccentricity',    get: () => S.eccentricity,    set: v => { S.eccentricity = v; if (S.polygonType === 'ellipse') buildShape(); }, min: 0, max: () => 0.95, range: () => 0.5 },
     phosphor:      { label: 'Phosphor intensity', get: () => S.phosphor.intensity, set: v => S.phosphor.intensity = v, min: 0, max: () => 2, range: () => 1.5 },
-    waveReach:     { label: 'Wave reach',       get: () => S.waveReach,       set: v => S.waveReach = v,       min: 0.5,  max: () => 6,          range: () => 2 },
-    waveTaper:     { label: 'Wave taper',       get: () => S.waveTaper,       set: v => S.waveTaper = v,       min: -1,   max: () => 1,          range: () => 1 }
+    ringSpeed:     { label: 'Ring speed',       get: () => S.rings.speed,     set: v => S.rings.speed = v,     min: 20,   max: () => 1500,       range: () => 600 },
+    ringLifetime:  { label: 'Ring lifetime',    get: () => S.rings.lifetime,  set: v => S.rings.lifetime = v,  min: 0.5,  max: () => 60,         range: () => 20 },
+    ringTaper:     { label: 'Ring taper',       get: () => S.rings.taper,     set: v => S.rings.taper = v,     min: -1,   max: () => 1,          range: () => 1 }
   };
 
   const MOD_SOURCES = {
@@ -6892,8 +7117,8 @@ void main() {
     if (S.pulseOn) {
       S.pulsePhase = (S.pulsePhase + Math.PI * 2 * (S.pulseFreqCP100 / 100) * S.pulseSpeed * dtSec) % (Math.PI * 2);
     }
-    // Expanding wavefronts advance with the (possibly modulated) speed system
-    advanceWaves(dtSec);
+    // Ring spawning + expansion (uses possibly-modulated ring speed)
+    advanceRings(dtSec);
     renderBeamsGL(t / 1000);
     drawOverlay();
     captureRecFrame(t);
@@ -7906,6 +8131,19 @@ void main() {
       burstEighth: '1 per 8 beats',
       waveReach: 'Wave reach',
       waveTaper: 'Wave taper',
+      ringsTitle: 'Rings',
+      activateNow: 'Activate',
+      ringEmitters: 'Emitters',
+      geometric: 'Geometric',
+      ringSpeed: 'Speed (px/s)',
+      ringLifetime: 'Lifetime (bounces)',
+      ringFade: 'Fade (s)',
+      ringTaper: 'Taper',
+      ringRainbow: 'Rainbow',
+      ringInterval: 'Interval (s)',
+      ringPerAct: 'Per activation',
+      ringSpacing: 'Spacing (s)',
+      hintRings: 'Expanding rings from their own emitters (teal dots). Lifetime in bounces: 1 = reach the wall, 2 = back through center. Range sliders pick a random value between the two markers.',
       modMatrix: 'Modulation Matrix',
       beatDetection: 'Beat Detection',
       midiTitle: 'MIDI',
@@ -8052,6 +8290,19 @@ void main() {
       burstEighth: '1 cada 8 pulsos',
       waveReach: 'Alcance de onda',
       waveTaper: 'Afinado de onda',
+      ringsTitle: 'Anillos',
+      activateNow: 'Activar',
+      ringEmitters: 'Emisores',
+      geometric: 'Geométrico',
+      ringSpeed: 'Velocidad (px/s)',
+      ringLifetime: 'Vida (rebotes)',
+      ringFade: 'Fundido (s)',
+      ringTaper: 'Afinado',
+      ringRainbow: 'Arcoíris',
+      ringInterval: 'Intervalo (s)',
+      ringPerAct: 'Por activación',
+      ringSpacing: 'Espaciado (s)',
+      hintRings: 'Anillos expansivos desde sus propios emisores (puntos turquesa). Vida en rebotes: 1 = llegar a la pared, 2 = volver al centro. Los deslizadores dobles eligen un valor aleatorio entre las dos marcas.',
       modMatrix: 'Matriz de modulación',
       beatDetection: 'Detección de ritmo',
       midiTitle: 'MIDI',
@@ -8198,6 +8449,19 @@ void main() {
       burstEighth: '1 a cada 8 batidas',
       waveReach: 'Alcance da onda',
       waveTaper: 'Afilamento da onda',
+      ringsTitle: 'Anéis',
+      activateNow: 'Ativar',
+      ringEmitters: 'Emissores',
+      geometric: 'Geométrico',
+      ringSpeed: 'Velocidade (px/s)',
+      ringLifetime: 'Vida (rebatidas)',
+      ringFade: 'Esmaecer (s)',
+      ringTaper: 'Afilamento',
+      ringRainbow: 'Arco-íris',
+      ringInterval: 'Intervalo (s)',
+      ringPerAct: 'Por ativação',
+      ringSpacing: 'Espaçamento (s)',
+      hintRings: 'Anéis expansivos a partir de seus próprios emissores (pontos turquesa). Vida em rebatidas: 1 = chegar à parede, 2 = voltar ao centro. Os controles duplos escolhem um valor aleatório entre as duas marcas.',
       modMatrix: 'Matriz de modulação',
       beatDetection: 'Detecção de batida',
       midiTitle: 'MIDI',
@@ -8344,6 +8608,19 @@ void main() {
       burstEighth: '1 tous les 8 temps',
       waveReach: 'Portée de l\'onde',
       waveTaper: 'Effilage de l\'onde',
+      ringsTitle: 'Anneaux',
+      activateNow: 'Activer',
+      ringEmitters: 'Émetteurs',
+      geometric: 'Géométrique',
+      ringSpeed: 'Vitesse (px/s)',
+      ringLifetime: 'Vie (rebonds)',
+      ringFade: 'Fondu (s)',
+      ringTaper: 'Effilage',
+      ringRainbow: 'Arc-en-ciel',
+      ringInterval: 'Intervalle (s)',
+      ringPerAct: 'Par activation',
+      ringSpacing: 'Espacement (s)',
+      hintRings: 'Anneaux en expansion depuis leurs propres émetteurs (points turquoise). Vie en rebonds : 1 = atteindre le mur, 2 = revenir au centre. Les curseurs doubles tirent une valeur aléatoire entre les deux repères.',
       modMatrix: 'Matrice de modulation',
       beatDetection: 'Détection du rythme',
       midiTitle: 'MIDI',
@@ -8641,6 +8918,7 @@ void main() {
     window.Voidulator = {
       S, MOD_PARAMS, triggerBeatActions, startRecording, stopRecording,
       renderModRoutes, syncBeatUI, onMidiMessage, renderMidiBindings,
+      activateRings, syncRingsUI,
       // Manually advance one frame — testing/headless use (rAF doesn't fire
       // in hidden tabs, but WebGL still renders when driven directly)
       step: (t) => loopBody(t !== undefined ? t : performance.now())
