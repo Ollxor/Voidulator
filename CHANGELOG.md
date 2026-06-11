@@ -2,6 +2,22 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.3.0] - 2026-06-10
+
+### 🔬 Optics Update
+
+#### Beam edge gradient
+- New per-pixel shader falloff across the beam width: **Edge softness** (how far the gradient reaches toward the core) and **Edge intensity** (how strongly the sides fade) sliders next to Beam width
+- At full softness/intensity beams take on a gaussian laser profile; shape-wave shapes get soft rims too
+- Both controls are modulation matrix targets and persist in scenes/presets
+
+#### Bent walls & parabolic resonator
+- **Wall bend** slider (−0.8…+1): curves the straight walls of any polygon room — positive bulges outward (pillow), negative pinches inward, turning walls into focusing mirrors that concentrate beams into caustics
+- Bending never re-randomizes the Randomgon (base corners are cached)
+- **Wall bend is a matrix target** — route an LFO to it and the room itself breathes
+- New room shape: **Parabolic resonator** — a parabolic mirror closed by a flat cap; place an emitter near the focus and watch beams collimate
+- Persisted in scenes (smoothly interpolated during transitions) and presets
+
 ## [1.2.0] - 2026-06-10
 
 ### ✨ Glow Update

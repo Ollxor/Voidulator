@@ -2128,7 +2128,14 @@
             <option value="regular-6">Hexagon</option>
             <option value="random-5">Randomgon</option>
             <option value="blob">Blob</option>
+            <option value="parabolic">Parabolic resonator</option>
           </select>
+
+          <label>Wall bend</label>
+          <div class="ctrl-row">
+            <input id="wallBend" type="range" min="-0.8" max="1" step="0.01" value="0">
+            <input id="wallBendNum" type="number" min="-0.8" max="1" step="0.01" value="0">
+          </div>
           
           <label>Emitters</label>
           <div class="stepper">
@@ -2184,7 +2191,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.2.0';
+  const APP_VERSION = 'v1.3.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2283,6 +2290,9 @@
   const midiLearnBtn = _el('midiLearnBtn');
   const midiNoteBeatToggleBtn = _el('midiNoteBeatToggle');
   const midiBindingsEl = _el('midiBindings');
+  // Wall bend
+  const wallBendEl = _el('wallBend');
+  const wallBendNumEl = _el('wallBendNum');
   // Beam edge gradient
   const edgeWidthEl = _el('edgeWidth');
   const edgeIntensityEl = _el('edgeIntensity');
@@ -2304,6 +2314,10 @@
     isCircle: true,
     circle: { cx: 0, cy: 0, R: 0 },
     vertices: [],
+    // Wall bend: curves straight polygon walls (-0.8 pinch … +1 bulge).
+    // baseVertices caches the unbent corners so bending is non-destructive.
+    wallBend: 0,
+    baseVertices: null,
     reflectSlider: 0.8,
     reflectivity: 0.8,
     maxBounces: 234,
@@ -2837,6 +2851,7 @@
       // Shape
       polygonType: S.polygonType,
       sides: S.sides,
+      wallBend: S.wallBend,
       // Optics
       reflectSlider: S.reflectSlider,
       maxBounces: S.maxBounces,
@@ -2903,6 +2918,7 @@
     // Instant properties (no lerp)
     S.polygonType = scene.polygonType;
     S.sides = scene.sides;
+    S.wallBend = scene.wallBend ?? 0;
     S.beamCount = scene.beamCount;
     S.beamScheme = scene.beamScheme;
     S.speedPattern = scene.speedPattern;
@@ -2985,9 +3001,11 @@
   }
 
   function syncUIFromState() {
-    shapeSel.value = S.polygonType === 'circle' ? 'circle' : 
-      (S.polygonType === 'random' ? 'random-5' : 
-      (S.polygonType === 'blob' ? 'blob' : 'regular-' + S.sides));
+    shapeSel.value = S.polygonType === 'circle' ? 'circle' :
+      (S.polygonType === 'random' ? 'random-5' :
+      (S.polygonType === 'blob' ? 'blob' :
+      (S.polygonType === 'parabolic' ? 'parabolic' : 'regular-' + S.sides)));
+    if (wallBendEl) wallBendEl.value = wallBendNumEl.value = S.wallBend;
     reflectEl.value = S.reflectSlider;
     bouncesEl.value = S.maxBounces;
     widthEl.value = S.beamWidth;
@@ -3150,6 +3168,13 @@
     S.widthWave.duty = lerp(fromWave.duty, toWave.duty, t);
     S.widthWave.rotation = lerp(fromWave.rotation, toWave.rotation, t);
     
+    // Lerp wall bend (re-derives wall geometry only when the value moves)
+    const newBend = lerp(from.wallBend ?? S.wallBend, to.wallBend ?? S.wallBend, t);
+    if (newBend !== S.wallBend) {
+      S.wallBend = newBend;
+      bendWalls();
+    }
+
     // Lerp beam edge gradient (older scenes keep current settings)
     const edgeNow = { width: S.beamEdge.width, intensity: S.beamEdge.intensity };
     const fromEdge = from.beamEdge || edgeNow;
@@ -3535,6 +3560,7 @@
     // Floor the room size: a hidden/collapsed stage can report near-zero
     // dimensions, and a negative radius makes canvas arc() throw every frame
     const safeR = Math.max(10, Math.min(W, H) / 2 - margin);
+    S.baseVertices = null;
     if (S.polygonType === 'circle') {
       S.isCircle = true;
       S.circle = { cx, cy, R: safeR };
@@ -3542,6 +3568,22 @@
       return;
     }
     S.isCircle = false;
+    if (S.polygonType === 'parabolic') {
+      // Parabolic resonator: parabola opening upward, closed by a flat cap
+      // across the aperture. Walls reflect specularly (Neumann boundary) like
+      // every other room. An emitter at the focus collimates its beams.
+      const a = Math.max(10, W / 2 - margin);   // half-aperture
+      const D = Math.max(10, H - 2 * margin);   // depth, vertex → cap
+      const yB = cy + D / 2;                    // parabola vertex (bottom)
+      const steps = 160, out = [];
+      for (let i = 0; i <= steps; i++) {
+        const x = -a + (2 * a * i) / steps;
+        out.push({ x: cx + x, y: yB - D * (x / a) * (x / a) });
+      }
+      // The polygon closes straight from (+a, top) back to (-a, top): the cap
+      S.vertices = out;
+      return;
+    }
     if (S.polygonType === 'random') {
       const n = S.sides || 5; const verts = [];
       for (let i = 0; i < n; i++) {
@@ -3554,7 +3596,9 @@
       for (const p of verts) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); }
       const scale = Math.max(5, 0.98 * Math.min((W - 2 * margin) / (maxX - minX), (H - 2 * margin) / (maxY - minY)));
       for (const p of verts) { p.x = p.x * scale + cx; p.y = p.y * scale + cy; }
-      S.vertices = verts; return;
+      S.baseVertices = verts;
+      S.vertices = bendVerts(verts, S.wallBend);
+      return;
     }
     if (S.polygonType === 'blob') {
       const steps = 720, L = 3, amp = 0.06;
@@ -3572,7 +3616,41 @@
       const a = -Math.PI / 2 + i * 2 * Math.PI / n;
       verts.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
     }
-    S.vertices = verts;
+    S.baseVertices = verts;
+    S.vertices = bendVerts(verts, S.wallBend);
+  }
+
+  // Curve each straight wall: subdivide and displace along the outward normal
+  // by a sine bulge. bend > 0 bulges walls outward (pillow), bend < 0 pinches
+  // them inward (star/pincushion). Pure function of the base corners, so
+  // re-bending never re-randomizes random shapes.
+  function bendVerts(corners, bend) {
+    if (!bend || Math.abs(bend) < 0.001) return corners.slice();
+    const c = centroid(corners);
+    const out = [];
+    const K = 24; // subdivisions per wall — plenty smooth, cheap to trace
+    for (let i = 0; i < corners.length; i++) {
+      const p0 = corners[i], p1 = corners[(i + 1) % corners.length];
+      const ex = p1.x - p0.x, ey = p1.y - p0.y;
+      const len = Math.hypot(ex, ey) || 1;
+      let nx = -ey / len, ny = ex / len;
+      // Make the normal point away from the centroid regardless of winding
+      const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
+      if (nx * (mx - c.x) + ny * (my - c.y) < 0) { nx = -nx; ny = -ny; }
+      for (let k = 0; k < K; k++) {
+        const s = k / K;
+        const d = bend * len * 0.3 * Math.sin(Math.PI * s);
+        out.push({ x: p0.x + ex * s + nx * d, y: p0.y + ey * s + ny * d });
+      }
+    }
+    return out;
+  }
+
+  // Re-derive bent walls from cached base corners (no re-randomizing).
+  // No-op for circle, blob, and parabolic (already curved).
+  function bendWalls() {
+    if (S.isCircle || !S.baseVertices) return;
+    S.vertices = bendVerts(S.baseVertices, S.wallBend);
   }
 
   function centroid(v) {
@@ -4834,6 +4912,7 @@ void main() {
   function setShapeFromSelect() {
     const v = shapeSel.value;
     if (v === 'circle') S.polygonType = 'circle';
+    else if (v === 'parabolic') S.polygonType = 'parabolic';
     else if (v.startsWith('regular-')) { S.polygonType = 'regular'; S.sides = parseInt(v.split('-')[1], 10) || 5; }
     else if (v.startsWith('random-')) { S.polygonType = 'random'; S.sides = 5 + Math.floor(rand() * 6); }
     else S.polygonType = 'blob';
@@ -4842,6 +4921,16 @@ void main() {
   }
 
   _on(shapeSel, 'change', setShapeFromSelect);
+  _on(wallBendEl, 'input', () => {
+    S.wallBend = parseFloat(wallBendEl.value) || 0;
+    wallBendNumEl.value = S.wallBend.toFixed(2);
+    bendWalls();
+  });
+  _on(wallBendNumEl, 'input', () => {
+    S.wallBend = clamp(parseFloat(wallBendNumEl.value) || 0, -0.8, 1);
+    wallBendEl.value = S.wallBend;
+    bendWalls();
+  });
   _on(reflectEl, 'input', updateReflect);
 
   _on(bouncesEl, 'input', () => { S.maxBounces = parseInt(bouncesEl.value, 10) || 1; });
@@ -4986,7 +5075,7 @@ void main() {
   // Presets
   function currentPreset() {
     return {
-      polygonType: S.polygonType, sides: S.sides, beamWidth: S.beamWidth,
+      polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, beamWidth: S.beamWidth,
       reflectSlider: S.reflectSlider, maxBounces: S.maxBounces, beamCount: S.beamCount,
       spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
       speedMax: S.speedMax, speedMultiplier: S.speedMultiplier,
@@ -5009,7 +5098,7 @@ void main() {
 
   function applyPreset(P) {
     Object.assign(S, {
-      polygonType: P.polygonType || 'circle', sides: P.sides || 5, beamWidth: P.beamWidth || 2,
+      polygonType: P.polygonType || 'circle', sides: P.sides || 5, wallBend: P.wallBend ?? 0, beamWidth: P.beamWidth || 2,
       reflectSlider: P.reflectSlider ?? 0.8, maxBounces: P.maxBounces || 8, beamCount: P.beamCount || 1,
       spreadDeg: P.spreadDeg ?? 0, angleDeg: P.angleDeg ?? 0, rotationSpeed: P.rotationSpeed ?? 0,
       speedMax: P.speedMax || 5, speedMultiplier: P.speedMultiplier ?? 0.01,
@@ -5484,7 +5573,8 @@ void main() {
     wwRotation:    { label: 'Shape wave spin', get: () => S.widthWave.rotation, set: v => S.widthWave.rotation = v, min: -2, max: () => 2,     range: () => 1 },
     bloom:         { label: 'Glow strength',   get: () => S.bloom.strength,  set: v => S.bloom.strength = v,  min: 0,    max: () => 3,          range: () => 1.5 },
     edgeWidth:     { label: 'Edge softness',   get: () => S.beamEdge.width,  set: v => S.beamEdge.width = v,  min: 0,    max: () => 1,          range: () => 1 },
-    edgeIntensity: { label: 'Edge intensity',  get: () => S.beamEdge.intensity, set: v => S.beamEdge.intensity = v, min: 0, max: () => 1,       range: () => 1 }
+    edgeIntensity: { label: 'Edge intensity',  get: () => S.beamEdge.intensity, set: v => S.beamEdge.intensity = v, min: 0, max: () => 1,       range: () => 1 },
+    wallBend:      { label: 'Wall bend',       get: () => S.wallBend,        set: v => { S.wallBend = v; bendWalls(); }, min: -0.8, max: () => 1, range: () => 0.6 }
   };
 
   const MOD_SOURCES = {
