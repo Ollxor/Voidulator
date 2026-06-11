@@ -1747,11 +1747,11 @@
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
-      <div class="row advanced-only"><label>Edge softness</label>
+      <div class="row advanced-only"><label data-i18n="edgeSoftness">Edge softness</label>
         <input id="edgeWidth" type="range" min="0" max="1" step="0.01" value="0.6">
       </div>
 
-      <div class="row advanced-only"><label>Edge intensity</label>
+      <div class="row advanced-only"><label data-i18n="edgeIntensity">Edge intensity</label>
         <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
       </div>
 
@@ -1938,7 +1938,7 @@
     </div>
 
     <div class="group collapsible advanced-only" id="bloomGroup">
-      <div class="group-title">Glow</div>
+      <div class="group-title" data-i18n="glow">Glow</div>
       <div class="group-content">
         <div class="subgrid">
           <label>Enable</label>
@@ -1948,33 +1948,33 @@
             <input id="bloomStrength" type="range" min="0" max="3" step="0.05" value="0.85">
             <input id="bloomStrengthNum" type="number" min="0" max="3" step="0.05" value="0.85">
           </div>
-          <label>Threshold</label>
+          <label data-i18n="threshold">Threshold</label>
           <input id="bloomThreshold" type="range" min="0" max="1" step="0.01" value="0.3">
         </div>
-        <div class="hint">Real laser glow &mdash; bright beams bleed light like through haze. Threshold: how bright a pixel must be to bloom.</div>
+        <div class="hint" data-i18n="hintGlow">Real laser glow &mdash; bright beams bleed light like through haze. Threshold: how bright a pixel must be to bloom.</div>
       </div>
     </div>
 
     <div class="group collapsible collapsed advanced-only" id="phosphorGroup">
-      <div class="group-title">Phosphor Walls</div>
+      <div class="group-title" data-i18n="phosphorWalls">Phosphor Walls</div>
       <div class="group-content">
         <div class="subgrid">
           <label>Enable</label>
           <button class="btn" id="phosToggle">Off</button>
-          <label>Persistence (s)</label>
+          <label data-i18n="persistenceS">Persistence (s)</label>
           <div class="ctrl-row">
             <input id="phosPersistence" type="range" min="0.3" max="8" step="0.1" value="2.5">
             <input id="phosPersistenceNum" type="number" min="0.3" max="8" step="0.1" value="2.5">
           </div>
-          <label>Intensity</label>
+          <label data-i18n="intensity">Intensity</label>
           <div class="ctrl-row">
             <input id="phosIntensity" type="range" min="0" max="2" step="0.05" value="1">
             <input id="phosIntensityNum" type="number" min="0" max="2" step="0.05" value="1">
           </div>
-          <label>Width (px)</label>
+          <label data-i18n="widthPx">Width (px)</label>
           <input id="phosWidth" type="range" min="2" max="40" step="1" value="12">
         </div>
-        <div class="hint">Beams paint glow onto the walls where they strike; it fades over Persistence seconds. Great with bent walls &mdash; the hot spots reveal the caustics.</div>
+        <div class="hint" data-i18n="hintPhosphor">Beams paint glow onto the walls where they strike; it fades over Persistence seconds. Great with bent walls &mdash; the hot spots reveal the caustics.</div>
       </div>
     </div>
 
@@ -2039,7 +2039,7 @@
           </div>
           <label data-i18n="smoothing">Smoothing</label>
           <input id="audioSmoothing" type="range" min="0" max="0.98" step="0.01" value="0.5">
-          <label>Level</label>
+          <label data-i18n="level">Level</label>
           <div class="audio-level-track"><div id="audioLevelBar" class="audio-level-bar"></div></div>
         </div>
         <div class="hint" data-i18n="hintAudio">Uses mic/system audio. Press F for clean fullscreen.</div>
@@ -2047,19 +2047,19 @@
     </div>
 
     <div class="group collapsible collapsed advanced-only" id="modGroup">
-      <div class="group-title">Modulation Matrix</div>
+      <div class="group-title" data-i18n="modMatrix">Modulation Matrix</div>
       <div class="group-content">
         <div id="modRoutes"></div>
         <div class="btn-row">
-          <button class="btn" id="modAddRoute">+ Add route</button>
+          <button class="btn" id="modAddRoute" data-i18n="addRoute">+ Add route</button>
         </div>
         <div class="subgrid">
-          <label>Tempo (BPM)</label>
+          <label data-i18n="tempoBpm">Tempo (BPM)</label>
           <div class="ctrl-row">
             <input id="bpmNum" type="number" min="30" max="300" step="0.1" value="120">
-            <button class="btn" id="tapTempo">Tap</button>
+            <button class="btn" id="tapTempo" data-i18n="tap">Tap</button>
           </div>
-          <label>LFO 1 sync</label>
+          <label data-i18n="lfoSync1">LFO 1 sync</label>
           <select id="lfoSync1">
             <option value="off" selected="">Free (Hz)</option>
             <option value="16">4 bars</option>
@@ -2069,12 +2069,12 @@
             <option value="1">1/4</option>
             <option value="0.5">1/8</option>
           </select>
-          <label>LFO 1 (Hz)</label>
+          <label data-i18n="lfoHz1">LFO 1 (Hz)</label>
           <div class="ctrl-row">
             <input id="lfoRate1" type="range" min="0.01" max="4" step="0.01" value="0.25">
             <input id="lfoRate1Num" type="number" min="0.01" max="4" step="0.01" value="0.25">
           </div>
-          <label>LFO 2 sync</label>
+          <label data-i18n="lfoSync2">LFO 2 sync</label>
           <select id="lfoSync2">
             <option value="off" selected="">Free (Hz)</option>
             <option value="16">4 bars</option>
@@ -2084,21 +2084,21 @@
             <option value="1">1/4</option>
             <option value="0.5">1/8</option>
           </select>
-          <label>LFO 2 (Hz)</label>
+          <label data-i18n="lfoHz2">LFO 2 (Hz)</label>
           <div class="ctrl-row">
             <input id="lfoRate2" type="range" min="0.01" max="4" step="0.01" value="0.05">
             <input id="lfoRate2Num" type="number" min="0.01" max="4" step="0.01" value="0.05">
           </div>
         </div>
-        <div class="hint">Routes sources to parameters. Amount is bipolar &mdash; negative inverts. Audio sources need mic listening; LFOs always run.</div>
+        <div class="hint" data-i18n="hintMatrix">Routes sources to parameters. Amount is bipolar &mdash; negative inverts. Audio sources need mic listening; LFOs always run.</div>
       </div>
     </div>
 
     <div class="group collapsible collapsed advanced-only" id="beatGroup">
-      <div class="group-title">Beat Detection</div>
+      <div class="group-title" data-i18n="beatDetection">Beat Detection</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Detect</label>
+          <label data-i18n="detect">Detect</label>
           <div class="btn-row">
             <button class="btn" id="beatToggle">Off</button>
             <span id="beatDot" class="beat-dot"></span>
@@ -2108,58 +2108,58 @@
             <input id="beatSens" type="range" min="1.05" max="2.5" step="0.05" value="1.4">
             <input id="beatSensNum" type="number" min="1.05" max="2.5" step="0.05" value="1.4">
           </div>
-          <label>Envelope decay</label>
+          <label data-i18n="envelopeDecay">Envelope decay</label>
           <input id="beatDecay" type="range" min="1" max="15" step="0.5" value="6">
-          <label>On beat: ripple</label>
+          <label data-i18n="onBeatRipple">On beat: ripple</label>
           <div class="btn-row"><button class="btn" id="beatRippleToggle">Off</button></div>
-          <label>On beat: hue jump</label>
+          <label data-i18n="onBeatHue">On beat: hue jump</label>
           <div class="btn-row"><button class="btn" id="beatHueToggle">Off</button></div>
-          <label>Hue step (&deg;)</label>
+          <label data-i18n="hueStepDeg">Hue step (&deg;)</label>
           <input id="beatHueStep" type="range" min="5" max="180" step="5" value="30">
         </div>
-        <div class="hint">Needs mic listening. The beat envelope is also a source in the Modulation Matrix.</div>
+        <div class="hint" data-i18n="hintBeat">Needs mic listening. The beat envelope is also a source in the Modulation Matrix.</div>
       </div>
     </div>
 
     <div class="group collapsible collapsed advanced-only" id="midiGroup">
-      <div class="group-title">MIDI</div>
+      <div class="group-title" data-i18n="midiTitle">MIDI</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Input</label>
+          <label data-i18n="inputLabel">Input</label>
           <div class="btn-row"><button class="btn" id="midiToggle">Enable MIDI</button></div>
-          <label>Status</label>
+          <label data-i18n="statusLabel">Status</label>
           <div id="midiStatus" class="midi-status">Off</div>
-          <label>Learn</label>
+          <label data-i18n="learn">Learn</label>
           <div class="ctrl-row">
             <select id="midiLearnParam"></select>
             <button class="btn" id="midiLearnBtn">Learn</button>
           </div>
-          <label>Notes &rarr; beat</label>
+          <label data-i18n="notesToBeat">Notes &rarr; beat</label>
           <div class="btn-row"><button class="btn" id="midiNoteBeatToggle">Off</button></div>
         </div>
         <div id="midiBindings"></div>
-        <div class="hint">Click Learn, then move a knob or fader on your controller to bind it.</div>
+        <div class="hint" data-i18n="hintMidi">Click Learn, then move a knob or fader on your controller to bind it.</div>
       </div>
     </div>
 
     <div class="group collapsible collapsed advanced-only" id="recGroup">
-      <div class="group-title">Record Video</div>
+      <div class="group-title" data-i18n="recordVideo">Record Video</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Resolution</label>
+          <label data-i18n="resolution">Resolution</label>
           <select id="recRes">
             <option value="480">480p</option>
             <option value="720">720p</option>
             <option value="1080" selected="">1080p</option>
             <option value="2160">4K</option>
           </select>
-          <label>Record</label>
+          <label data-i18n="record">Record</label>
           <div class="btn-row">
             <button class="btn" id="recToggle">&#9679; Start</button>
             <span id="recTime" class="rec-time"></span>
           </div>
         </div>
-        <div class="hint">Exports WebM at the chosen height; width follows the window aspect. Keep the tab visible while recording. 4K is GPU-heavy.</div>
+        <div class="hint" data-i18n="hintRecord">Exports WebM at the chosen height; width follows the window aspect. Keep the tab visible while recording. 4K is GPU-heavy.</div>
       </div>
     </div>
 
@@ -2180,13 +2180,13 @@
             <option value="parabolic">Parabolic resonator</option>
           </select>
 
-          <label>Eccentricity</label>
+          <label data-i18n="eccentricityL">Eccentricity</label>
           <div class="ctrl-row">
             <input id="eccentricity" type="range" min="0" max="0.95" step="0.01" value="0.6">
             <input id="eccentricityNum" type="number" min="0" max="0.95" step="0.01" value="0.6">
           </div>
 
-          <label>Wall bend</label>
+          <label data-i18n="wallBend">Wall bend</label>
           <div class="ctrl-row">
             <input id="wallBend" type="range" min="-0.8" max="1" step="0.01" value="0">
             <input id="wallBendNum" type="number" min="-0.8" max="1" step="0.01" value="0">
@@ -7576,7 +7576,47 @@ void main() {
       stopListening: 'Stop listening',
       micDenied: 'Mic denied',
       // Alerts
-      noSavedScenes: 'No saved scenes! Save some scenes first (Shift+Click on slot numbers)'
+      noSavedScenes: 'No saved scenes! Save some scenes first (Shift+Click on slot numbers)',
+      // v1.1+ panels
+      modMatrix: 'Modulation Matrix',
+      beatDetection: 'Beat Detection',
+      midiTitle: 'MIDI',
+      recordVideo: 'Record Video',
+      glow: 'Glow',
+      phosphorWalls: 'Phosphor Walls',
+      level: 'Level',
+      addRoute: '+ Add route',
+      tempoBpm: 'Tempo (BPM)',
+      tap: 'Tap',
+      lfoSync1: 'LFO 1 sync',
+      lfoHz1: 'LFO 1 (Hz)',
+      lfoSync2: 'LFO 2 sync',
+      lfoHz2: 'LFO 2 (Hz)',
+      detect: 'Detect',
+      envelopeDecay: 'Envelope decay',
+      onBeatRipple: 'On beat: ripple',
+      onBeatHue: 'On beat: hue jump',
+      hueStepDeg: 'Hue step (°)',
+      inputLabel: 'Input',
+      statusLabel: 'Status',
+      learn: 'Learn',
+      notesToBeat: 'Notes → beat',
+      resolution: 'Resolution',
+      record: 'Record',
+      threshold: 'Threshold',
+      edgeSoftness: 'Edge softness',
+      edgeIntensity: 'Edge intensity',
+      wallBend: 'Wall bend',
+      eccentricityL: 'Eccentricity',
+      persistenceS: 'Persistence (s)',
+      intensity: 'Intensity',
+      widthPx: 'Width (px)',
+      hintMatrix: 'Routes sources to parameters. Amount is bipolar — negative inverts. Audio sources need mic listening; LFOs always run.',
+      hintBeat: 'Needs mic listening. The beat envelope is also a source in the Modulation Matrix.',
+      hintMidi: 'Click Learn, then move a knob or fader on your controller to bind it.',
+      hintRecord: 'Exports WebM at the chosen height; width follows the window aspect. Keep the tab visible while recording. 4K is GPU-heavy.',
+      hintGlow: 'Real laser glow — bright beams bleed light like through haze. Threshold: how bright a pixel must be to bloom.',
+      hintPhosphor: 'Beams paint glow onto the walls where they strike; it fades over Persistence seconds. Great with bent walls — the hot spots reveal the caustics.'
     },
     es: {
       reflectivity: 'Reflectividad',
@@ -7669,7 +7709,46 @@ void main() {
       stopListening: 'Detener escucha',
       micDenied: 'Mic denegado',
       // Alerts
-      noSavedScenes: '¡No hay escenas guardadas! Guarda algunas primero (Shift+Clic en los números)'
+      noSavedScenes: '¡No hay escenas guardadas! Guarda algunas primero (Shift+Clic en los números)',
+      modMatrix: 'Matriz de modulación',
+      beatDetection: 'Detección de ritmo',
+      midiTitle: 'MIDI',
+      recordVideo: 'Grabar vídeo',
+      glow: 'Resplandor',
+      phosphorWalls: 'Paredes fosforescentes',
+      level: 'Nivel',
+      addRoute: '+ Añadir ruta',
+      tempoBpm: 'Tempo (BPM)',
+      tap: 'Pulsa',
+      lfoSync1: 'Sinc. LFO 1',
+      lfoHz1: 'LFO 1 (Hz)',
+      lfoSync2: 'Sinc. LFO 2',
+      lfoHz2: 'LFO 2 (Hz)',
+      detect: 'Detectar',
+      envelopeDecay: 'Caída de envolvente',
+      onBeatRipple: 'Al ritmo: onda',
+      onBeatHue: 'Al ritmo: salto de tono',
+      hueStepDeg: 'Paso de tono (°)',
+      inputLabel: 'Entrada',
+      statusLabel: 'Estado',
+      learn: 'Aprender',
+      notesToBeat: 'Notas → ritmo',
+      resolution: 'Resolución',
+      record: 'Grabar',
+      threshold: 'Umbral',
+      edgeSoftness: 'Suavidad de borde',
+      edgeIntensity: 'Intensidad de borde',
+      wallBend: 'Curvatura de paredes',
+      eccentricityL: 'Excentricidad',
+      persistenceS: 'Persistencia (s)',
+      intensity: 'Intensidad',
+      widthPx: 'Ancho (px)',
+      hintMatrix: 'Conecta fuentes a parámetros. La cantidad es bipolar: negativo invierte. Las fuentes de audio requieren micrófono; los LFO siempre funcionan.',
+      hintBeat: 'Requiere micrófono. La envolvente de ritmo también es una fuente en la matriz de modulación.',
+      hintMidi: 'Haz clic en Aprender y mueve un control de tu controlador para asignarlo.',
+      hintRecord: 'Exporta WebM a la altura elegida; el ancho sigue la ventana. Mantén la pestaña visible al grabar. 4K exige mucha GPU.',
+      hintGlow: 'Resplandor láser real: los haces brillantes difunden luz como entre niebla. Umbral: brillo mínimo para resplandecer.',
+      hintPhosphor: 'Los haces pintan brillo en las paredes donde golpean; se desvanece según la persistencia. Genial con paredes curvadas: los puntos calientes revelan las cáusticas.'
     },
     pt: {
       reflectivity: 'Refletividade',
@@ -7762,7 +7841,46 @@ void main() {
       stopListening: 'Parar escuta',
       micDenied: 'Mic negado',
       // Alerts
-      noSavedScenes: 'Sem cenas salvas! Salve algumas primeiro (Shift+Clique nos números)'
+      noSavedScenes: 'Sem cenas salvas! Salve algumas primeiro (Shift+Clique nos números)',
+      modMatrix: 'Matriz de modulação',
+      beatDetection: 'Detecção de batida',
+      midiTitle: 'MIDI',
+      recordVideo: 'Gravar vídeo',
+      glow: 'Brilho',
+      phosphorWalls: 'Paredes fosforescentes',
+      level: 'Nível',
+      addRoute: '+ Adicionar rota',
+      tempoBpm: 'Tempo (BPM)',
+      tap: 'Toque',
+      lfoSync1: 'Sinc. LFO 1',
+      lfoHz1: 'LFO 1 (Hz)',
+      lfoSync2: 'Sinc. LFO 2',
+      lfoHz2: 'LFO 2 (Hz)',
+      detect: 'Detectar',
+      envelopeDecay: 'Decaimento do envelope',
+      onBeatRipple: 'Na batida: onda',
+      onBeatHue: 'Na batida: salto de tom',
+      hueStepDeg: 'Passo de tom (°)',
+      inputLabel: 'Entrada',
+      statusLabel: 'Estado',
+      learn: 'Aprender',
+      notesToBeat: 'Notas → batida',
+      resolution: 'Resolução',
+      record: 'Gravar',
+      threshold: 'Limiar',
+      edgeSoftness: 'Suavidade da borda',
+      edgeIntensity: 'Intensidade da borda',
+      wallBend: 'Curvatura das paredes',
+      eccentricityL: 'Excentricidade',
+      persistenceS: 'Persistência (s)',
+      intensity: 'Intensidade',
+      widthPx: 'Largura (px)',
+      hintMatrix: 'Liga fontes a parâmetros. A quantidade é bipolar — negativo inverte. Fontes de áudio precisam de microfone; os LFO funcionam sempre.',
+      hintBeat: 'Precisa de microfone. O envelope de batida também é uma fonte na matriz de modulação.',
+      hintMidi: 'Clique em Aprender e mova um controle do seu controlador para vinculá-lo.',
+      hintRecord: 'Exporta WebM na altura escolhida; a largura segue a janela. Mantenha a aba visível ao gravar. 4K exige muito da GPU.',
+      hintGlow: 'Brilho de laser real — feixes brilhantes espalham luz como na névoa. Limiar: brilho mínimo para brilhar.',
+      hintPhosphor: 'Os feixes pintam brilho nas paredes onde batem; desvanece conforme a persistência. Ótimo com paredes curvas — os pontos quentes revelam as cáusticas.'
     },
     fr: {
       reflectivity: 'Réflectivité',
@@ -7855,7 +7973,46 @@ void main() {
       stopListening: 'Arrêter écoute',
       micDenied: 'Mic refusé',
       // Alerts
-      noSavedScenes: 'Aucune scène sauvegardée! Sauvegardez-en d\'abord (Shift+Clic sur les numéros)'
+      noSavedScenes: 'Aucune scène sauvegardée! Sauvegardez-en d\'abord (Shift+Clic sur les numéros)',
+      modMatrix: 'Matrice de modulation',
+      beatDetection: 'Détection du rythme',
+      midiTitle: 'MIDI',
+      recordVideo: 'Enregistrer la vidéo',
+      glow: 'Halo',
+      phosphorWalls: 'Murs phosphorescents',
+      level: 'Niveau',
+      addRoute: '+ Ajouter une route',
+      tempoBpm: 'Tempo (BPM)',
+      tap: 'Tap',
+      lfoSync1: 'Sync LFO 1',
+      lfoHz1: 'LFO 1 (Hz)',
+      lfoSync2: 'Sync LFO 2',
+      lfoHz2: 'LFO 2 (Hz)',
+      detect: 'Détecter',
+      envelopeDecay: 'Déclin d\'enveloppe',
+      onBeatRipple: 'Sur le temps : onde',
+      onBeatHue: 'Sur le temps : saut de teinte',
+      hueStepDeg: 'Pas de teinte (°)',
+      inputLabel: 'Entrée',
+      statusLabel: 'État',
+      learn: 'Apprendre',
+      notesToBeat: 'Notes → rythme',
+      resolution: 'Résolution',
+      record: 'Enregistrer',
+      threshold: 'Seuil',
+      edgeSoftness: 'Douceur du bord',
+      edgeIntensity: 'Intensité du bord',
+      wallBend: 'Courbure des murs',
+      eccentricityL: 'Excentricité',
+      persistenceS: 'Persistance (s)',
+      intensity: 'Intensité',
+      widthPx: 'Largeur (px)',
+      hintMatrix: 'Relie des sources aux paramètres. La quantité est bipolaire — négatif inverse. Les sources audio nécessitent le micro ; les LFO tournent toujours.',
+      hintBeat: 'Nécessite le micro. L\'enveloppe de rythme est aussi une source dans la matrice de modulation.',
+      hintMidi: 'Cliquez sur Apprendre puis bougez un bouton de votre contrôleur pour l\'assigner.',
+      hintRecord: 'Exporte en WebM à la hauteur choisie ; la largeur suit la fenêtre. Gardez l\'onglet visible pendant l\'enregistrement. La 4K sollicite le GPU.',
+      hintGlow: 'Halo laser réaliste — les faisceaux brillants diffusent comme dans la brume. Seuil : luminosité minimale pour rayonner.',
+      hintPhosphor: 'Les faisceaux peignent les murs là où ils frappent ; le halo s\'estompe selon la persistance. Superbe avec des murs courbés — les points chauds révèlent les caustiques.'
     }
   };
   
