@@ -1889,6 +1889,14 @@
       </div>
     </div>
     <div class="grid">
+      <div class="row"><label data-i18n="emission">Emission</label>
+        <select id="emissionSel">
+          <option value="beams" selected="" data-i18n="optBeams">Beams</option>
+          <option value="rings" data-i18n="optRings">Rings</option>
+          <option value="both" data-i18n="optBoth">Both</option>
+        </select>
+      </div>
+
       <div class="row"><label>Reflectivity</label>
         <input id="reflect" type="range" min="0" max="1" step="0.001" value="0.80">
       </div>
@@ -1932,12 +1940,48 @@
         <button class="btn" id="showEmitterToggle">Hide</button>
       </div>
 
+      <div class="row"><label data-i18n="centerBtn">Center emitters</label>
+        <button class="btn" id="centerEmittersBtn">&#8982;</button>
+      </div>
+
       <div class="speed-control">
         <div class="speed-header">
           <label>Speed</label>
           <span id="speedMultiplierNum" class="speed-value">0.1000</span>
         </div>
         <input id="speedMultiplier" type="range" min="0" max="1" step="0.0005" value="0.675">
+      </div>
+    </div>
+
+    <div class="group collapsible" id="roomGroup">
+      <div class="group-title" data-i18n="roomTitle">Room</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Shape</label>
+          <select id="shape">
+            <option value="circle" selected="">Circle</option>
+            <option value="regular-3">Triangle</option>
+            <option value="regular-4">Square</option>
+            <option value="regular-5">Pentagon</option>
+            <option value="regular-6">Hexagon</option>
+            <option value="random-5">Randomgon</option>
+            <option value="blob">Blob</option>
+            <option value="ellipse">Ellipse</option>
+            <option value="parabolic">Parabolic resonator</option>
+          </select>
+
+          <label data-i18n="eccentricityL">Eccentricity</label>
+          <div class="ctrl-row">
+            <input id="eccentricity" type="range" min="0" max="0.95" step="0.01" value="0.6">
+            <input id="eccentricityNum" type="number" min="0" max="0.95" step="0.01" value="0.6">
+          </div>
+
+          <label data-i18n="wallBend">Wall bend</label>
+          <div class="ctrl-row">
+            <input id="wallBend" type="range" min="-0.8" max="1" step="0.01" value="0">
+            <input id="wallBendNum" type="number" min="-0.8" max="1" step="0.01" value="0">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2083,7 +2127,12 @@
           <label data-i18n="enable">Enable</label>
           <button class="btn" id="ringsToggle">Off</button>
           <label data-i18n="activateNow">Activate</label>
-          <button class="btn" id="ringsActivate">&#9678; Now</button>
+          <div class="btn-row">
+            <button class="btn" id="ringsActivate">&#9678; Now</button>
+            <button class="btn" id="ringsCenterBtn" title="Center ring emitters">&#8982;</button>
+          </div>
+          <label data-i18n="autoSpawn">Auto spawn</label>
+          <button class="btn" id="ringsAutoToggle">Off</button>
           <label data-i18n="ringEmitters">Emitters</label>
           <div class="stepper">
             <button class="btn step-btn" id="ringEmDown">&#9660;</button>
@@ -2358,31 +2407,6 @@
       <div class="group-title" data-i18n="bonus">Bonus</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Shape</label>
-          <select id="shape">
-            <option value="circle" selected="">Circle</option>
-            <option value="regular-3">Triangle</option>
-            <option value="regular-4">Square</option>
-            <option value="regular-5">Pentagon</option>
-            <option value="regular-6">Hexagon</option>
-            <option value="random-5">Randomgon</option>
-            <option value="blob">Blob</option>
-            <option value="ellipse">Ellipse</option>
-            <option value="parabolic">Parabolic resonator</option>
-          </select>
-
-          <label data-i18n="eccentricityL">Eccentricity</label>
-          <div class="ctrl-row">
-            <input id="eccentricity" type="range" min="0" max="0.95" step="0.01" value="0.6">
-            <input id="eccentricityNum" type="number" min="0" max="0.95" step="0.01" value="0.6">
-          </div>
-
-          <label data-i18n="wallBend">Wall bend</label>
-          <div class="ctrl-row">
-            <input id="wallBend" type="range" min="-0.8" max="1" step="0.01" value="0">
-            <input id="wallBendNum" type="number" min="-0.8" max="1" step="0.01" value="0">
-          </div>
-          
           <label>Emitters</label>
           <div class="stepper">
             <button class="btn step-btn" id="emCountDown">▼</button>
@@ -2437,7 +2461,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.8.0';
+  const APP_VERSION = 'v1.9.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2566,6 +2590,9 @@
     // baseVertices caches the unbent corners so bending is non-destructive.
     wallBend: 0,
     baseVertices: null,
+    // Analytic arc walls (regular/random rooms): collision geometry that the
+    // ray tracer solves with one quadratic per wall — see buildWallArcs
+    wallArcs: null,
     // Cached randomness for resize-stable shapes (cleared when re-picked)
     randomUnit: null,
     blobPhases: null,
@@ -2581,8 +2608,11 @@
     // Rings: an independent emission system — expanding circular wavefronts
     // from their own emitters that fold and reflect off the walls. Coexists
     // with beams (set beam count 0 for rings only).
+    // Beams visible? (the Emission select: beams / rings / both)
+    showBeams: true,
     rings: {
       enabled: false,
+      autoSpawn: false,   // scheduler on/off — off = manual Activate only
       emittersNorm: [{ nx: 0.5, ny: 0.5 }], // own emitters, center by default
       geometric: true,    // dragging one dot arranges all as a regular polygon
       speed: [250, 400],  // expansion speed px/s — [min,max], drawn per ring
@@ -3179,6 +3209,7 @@
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
+      showBeams: S.showBeams,
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -3260,6 +3291,7 @@
       S.phosphor.intensity = scene.phosphor.intensity ?? 1;
       S.phosphor.width = scene.phosphor.width ?? 12;
     }
+    S.showBeams = scene.showBeams ?? true;
     if (scene.rings) {
       S.rings = JSON.parse(JSON.stringify(scene.rings));
       if (!Array.isArray(S.rings.emittersNorm) || !S.rings.emittersNorm.length) {
@@ -3268,6 +3300,7 @@
       S.rings.speed = normRange(S.rings.speed, [250, 400]);
       S.rings.lifetime = normRange(S.rings.lifetime, [8, 16]);
       S.rings.speedMul = S.rings.speedMul ?? 1;
+      S.rings.autoSpawn = S.rings.autoSpawn ?? false;
     } else if (scene.emissionMode === 'waves') {
       // Legacy wave-mode scenes map onto the rings system
       S.rings.enabled = true;
@@ -3505,6 +3538,9 @@
 
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
+
+    // Beams visibility switches at the midpoint
+    S.showBeams = t > 0.5 ? (to.showBeams ?? true) : (from.showBeams ?? true);
 
     // Rings: numeric fields lerp, the rest switches at the midpoint
     const ringsNow = S.rings;
@@ -3940,6 +3976,7 @@
     const safeR = Math.max(10, Math.min(W, H) / 2 - margin);
     S.baseVertices = null;
     S.foci = null;
+    S.wallArcs = null;
     if (S.polygonType === 'circle') {
       S.isCircle = true;
       S.circle = { cx, cy, R: safeR };
@@ -4005,6 +4042,7 @@
       for (const p of verts) { p.x = p.x * scale + cx; p.y = p.y * scale + cy; }
       S.baseVertices = verts;
       S.vertices = bendVerts(verts, S.wallBend);
+      S.wallArcs = buildWallArcs(verts, S.wallBend);
       return;
     }
     if (S.polygonType === 'blob') {
@@ -4029,34 +4067,29 @@
     }
     S.baseVertices = verts;
     S.vertices = bendVerts(verts, S.wallBend);
+    S.wallArcs = buildWallArcs(verts, S.wallBend);
   }
 
-  // Curve each straight wall: subdivide and displace along the outward normal
-  // by a sine bulge. bend > 0 bulges walls outward (pillow), bend < 0 pinches
-  // them inward (star/pincushion). Pure function of the base corners, so
-  // re-bending never re-randomizes random shapes.
+  // Polyline samples of the bent walls — DRAWING / point-in-room / phosphor
+  // only. Collision uses S.wallArcs analytically (computePath), so this can
+  // stay modest-resolution without affecting beam smoothness at all.
+  // The polyline samples the exact same circular arcs the tracer reflects
+  // off, so the drawn wall and the physics wall always agree.
   function bendVerts(corners, bend) {
     if (!bend || Math.abs(bend) < 0.001) return corners.slice();
-    const c = centroid(corners);
+    const arcs = buildWallArcs(corners, bend);
     const out = [];
-    // Max subdivisions the tracer can afford: target ~720 total wall segments
-    // (the blob has 720 and is the proven performance ceiling). Triangle gets
-    // 240/wall, hexagon 120/wall. Smoother normals = less beam jumpiness when
-    // the bend animates — though bent rooms are chaotic billiards, so paths
-    // with many bounces will always be sensitive to wall motion.
-    const K = Math.max(8, Math.min(240, Math.floor(720 / corners.length)));
-    for (let i = 0; i < corners.length; i++) {
+    const K = Math.max(8, Math.min(64, Math.floor(384 / corners.length)));
+    for (let i = 0; i < arcs.length; i++) {
+      const A = arcs[i];
+      if (A.line) { out.push({ x: A.a.x, y: A.a.y }); continue; }
       const p0 = corners[i], p1 = corners[(i + 1) % corners.length];
-      const ex = p1.x - p0.x, ey = p1.y - p0.y;
-      const len = Math.hypot(ex, ey) || 1;
-      let nx = -ey / len, ny = ex / len;
-      // Make the normal point away from the centroid regardless of winding
-      const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
-      if (nx * (mx - c.x) + ny * (my - c.y) < 0) { nx = -nx; ny = -ny; }
+      const a0 = Math.atan2(p0.y - A.cy, p0.x - A.cx);
+      const a1 = Math.atan2(p1.y - A.cy, p1.x - A.cx);
+      const sweep = angDiff(a1, a0); // short way = through the apex (h ≤ 0.3L)
       for (let k = 0; k < K; k++) {
-        const s = k / K;
-        const d = bend * len * 0.3 * Math.sin(Math.PI * s);
-        out.push({ x: p0.x + ex * s + nx * d, y: p0.y + ey * s + ny * d });
+        const ang = a0 + sweep * (k / K);
+        out.push({ x: A.cx + Math.cos(ang) * A.R, y: A.cy + Math.sin(ang) * A.R });
       }
     }
     return out;
@@ -4067,6 +4100,7 @@
   function bendWalls() {
     if (S.isCircle || !S.baseVertices) return;
     S.vertices = bendVerts(S.baseVertices, S.wallBend);
+    S.wallArcs = buildWallArcs(S.baseVertices, S.wallBend);
   }
 
   function centroid(v) {
@@ -4291,6 +4325,81 @@
     return { point: { x: o.x + d.x * t, y: o.y + d.y * t }, t };
   }
 
+  // ---- Analytic arc walls ----
+  // Bent polygon walls are solved as true circular arcs: one quadratic per
+  // wall instead of hundreds of subdivided segment tests, with exact normals
+  // at the hit point. This is what makes bent rooms as cheap and as smooth
+  // as the circle. (Reflection is sign-agnostic, so normal orientation is
+  // irrelevant: d − 2(d·n)n is identical for n and −n.)
+  const angDiff = (a, b) => {
+    let d = a - b;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    return d;
+  };
+
+  function buildWallArcs(corners, bend) {
+    const c = centroid(corners);
+    const arcs = [];
+    for (let i = 0; i < corners.length; i++) {
+      const p0 = corners[i], p1 = corners[(i + 1) % corners.length];
+      const ex = p1.x - p0.x, ey = p1.y - p0.y;
+      const L = Math.hypot(ex, ey) || 1;
+      let nx = -ey / L, ny = ex / L;
+      const mx = (p0.x + p1.x) / 2, my = (p0.y + p1.y) / 2;
+      if (nx * (mx - c.x) + ny * (my - c.y) < 0) { nx = -nx; ny = -ny; } // outward
+      const h = bend * L * 0.3; // sagitta: bulge height at the wall midpoint
+      if (Math.abs(h) < 0.01) {
+        arcs.push({ line: true, a: p0, b: p1 });
+        continue;
+      }
+      // Circle through p0, p1 with apex at mid + n̂·h
+      const R = (L * L / 4 + h * h) / (2 * Math.abs(h));
+      const off = h - Math.sign(h) * R;
+      const ccx = mx + nx * off, ccy = my + ny * off;
+      const apexAng = Math.atan2(my + ny * h - ccy, mx + nx * h - ccx);
+      const halfSpan = Math.abs(angDiff(Math.atan2(p0.y - ccy, p0.x - ccx), apexAng));
+      arcs.push({ line: false, cx: ccx, cy: ccy, R, apexAng, halfSpan });
+    }
+    return arcs;
+  }
+
+  function firstHitArcs(o, d, arcs) {
+    let best = null, bestT = 1e20;
+    for (const A of arcs) {
+      if (A.line) {
+        const h = raySegIntersection(o, d, A.a, A.b);
+        if (h && h.t < bestT) { best = { point: h.point, t: h.t, arc: A }; bestT = h.t; }
+        continue;
+      }
+      const ox = o.x - A.cx, oy = o.y - A.cy;
+      const b = ox * d.x + oy * d.y;
+      const c0 = ox * ox + oy * oy - A.R * A.R;
+      const disc = b * b - c0;
+      if (disc < 1e-9) continue;
+      const s = Math.sqrt(disc);
+      const t1 = -b - s, t2 = -b + s;
+      for (let k = 0; k < 2; k++) {
+        const t = k === 0 ? t1 : t2;
+        if (t <= 1e-4 || t >= bestT) continue;
+        const px = o.x + d.x * t, py = o.y + d.y * t;
+        if (Math.abs(angDiff(Math.atan2(py - A.cy, px - A.cx), A.apexAng)) <= A.halfSpan + 1e-4) {
+          best = { point: { x: px, y: py }, t, arc: A };
+          bestT = t;
+        }
+      }
+    }
+    return best;
+  }
+
+  function arcNormal(A, p) {
+    if (A.line) {
+      const e = sub(A.b, A.a);
+      return norm({ x: -e.y, y: e.x });
+    }
+    return norm({ x: p.x - A.cx, y: p.y - A.cy });
+  }
+
   function findNearestEdge(p, verts) {
     let best = null, bestDist = Infinity;
     for (let i = 0; i < verts.length; i++) {
@@ -4316,19 +4425,24 @@
     const segs = []; let cum = 0;
     const limit = maxBounces !== undefined ? maxBounces : S.maxBounces;
     
+    const arcs = S.isCircle ? null : S.wallArcs; // analytic arcs for regular/random rooms
     for (let i = 0; i < limit && intensity > 0.01; i++) {
-      const hit = S.isCircle ? firstHitCircle(o, d, S.circle) : firstHitPoly(o, d, S.vertices);
+      const hit = S.isCircle ? firstHitCircle(o, d, S.circle)
+        : arcs ? firstHitArcs(o, d, arcs)
+        : firstHitPoly(o, d, S.vertices);
       if (!hit) break;
-      
+
       const len = Math.hypot(hit.point.x - o.x, hit.point.y - o.y);
       segs.push({ from: {...o}, to: hit.point, len, cum, intensity });
       cum += len;
       o = hit.point;
-      
+
       // Reflect off wall
       if (S.isCircle) {
         const n = norm({ x: o.x - S.circle.cx, y: o.y - S.circle.cy });
         d = reflectByNormal(d, n);
+      } else if (arcs && hit.arc) {
+        d = reflectByNormal(d, arcNormal(hit.arc, o));
       } else {
         const edge = findNearestEdge(o, S.vertices);
         if (edge) {
@@ -4337,7 +4451,7 @@
           d = reflectByNormal(d, n);
         }
       }
-      
+
       intensity *= S.reflectivity;
       o = { x: o.x + d.x * 0.5, y: o.y + d.y * 0.5 };
     }
@@ -4832,8 +4946,19 @@ void main() {
   const normRange = (v, def) => Array.isArray(v) ? [+v[0], +v[1]] : (typeof v === 'number' ? [v, v] : def.slice());
 
   function ringBounceCap() {
-    // Distance-based lifetime needs roughly lifetime/2 wall bounces, padded
-    return clamp(Math.ceil(S.rings.lifetime[1] / 2) + 4, 6, 64);
+    // Lifetime counts WALL bounces directly: trace just past the max
+    return clamp(Math.ceil(S.rings.lifetime[1]) + 2, 4, 80);
+  }
+
+  // Death distance for one ray at lifetime L (in wall bounces): L = 1 dies
+  // exactly at its first wall hit, L = 1.5 halfway along the second leg, etc.
+  // The center is never a bounce — only walls count.
+  function rayDeathD(ray, L) {
+    const segs = ray.segs;
+    const full = Math.floor(L);
+    if (full >= segs.length) return ray.total;
+    const base = full === 0 ? 0 : segs[full - 1].cum + segs[full - 1].len;
+    return base + (L - full) * (segs[full] ? segs[full].len : 0);
   }
 
   function updateRingEmitters() {
@@ -4897,14 +5022,21 @@ void main() {
     return Math.hypot(W, H); // generous upper bound on any first leg
   }
 
+  function clearLiveRings() {
+    liveRings = [];
+    pendingRings = [];
+  }
+
   function advanceRings(dtSec) {
     if (!S.rings.enabled) return;
-    // Scheduler: activations on a randomized interval
-    ringClock += dtSec;
-    if (ringClock >= nextActivationIn) {
-      ringClock = 0;
-      nextActivationIn = Math.max(0.05, randIn(S.rings.interval));
-      activateRings();
+    // Scheduler: randomized-interval activations — only when auto spawn is on
+    if (S.rings.autoSpawn) {
+      ringClock += dtSec;
+      if (ringClock >= nextActivationIn) {
+        ringClock = 0;
+        nextActivationIn = Math.max(0.05, randIn(S.rings.interval));
+        activateRings();
+      }
     }
     // Pending spawns count down to birth
     for (let i = pendingRings.length - 1; i >= 0; i--) {
@@ -4920,7 +5052,7 @@ void main() {
 
   // Plain quad writer for ring segments — t is the expansion distance so the
   // pulse shader rings radially; edge coords across the thickness like beams
-  function pushRingQuad(x0, y0, x1, y1, halfW, t, rgb, alpha) {
+  function pushRingQuad(x0, y0, x1, y1, halfW, t, rgb, alpha0, alpha1) {
     const dx = x1 - x0, dy = y1 - y0;
     const segLen = Math.hypot(dx, dy) || 1;
     const nx = -dy / segLen, ny = dx / segLen;
@@ -4932,12 +5064,12 @@ void main() {
     const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
     const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
     const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
-    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
-    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
-    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
-    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
-    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
-    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
+    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha0; buf[i+7]=1;  i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha1; buf[i+7]=1;  i+=8;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha0; buf[i+7]=-1; i+=8;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha0; buf[i+7]=-1; i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha1; buf[i+7]=1;  i+=8;
+    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha1; buf[i+7]=-1; i+=8;
     vertCount = i;
   }
 
@@ -4966,13 +5098,13 @@ void main() {
           clamp(col.l + S.lightOffset, 0, 100)
         );
 
-        let px = 0, py = 0, pAlive = false, pFade = 0;
+        let px = 0, py = 0, pAlive = false, pFade = 0, pSeg = -1, pAmp = 0;
         for (let k = 0; k <= RING_RAYS; k++) {
           const ki = k % RING_RAYS;
           const ray = rays[ki];
-          let x = 0, y = 0, alive = false, inten = 0, fadeF = 0;
-          // Per-ray death distance: lifetime legs of THIS ray's first leg
-          const deathD = L * ray.firstLeg;
+          let x = 0, y = 0, alive = false, inten = 0, fadeF = 0, segIdx = -1;
+          // Per-ray death distance: L wall bounces of THIS ray's own path
+          const deathD = rayDeathD(ray, L);
           if (d <= ray.total && d < deathD + fadePx) {
             const segs = ray.segs;
             for (let j = 0; j < segs.length; j++) {
@@ -4983,12 +5115,16 @@ void main() {
                 y = sg.from.y + (sg.to.y - sg.from.y) * f;
                 inten = sg.intensity;
                 fadeF = clamp((deathD + fadePx - d) / fadePx, 0, 1);
+                segIdx = j;
                 alive = true;
                 break;
               }
             }
           }
-          if (k > 0 && alive && pAlive) {
+          const amp = inten * fadeF;
+          // Connect adjacent rays only when they're on the same (or adjacent)
+          // bounce — folded branches that drift close again must NOT reconnect
+          if (k > 0 && alive && pAlive && Math.abs(segIdx - pSeg) <= 1) {
             const ddx = x - px, ddy = y - py;
             // Taper uses per-ray life progress so rings thin as they age
             const progress = clamp(d / (deathD + fadePx), 0, 1);
@@ -4999,17 +5135,17 @@ void main() {
                 ? hslToRgb(((ki / RING_RAYS * 360 + S.hueOffset) % 360 + 360) % 360,
                            clamp(85 + S.satOffset, 0, 100), clamp(55 + S.lightOffset, 0, 100))
                 : colRGB;
-              pushRingQuad(px, py, x, y, half, d, rgb, inten * Math.min(fadeF, pFade || fadeF));
+              pushRingQuad(px, py, x, y, half, d, rgb, pAmp, amp);
             }
           }
-          px = x; py = y; pAlive = alive; pFade = fadeF;
+          px = x; py = y; pAlive = alive; pFade = fadeF; pSeg = segIdx; pAmp = amp;
         }
 
         // Phosphor: deposit where the ring crossed a wall this frame
         if (phosOn && d !== prev) {
           for (let k = 0; k < RING_RAYS; k++) {
             const ray = rays[k];
-            if (d > L * ray.firstLeg) continue; // dead rays stop depositing
+            if (d > rayDeathD(ray, L)) continue; // dead rays stop depositing
             const segs = ray.segs;
             for (let j = 0; j < segs.length; j++) {
               const sg = segs[j];
@@ -5296,7 +5432,7 @@ void main() {
     if (S.rings.enabled) buildRingGeometry(); // rings coexist with beams
     const base = S.angleDeg * Math.PI / 180;
     const spread = (S.spreadDeg || 0) * Math.PI / 180;
-    const n = S.beamCount | 0; // 0 allowed: rings-only emission
+    const n = S.showBeams ? S.beamCount | 0 : 0;
     const half = (S.beamWidth || 2) / 2;
     let totalSegs = 0;
     
@@ -5940,6 +6076,7 @@ void main() {
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
+      showBeams: S.showBeams,
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -6008,6 +6145,7 @@ void main() {
       S.phosphor.intensity = P.phosphor.intensity ?? 1;
       S.phosphor.width = P.phosphor.width ?? 12;
     }
+    S.showBeams = P.showBeams ?? true;
     if (P.rings) {
       S.rings = JSON.parse(JSON.stringify(P.rings));
       if (!Array.isArray(S.rings.emittersNorm) || !S.rings.emittersNorm.length) {
@@ -6016,6 +6154,7 @@ void main() {
       S.rings.speed = normRange(S.rings.speed, [250, 400]);
       S.rings.lifetime = normRange(S.rings.lifetime, [8, 16]);
       S.rings.speedMul = S.rings.speedMul ?? 1;
+      S.rings.autoSpawn = S.rings.autoSpawn ?? false;
     } else if (P.emissionMode === 'waves') {
       S.rings.enabled = true;
       S.rings.rainbow = P.waveRainbow ?? true;
@@ -6151,31 +6290,77 @@ void main() {
     const label = document.createElement('span'); label.className = 'dr-label';
     slot.appendChild(track); slot.appendChild(lo); slot.appendChild(hi); slot.appendChild(label);
     const f = fmt || (v => v);
-    const refresh = () => {
-      const r = getRange();
-      lo.value = r[0]; hi.value = r[1];
+    const paint = (r) => {
       const p0 = (r[0] - min) / (max - min) * 100, p1 = (r[1] - min) / (max - min) * 100;
       fill.style.left = p0 + '%';
       fill.style.width = Math.max(0, p1 - p0) + '%';
       label.textContent = f(r[0]) + '\n' + f(r[1]);
     };
-    lo.addEventListener('input', () => {
+    const refresh = () => {
       const r = getRange();
-      r[0] = Math.min(parseFloat(lo.value), r[1]);
-      setRange(r); refresh();
+      lo.value = r[0]; hi.value = r[1];
+      paint(r);
+    };
+    // Either thumb may cross the other: values are sorted into [min,max] and
+    // only the NON-dragged input is rewritten mid-drag, so a stacked pair can
+    // be pulled apart in both directions with either handle
+    lo.addEventListener('input', () => {
+      const v = parseFloat(lo.value);
+      const other = getRange()[1];
+      const r = v <= other ? [v, other] : [other, v];
+      setRange(r);
+      hi.value = r[1];
+      paint(r);
     });
     hi.addEventListener('input', () => {
-      const r = getRange();
-      r[1] = Math.max(parseFloat(hi.value), r[0]);
-      setRange(r); refresh();
+      const v = parseFloat(hi.value);
+      const other = getRange()[0];
+      const r = v >= other ? [other, v] : [v, other];
+      setRange(r);
+      lo.value = r[0];
+      paint(r);
     });
+    // Re-sync the dragged thumb to its sorted role on release
+    lo.addEventListener('change', refresh);
+    hi.addEventListener('change', refresh);
     refresh();
     return { sync: refresh };
   }
 
+  // ---- Emission mode (beams / rings / both) ----
+  const emissionSelEl = _el('emissionSel');
+  function syncEmissionSel() {
+    if (!emissionSelEl) return;
+    emissionSelEl.value = S.showBeams && S.rings.enabled ? 'both' : (S.rings.enabled ? 'rings' : 'beams');
+  }
+  _on(emissionSelEl, 'change', () => {
+    const v = emissionSelEl.value;
+    S.showBeams = v !== 'rings';
+    const wasOn = S.rings.enabled;
+    S.rings.enabled = v !== 'beams';
+    if (S.rings.enabled && !wasOn) { ringClock = 0; nextActivationIn = 0; }
+    if (!S.rings.enabled && wasOn) clearLiveRings();
+    syncRingsUI();
+  });
+
+  // Move the emitter formation so its centroid lands on the room center
+  function roomCenter() {
+    return S.isCircle ? { x: S.circle.cx, y: S.circle.cy } : centroid(S.vertices);
+  }
+  _on(_el('centerEmittersBtn'), 'click', () => {
+    const rc = roomCenter();
+    const c = centroid(S.emitters);
+    for (let i = 0; i < S.emitters.length; i++) {
+      S.emitters[i] = constrainToRoom({ x: S.emitters[i].x + rc.x - c.x, y: S.emitters[i].y + rc.y - c.y });
+    }
+    updateNormFromEmitters();
+    requestAutosave();
+  });
+
   // ---- Rings UI bindings ----
   const ringsToggleBtn = _el('ringsToggle');
   const ringsActivateBtn = _el('ringsActivate');
+  const ringsAutoToggleBtn = _el('ringsAutoToggle');
   const ringEmUpBtn = _el('ringEmUp'), ringEmDownBtn = _el('ringEmDown'), ringEmValEl = _el('ringEmVal');
   const ringGeoToggleBtn = _el('ringGeoToggle');
   const ringFadeEl = _el('ringFade');
@@ -6196,6 +6381,9 @@ void main() {
     if (!ringsToggleBtn) return;
     ringsToggleBtn.textContent = S.rings.enabled ? 'On' : 'Off';
     ringsToggleBtn.style.borderColor = S.rings.enabled ? 'var(--accent)' : '';
+    ringsAutoToggleBtn.textContent = S.rings.autoSpawn ? 'On' : 'Off';
+    ringsAutoToggleBtn.style.borderColor = S.rings.autoSpawn ? 'var(--accent)' : '';
+    syncEmissionSel();
     ringGeoToggleBtn.textContent = S.rings.geometric ? 'On' : 'Off';
     ringRainbowToggleBtn.textContent = S.rings.rainbow ? 'On' : 'Off';
     ringEmValEl.textContent = S.rings.emittersNorm.length;
@@ -6207,9 +6395,27 @@ void main() {
   _on(ringsToggleBtn, 'click', () => {
     S.rings.enabled = !S.rings.enabled;
     if (S.rings.enabled) { ringClock = 0; nextActivationIn = 0; }
+    else clearLiveRings();
     syncRingsUI();
   });
   _on(ringsActivateBtn, 'click', () => { activateRings(); });
+  _on(ringsAutoToggleBtn, 'click', () => {
+    S.rings.autoSpawn = !S.rings.autoSpawn;
+    ringClock = 0; nextActivationIn = 0;
+    syncRingsUI();
+  });
+  _on(_el('ringsCenterBtn'), 'click', () => {
+    updateRingEmitters();
+    const rc = roomCenter();
+    const c = centroid(ringEmitters);
+    const bounds = getRoomBounds();
+    const bw = bounds.maxX - bounds.minX, bh = bounds.maxY - bounds.minY;
+    for (let i = 0; i < ringEmitters.length; i++) {
+      const p = constrainToRoom({ x: ringEmitters[i].x + rc.x - c.x, y: ringEmitters[i].y + rc.y - c.y });
+      S.rings.emittersNorm[i] = { nx: (p.x - bounds.minX) / bw, ny: (p.y - bounds.minY) / bh };
+    }
+    requestAutosave();
+  });
 
   // Arrange ring emitters as a regular polygon around the room center,
   // anchored on the given dot (used for geometric mode and count changes)
@@ -8291,6 +8497,11 @@ void main() {
       burstEighth: '1 per 8 beats',
       waveReach: 'Wave reach',
       waveTaper: 'Wave taper',
+      roomTitle: 'Room',
+      optRings: 'Rings',
+      optBoth: 'Both',
+      autoSpawn: 'Auto spawn',
+      centerBtn: 'Center emitters',
       tabAll: 'All',
       tabBeams: 'Beams',
       tabFx: 'Effects',
@@ -8309,7 +8520,7 @@ void main() {
       ringInterval: 'Interval (s)',
       ringPerAct: 'Per activation',
       ringSpacing: 'Spacing (s)',
-      hintRings: 'Expanding rings from their own emitters (teal dots). Lifetime in bounces: 1 = reach the wall, 2 = back through center. Range sliders pick a random value between the two markers.',
+      hintRings: 'Expanding rings from their own emitters (teal dots). Lifetime counts wall bounces: 1 = first wall hit, 2 = second. Range sliders pick a random value between the two markers.',
       modMatrix: 'Modulation Matrix',
       beatDetection: 'Beat Detection',
       midiTitle: 'MIDI',
@@ -8456,6 +8667,11 @@ void main() {
       burstEighth: '1 cada 8 pulsos',
       waveReach: 'Alcance de onda',
       waveTaper: 'Afinado de onda',
+      roomTitle: 'Sala',
+      optRings: 'Anillos',
+      optBoth: 'Ambos',
+      autoSpawn: 'Auto-generar',
+      centerBtn: 'Centrar emisores',
       tabAll: 'Todo',
       tabBeams: 'Haces',
       tabFx: 'Efectos',
@@ -8474,7 +8690,7 @@ void main() {
       ringInterval: 'Intervalo (s)',
       ringPerAct: 'Por activación',
       ringSpacing: 'Espaciado (s)',
-      hintRings: 'Anillos expansivos desde sus propios emisores (puntos turquesa). Vida en rebotes: 1 = llegar a la pared, 2 = volver al centro. Los deslizadores dobles eligen un valor aleatorio entre las dos marcas.',
+      hintRings: 'Anillos expansivos desde sus propios emisores (puntos turquesa). La vida cuenta rebotes en la pared: 1 = primer impacto, 2 = segundo. Los deslizadores dobles eligen un valor aleatorio entre las dos marcas.',
       modMatrix: 'Matriz de modulación',
       beatDetection: 'Detección de ritmo',
       midiTitle: 'MIDI',
@@ -8621,6 +8837,11 @@ void main() {
       burstEighth: '1 a cada 8 batidas',
       waveReach: 'Alcance da onda',
       waveTaper: 'Afilamento da onda',
+      roomTitle: 'Sala',
+      optRings: 'Anéis',
+      optBoth: 'Ambos',
+      autoSpawn: 'Auto-gerar',
+      centerBtn: 'Centralizar emissores',
       tabAll: 'Tudo',
       tabBeams: 'Feixes',
       tabFx: 'Efeitos',
@@ -8639,7 +8860,7 @@ void main() {
       ringInterval: 'Intervalo (s)',
       ringPerAct: 'Por ativação',
       ringSpacing: 'Espaçamento (s)',
-      hintRings: 'Anéis expansivos a partir de seus próprios emissores (pontos turquesa). Vida em rebatidas: 1 = chegar à parede, 2 = voltar ao centro. Os controles duplos escolhem um valor aleatório entre as duas marcas.',
+      hintRings: 'Anéis expansivos a partir de seus próprios emissores (pontos turquesa). A vida conta rebatidas na parede: 1 = primeiro impacto, 2 = segundo. Os controles duplos escolhem um valor aleatório entre as duas marcas.',
       modMatrix: 'Matriz de modulação',
       beatDetection: 'Detecção de batida',
       midiTitle: 'MIDI',
@@ -8786,6 +9007,11 @@ void main() {
       burstEighth: '1 tous les 8 temps',
       waveReach: 'Portée de l\'onde',
       waveTaper: 'Effilage de l\'onde',
+      roomTitle: 'Salle',
+      optRings: 'Anneaux',
+      optBoth: 'Les deux',
+      autoSpawn: 'Auto-génération',
+      centerBtn: 'Centrer les émetteurs',
       tabAll: 'Tout',
       tabBeams: 'Faisceaux',
       tabFx: 'Effets',
@@ -8804,7 +9030,7 @@ void main() {
       ringInterval: 'Intervalle (s)',
       ringPerAct: 'Par activation',
       ringSpacing: 'Espacement (s)',
-      hintRings: 'Anneaux en expansion depuis leurs propres émetteurs (points turquoise). Vie en rebonds : 1 = atteindre le mur, 2 = revenir au centre. Les curseurs doubles tirent une valeur aléatoire entre les deux repères.',
+      hintRings: 'Anneaux en expansion depuis leurs propres émetteurs (points turquoise). La vie compte les rebonds sur les murs : 1 = premier impact, 2 = deuxième. Les curseurs doubles tirent une valeur aléatoire entre les deux repères.',
       modMatrix: 'Matrice de modulation',
       beatDetection: 'Détection du rythme',
       midiTitle: 'MIDI',
@@ -9100,14 +9326,17 @@ void main() {
       try { localStorage.removeItem(MIDI_BINDINGS_KEY); } catch (e) {}
       renderMidiBindings();
     },
-    bonus: () => {
+    roomTitle: () => {
       const f = FACTORY;
       S.polygonType = f.polygonType; S.sides = f.sides;
       S.wallBend = f.wallBend; S.eccentricity = f.eccentricity;
-      S.spreadDeg = f.spreadDeg; S.angleDeg = f.angleDeg; S.rotationSpeed = f.rotationSpeed;
-      S.speedMultiplier = f.speedMultiplier; S.emitterMoveSpeed = f.emitterMoveSpeed;
       buildShape();
       updateEmittersFromNorm();
+    },
+    bonus: () => {
+      const f = FACTORY;
+      S.spreadDeg = f.spreadDeg; S.angleDeg = f.angleDeg; S.rotationSpeed = f.rotationSpeed;
+      S.speedMultiplier = f.speedMultiplier; S.emitterMoveSpeed = f.emitterMoveSpeed;
     }
   };
 
@@ -9122,7 +9351,7 @@ void main() {
   const TAB_OF_GROUP = {
     colors: 'beams', perBeamRotation: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams',
     trails: 'fx', glow: 'fx', phosphorWalls: 'fx',
-    bonus: 'room',
+    roomTitle: 'room', bonus: 'room',
     audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',
     scenes: 'scenes', filePresets: 'scenes'
   };

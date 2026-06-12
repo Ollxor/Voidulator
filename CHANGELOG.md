@@ -2,6 +2,27 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.9.0] - 2026-06-12
+
+### 🪞 Analytic Mirrors Update
+
+#### Bent walls: fixed for real
+- Bent walls are now **true circular arcs solved analytically** — one equation per wall instead of 720 subdivided segments. Bent rooms are now as fast as the circle (a bent triangle traces *faster* than the circle: 0.49 ms vs 0.63 ms at 8 beams × 375 bounces) and perfectly smooth: no more segment-normal jumps, no lag
+- The drawn wall samples the exact same arcs the physics reflects off, so what you see is what beams hit
+
+#### Rings: lifetime and rendering fixes
+- **Lifetime counts wall bounces only** (the center is never a bounce): 1 = first wall hit, 2 = second wall hit, 0.5 = halfway to the wall. A center-emitted ring collapses through the center between wall bounces — that's the wave focusing, not dying
+- Rings fade smoothly along their length (per-vertex fade) instead of being cut off
+- Folded ring branches that drift close together no longer falsely reconnect (corner-reflection artifact fixed): segments only connect between rays on the same bounce
+- **Auto spawn toggle** (default off): rings only appear when you press Activate, unless you turn the randomized scheduler on
+- Turning rings off clears all live rings immediately
+
+#### New controls
+- **Emission selector** (top of panel): Beams / Rings / Both
+- **Center emitters** buttons for both beam and ring emitters — moves the formation's centroid to the room center
+- **Room** is its own section (Shape, Eccentricity, Wall bend) — no longer buried in Bonus
+- Dual-range sliders: either handle can now push past the other, so stacked markers can be separated in both directions
+
 ## [1.8.0] - 2026-06-12
 
 ### 🗂️ Workbench Update
