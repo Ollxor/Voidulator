@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.9.1] - 2026-06-12
+
+### 🔧 Rings refinement
+- **Clear** button removes all live rings instantly
+- **Align** row: *Center* moves the emitter formation's centroid to the room center; *Upright* rotates the formation so the anchor emitter points straight up
+- Fade slider removed — fade-out is fixed at 1.3 s
+- Corner rendering: ring resolution raised to 360 rays, and wavefront sheets that stay continuous through corners no longer get severed by the bounce-count bookkeeping (very close neighbours always connect; distant crossing branches still don't)
+- A collapsed window (0-width canvas) no longer spams GL framebuffer errors
+
 ## [1.9.0] - 2026-06-12
 
 ### 🪞 Analytic Mirrors Update
