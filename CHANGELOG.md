@@ -2,6 +2,23 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.8.0] - 2026-06-12
+
+### 🗂️ Workbench Update
+
+#### Panel overhaul
+- **Tabs**: All / Beams / Effects / Room / Live / Scenes — the core sliders stay on top, groups filter by tab (remembered across sessions)
+- **Search**: filter box that finds any control by name across all tabs, hiding everything else
+- **Per-group reset**: a ↺ on each section restores its factory defaults (Scenes and File Presets deliberately have none)
+- **Collapse all / expand all** buttons
+- **Scene thumbnails**: saved scenes show a snapshot grid — click a tile to load. Thumbs are captured on save, and older scenes get one automatically the first time you visit them
+
+#### More randomness + smoother bends
+- Ring **Speed** and **Lifetime** are min/max ranges drawn per ring — slow long-lived rings interleave with fast brief ones
+- Beat **hue jump** is a min/max range — varied but bounded color jumps
+- The matrix "Ring speed ×" target is now a live multiplier over per-ring speeds
+- Wall bend subdivisions now scale to ~720 segments per room regardless of shape (triangle 240/wall) — bend animation is much smoother, at 0.58 ms/frame worst case
+
 ## [1.7.0] - 2026-06-11
 
 ### 💍 Rings Update

@@ -94,6 +94,10 @@ Two framebuffers (`fbA`, `fbB`) alternate each frame. The previous frame is blen
 - `ANGLE_instanced_arrays` is not used — each bounce layer is a separate draw call.
 - The beam width uniform is modulated per-frame by pulse and audio values before upload.
 
+## Panel tools (tabs / search / reset / thumbnails)
+
+`initPanelTools()` (called early in `init()`, before `loadLanguage()`) tags every `.group` with `data-group-key` (its title's `data-i18n` key) and `data-tab` (from `TAB_OF_GROUP`), builds the search+collapse toolbar and the tab bar, and attaches per-group ↺ reset buttons. Resets restore from `FACTORY` — a deep snapshot of S taken by `snapshotFactory()` at the **top of init(), before autosave/URL loading** — via the `GROUP_RESETS` map (add an entry there when adding a new group). The reset span is a **sibling** of the title, not a child: `applyTranslations()` rewrites title textContent and would destroy children. Tab/search visibility uses `.tab-hidden`/`.search-hidden` classes (`display:none !important`), never inline styles, so it composes with the simple/advanced mode CSS. Scene thumbnails (`captureSceneThumb()`, 96×72 JPEG dataURL) are stored on the scene objects at save; scenes visited without one get captured ~0.5 s after their transition settles (`pendingThumbScene` in `loopBody`).
+
 ## UI conventions
 
 - **Simple / Advanced mode:** `body.mode-simple` hides all `[data-advanced]` and `.advanced-only` elements. Toggle is in ⚙️ Settings.

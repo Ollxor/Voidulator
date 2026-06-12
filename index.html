@@ -1587,6 +1587,94 @@
     white-space: pre;
   }
 
+  /* Panel tools: search + collapse/expand */
+  .panel-tools {
+    display: flex;
+    gap: 4px;
+    margin: 8px 0 4px;
+  }
+  .panel-tools input {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: inherit;
+  }
+  .panel-tools input:focus { outline: none; border-color: var(--accent); }
+  .panel-tools .tool-mini { flex: none; padding: 2px 8px; font-size: 12px; }
+
+  /* Tab bar */
+  .panel-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .panel-tabs button {
+    flex: 1;
+    padding: 4px 2px;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: inherit;
+    opacity: 0.65;
+    cursor: pointer;
+  }
+  .panel-tabs button:hover { opacity: 1; }
+  .panel-tabs button.active {
+    opacity: 1;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Tab/search filtering */
+  .tab-hidden { display: none !important; }
+  .search-hidden { display: none !important; }
+
+  /* Per-group reset (sibling of the title, overlaid on its row) */
+  .group { position: relative; }
+  .group-reset {
+    position: absolute;
+    top: 6px;
+    right: 20px;
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.35;
+    cursor: pointer;
+    transition: opacity 120ms ease;
+    z-index: 2;
+  }
+  .group-reset:hover { opacity: 1; color: var(--accent); }
+
+  /* Scene thumbnails */
+  .scene-thumbs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .scene-thumb {
+    aspect-ratio: 4 / 3;
+    background: #050608 center / cover no-repeat;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    opacity: 0.85;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+  }
+  .scene-thumb:hover { border-color: var(--accent); opacity: 1; }
+
   /* === UI polish === */
   /* Collapse chevron on group titles */
   .group.collapsible .group-title { position: relative; transition: color 120ms ease; }
@@ -2349,7 +2437,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.7.0';
+  const APP_VERSION = 'v1.8.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -3619,6 +3707,28 @@
     updateSceneUI();
   }
 
+  // Small canvas snapshot of the current render (cover-cropped) for scene tiles
+  function captureSceneThumb() {
+    try {
+      const tw = 96, th = 72;
+      const c = document.createElement('canvas');
+      c.width = tw; c.height = th;
+      const cx2 = c.getContext('2d');
+      cx2.fillStyle = '#000';
+      cx2.fillRect(0, 0, tw, th);
+      const sw = glCanvas.width, sh = glCanvas.height;
+      const scale = Math.max(tw / sw, th / sh);
+      const dw = sw * scale, dh = sh * scale;
+      cx2.drawImage(glCanvas, (tw - dw) / 2, (th - dh) / 2, dw, dh);
+      return c.toDataURL('image/jpeg', 0.55);
+    } catch (e) { return null; }
+  }
+
+  // Scene visited without a stored thumb → capture one when its transition
+  // settles (counted down in loopBody)
+  let pendingThumbScene = null;
+  let pendingThumbFrames = 0;
+
   function updateSceneUI() {
     // Update dropdown
     sceneSelectEl.innerHTML = '<option value="">-- Select scene --</option>';
@@ -3628,7 +3738,36 @@
       opt.textContent = scene.name;
       sceneSelectEl.appendChild(opt);
     });
-    
+
+    // Thumbnail grid (created lazily inside the Scenes group)
+    let thumbs = document.getElementById('sceneThumbs');
+    if (!thumbs) {
+      const scenesTitle = document.querySelector('.group-title[data-i18n="scenes"]');
+      if (scenesTitle) {
+        thumbs = document.createElement('div');
+        thumbs.id = 'sceneThumbs';
+        thumbs.className = 'scene-thumbs';
+        const content = scenesTitle.parentElement.querySelector('.group-content');
+        content.insertBefore(thumbs, content.firstChild);
+      }
+    }
+    if (thumbs) {
+      thumbs.innerHTML = '';
+      S.scenes.forEach((scene, idx) => {
+        const tile = document.createElement('div');
+        tile.className = 'scene-thumb';
+        tile.title = scene.name;
+        if (scene.thumb) tile.style.backgroundImage = 'url(' + scene.thumb + ')';
+        else tile.textContent = scene.name.slice(0, 2);
+        tile.addEventListener('click', () => {
+          sceneSelectEl.value = idx;
+          if (!scene.thumb) { pendingThumbScene = scene; pendingThumbFrames = 0; }
+          goToScene(scene.data);
+        });
+        thumbs.appendChild(tile);
+      });
+    }
+
     // Update slot buttons
     document.querySelectorAll('.scene-slot').forEach(btn => {
       const slot = parseInt(btn.dataset.slot) - 1;
@@ -3639,7 +3778,7 @@
   }
 
   function saveSceneToList(name) {
-    const scene = { name, data: captureScene() };
+    const scene = { name, data: captureScene(), thumb: captureSceneThumb() };
     S.scenes.push(scene);
     saveScenes();
     updateSceneUI();
@@ -3647,7 +3786,7 @@
   }
 
   function saveSceneToSlot(slotIndex, name) {
-    S.sceneSlots[slotIndex] = { name: name || `Scene ${slotIndex + 1}`, data: captureScene() };
+    S.sceneSlots[slotIndex] = { name: name || `Scene ${slotIndex + 1}`, data: captureScene(), thumb: captureSceneThumb() };
     saveScenes();
     updateSceneUI();
   }
@@ -7133,6 +7272,17 @@ void main() {
     drawOverlay();
     captureRecFrame(t);
     restoreModulation();
+
+    // A visited scene without a thumbnail gets one ~0.5s after its
+    // transition settles
+    if (pendingThumbScene && !S.transition.active) {
+      if (++pendingThumbFrames > 30) {
+        pendingThumbScene.thumb = captureSceneThumb();
+        pendingThumbScene = null;
+        saveScenes();
+        updateSceneUI();
+      }
+    }
   }
 
   // Pause render loop when tab is hidden — saves battery and prevents huge dt jumps
@@ -8141,6 +8291,12 @@ void main() {
       burstEighth: '1 per 8 beats',
       waveReach: 'Wave reach',
       waveTaper: 'Wave taper',
+      tabAll: 'All',
+      tabBeams: 'Beams',
+      tabFx: 'Effects',
+      tabRoom: 'Room',
+      tabLive: 'Live',
+      tabScenes: 'Scenes',
       ringsTitle: 'Rings',
       activateNow: 'Activate',
       ringEmitters: 'Emitters',
@@ -8300,6 +8456,12 @@ void main() {
       burstEighth: '1 cada 8 pulsos',
       waveReach: 'Alcance de onda',
       waveTaper: 'Afinado de onda',
+      tabAll: 'Todo',
+      tabBeams: 'Haces',
+      tabFx: 'Efectos',
+      tabRoom: 'Sala',
+      tabLive: 'En vivo',
+      tabScenes: 'Escenas',
       ringsTitle: 'Anillos',
       activateNow: 'Activar',
       ringEmitters: 'Emisores',
@@ -8459,6 +8621,12 @@ void main() {
       burstEighth: '1 a cada 8 batidas',
       waveReach: 'Alcance da onda',
       waveTaper: 'Afilamento da onda',
+      tabAll: 'Tudo',
+      tabBeams: 'Feixes',
+      tabFx: 'Efeitos',
+      tabRoom: 'Sala',
+      tabLive: 'Ao vivo',
+      tabScenes: 'Cenas',
       ringsTitle: 'Anéis',
       activateNow: 'Ativar',
       ringEmitters: 'Emissores',
@@ -8618,6 +8786,12 @@ void main() {
       burstEighth: '1 tous les 8 temps',
       waveReach: 'Portée de l\'onde',
       waveTaper: 'Effilage de l\'onde',
+      tabAll: 'Tout',
+      tabBeams: 'Faisceaux',
+      tabFx: 'Effets',
+      tabRoom: 'Salle',
+      tabLive: 'En direct',
+      tabScenes: 'Scènes',
       ringsTitle: 'Anneaux',
       activateNow: 'Activer',
       ringEmitters: 'Émetteurs',
@@ -8847,7 +9021,231 @@ void main() {
   });
 
   // Init
+  // ---- Panel tools: tabs, search, per-group reset, collapse-all ----
+  // FACTORY holds the hardcoded defaults, snapshotted at the very start of
+  // init() (before autosave/URL/scene loading mutates S)
+  let FACTORY = null;
+  function snapshotFactory() {
+    FACTORY = JSON.parse(JSON.stringify({
+      beamScheme: S.beamScheme,
+      spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
+      speedMultiplier: S.speedMultiplier, emitterMoveSpeed: S.emitterMoveSpeed,
+      polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, eccentricity: S.eccentricity,
+      speedPattern: S.speedPattern, patternBase: S.patternBase,
+      pulseOn: S.pulseOn, pulseShape: S.pulseShape, pulseAmp: S.pulseAmp,
+      pulseFreqCP100: S.pulseFreqCP100, pulseSpeed: S.pulseSpeed, pulseSoft: S.pulseSoft, pulseDuty: S.pulseDuty,
+      widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, phosphor: S.phosphor, rings: S.rings,
+      audio: { sensitivity: S.audio.sensitivity, smoothing: S.audio.smoothing },
+      beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep },
+      lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2, sync1: S.lfo.sync1, sync2: S.lfo.sync2 },
+      bpm: S.bpm
+    }));
+  }
+  const F = () => JSON.parse(JSON.stringify(FACTORY)); // fresh deep copy
+
+  // Per-group reset actions, keyed by the group title's data-i18n key.
+  // Groups without an entry (Scenes, File Presets) get no reset button.
+  const GROUP_RESETS = {
+    colors: () => {
+      S.beamScheme = FACTORY.beamScheme;
+      S.beamPalette = generatePalette(S.beamScheme);
+      S.emitterPalettes = [S.beamPalette];
+      ensureEmitterPalettes();
+      ensurePaletteSize(S.beamCount);
+      rebuildBeamSwatches();
+    },
+    perBeamRotation: () => {
+      S.speedPattern = FACTORY.speedPattern;
+      S.patternBase = FACTORY.patternBase;
+      applySpeedPattern();
+      rebuildBeamSpeedInputs();
+    },
+    pulse: () => {
+      const f = FACTORY;
+      S.pulseOn = f.pulseOn; S.pulseShape = f.pulseShape; S.pulseAmp = f.pulseAmp;
+      S.pulseFreqCP100 = f.pulseFreqCP100; S.pulseSpeed = f.pulseSpeed;
+      S.pulseSoft = f.pulseSoft; S.pulseDuty = f.pulseDuty;
+    },
+    shapeTitle: () => { S.widthWave = F().widthWave; },
+    ringsTitle: () => { S.rings = F().rings; syncRingsUI(); },
+    trails: () => { S.trails = F().trails; },
+    glow: () => { S.bloom = F().bloom; },
+    phosphorWalls: () => { S.phosphor = F().phosphor; clearPhosphor(); syncPhosphorUI(); },
+    audio: () => {
+      S.audio.sensitivity = FACTORY.audio.sensitivity;
+      S.audio.smoothing = FACTORY.audio.smoothing;
+      audioSensitivityEl.value = audioSensitivityNumEl.value = S.audio.sensitivity;
+      audioSmoothingEl.value = S.audio.smoothing;
+    },
+    modMatrix: () => {
+      S.modRoutes = [{ source: 'all', target: 'beamWidth', amount: 0.3, enabled: true }];
+      Object.assign(S.lfo, F().lfo);
+      S.bpm = FACTORY.bpm;
+      lfoRate1El.value = lfoRate1NumEl.value = S.lfo.rate1;
+      lfoRate2El.value = lfoRate2NumEl.value = S.lfo.rate2;
+      lfoSync1El.value = S.lfo.sync1; lfoSync2El.value = S.lfo.sync2;
+      bpmNumEl.value = S.bpm;
+      renderModRoutes();
+      saveModConfig();
+    },
+    beatDetection: () => {
+      const f = F().beat;
+      Object.assign(S.beat, f);
+      S.beat.hist = []; S.beat.env = 0; S.beat.cooldown = 0;
+      syncBeatUI();
+      saveModConfig();
+    },
+    midiTitle: () => {
+      S.midi.bindings = {};
+      try { localStorage.removeItem(MIDI_BINDINGS_KEY); } catch (e) {}
+      renderMidiBindings();
+    },
+    bonus: () => {
+      const f = FACTORY;
+      S.polygonType = f.polygonType; S.sides = f.sides;
+      S.wallBend = f.wallBend; S.eccentricity = f.eccentricity;
+      S.spreadDeg = f.spreadDeg; S.angleDeg = f.angleDeg; S.rotationSpeed = f.rotationSpeed;
+      S.speedMultiplier = f.speedMultiplier; S.emitterMoveSpeed = f.emitterMoveSpeed;
+      buildShape();
+      updateEmittersFromNorm();
+    }
+  };
+
+  const PANEL_TABS = [
+    ['all', 'tabAll', 'All'],
+    ['beams', 'tabBeams', 'Beams'],
+    ['fx', 'tabFx', 'Effects'],
+    ['room', 'tabRoom', 'Room'],
+    ['live', 'tabLive', 'Live'],
+    ['scenes', 'tabScenes', 'Scenes']
+  ];
+  const TAB_OF_GROUP = {
+    colors: 'beams', perBeamRotation: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams',
+    trails: 'fx', glow: 'fx', phosphorWalls: 'fx',
+    bonus: 'room',
+    audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',
+    scenes: 'scenes', filePresets: 'scenes'
+  };
+
+  function initPanelTools() {
+    const panel = document.querySelector('.panel');
+    if (!panel) return;
+    const grid = panel.querySelector('.grid');
+    const groups = Array.from(panel.querySelectorAll('.group'));
+
+    for (const g of groups) {
+      const ttl = g.querySelector('.group-title');
+      const key = ttl ? (ttl.getAttribute('data-i18n') || '') : '';
+      g.dataset.groupKey = key;
+      g.dataset.tab = TAB_OF_GROUP[key] || 'all';
+      // Per-group reset button — sibling of the title (translations rewrite
+      // the title's textContent, which would destroy a child span)
+      if (ttl && GROUP_RESETS[key]) {
+        const rb = document.createElement('span');
+        rb.className = 'group-reset';
+        rb.textContent = '↺';
+        rb.title = 'Reset this section to defaults';
+        rb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          GROUP_RESETS[key]();
+          syncUIFromState();
+          requestAutosave();
+        });
+        g.insertBefore(rb, ttl.nextSibling);
+      }
+    }
+
+    // Toolbar: search + collapse/expand all
+    const bar = document.createElement('div');
+    bar.className = 'panel-tools';
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.id = 'panelSearch';
+    search.placeholder = '🔍 Filter controls…';
+    const colBtn = document.createElement('button');
+    colBtn.className = 'btn tool-mini'; colBtn.textContent = '⊟'; colBtn.title = 'Collapse all';
+    const expBtn = document.createElement('button');
+    expBtn.className = 'btn tool-mini'; expBtn.textContent = '⊞'; expBtn.title = 'Expand all';
+    bar.appendChild(search); bar.appendChild(colBtn); bar.appendChild(expBtn);
+
+    // Tab bar
+    const tabBar = document.createElement('div');
+    tabBar.className = 'panel-tabs';
+    for (const [id, i18nKey, label] of PANEL_TABS) {
+      const b = document.createElement('button');
+      b.dataset.tab = id;
+      b.setAttribute('data-i18n', i18nKey);
+      b.textContent = label;
+      b.addEventListener('click', () => setTab(id));
+      tabBar.appendChild(b);
+    }
+    panel.insertBefore(bar, grid);
+    panel.insertBefore(tabBar, grid);
+
+    let activeTab = localStorage.getItem('voidulator-tab') || 'all';
+    function applyTab() {
+      const searching = search.value.trim().length > 0;
+      for (const g of groups) {
+        g.classList.toggle('tab-hidden', !searching && activeTab !== 'all' && g.dataset.tab !== activeTab);
+      }
+      tabBar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab));
+    }
+    function setTab(id) {
+      activeTab = id;
+      try { localStorage.setItem('voidulator-tab', id); } catch (e) {}
+      applyTab();
+    }
+
+    colBtn.addEventListener('click', () => groups.forEach(g => g.classList.add('collapsed')));
+    expBtn.addEventListener('click', () => groups.forEach(g => g.classList.remove('collapsed')));
+
+    // Search: filters rows/label-pairs across ALL tabs; clearing restores the tab
+    const gridRows = grid ? Array.from(grid.querySelectorAll('.row, .speed-control')) : [];
+    search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      if (!q) {
+        document.querySelectorAll('.panel .search-hidden').forEach(el => el.classList.remove('search-hidden'));
+        applyTab();
+        return;
+      }
+      applyTab(); // un-hides tab-hidden groups while searching
+      for (const row of gridRows) {
+        row.classList.toggle('search-hidden', !row.textContent.toLowerCase().includes(q));
+      }
+      for (const g of groups) {
+        const ttl = g.querySelector('.group-title');
+        const titleMatch = ttl && ttl.textContent.toLowerCase().includes(q);
+        let any = titleMatch;
+        if (titleMatch) {
+          g.querySelectorAll('.search-hidden').forEach(el => el.classList.remove('search-hidden'));
+        } else {
+          g.querySelectorAll('.row').forEach(row => {
+            const m = row.textContent.toLowerCase().includes(q);
+            row.classList.toggle('search-hidden', !m);
+            if (m) any = true;
+          });
+          g.querySelectorAll('.subgrid').forEach(sg => {
+            const kids = Array.from(sg.children);
+            for (let i = 0; i < kids.length; i++) {
+              if (kids[i].tagName !== 'LABEL') continue;
+              const ctrl = kids[i + 1];
+              const m = kids[i].textContent.toLowerCase().includes(q);
+              kids[i].classList.toggle('search-hidden', !m);
+              if (ctrl && ctrl.tagName !== 'LABEL') ctrl.classList.toggle('search-hidden', !m);
+              if (m) any = true;
+            }
+          });
+        }
+        g.classList.toggle('search-hidden', !any);
+        if (any) g.classList.remove('collapsed');
+      }
+    });
+
+    applyTab();
+  }
+
   function init() {
+    snapshotFactory();
     // Check WebGL2 first
     if (!checkWebGL2()) return;
     
@@ -8907,6 +9305,10 @@ void main() {
       midiLearnParamEl.appendChild(o);
     }
     syncBeatUI();
+
+    // Panel tabs, search, per-group reset, collapse-all (before translations
+    // so the tab buttons pick up the language)
+    initPanelTools();
 
     // Load language preferences and apply translations
     loadLanguage();
