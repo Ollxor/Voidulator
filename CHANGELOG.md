@@ -2,6 +2,22 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.10.0] - 2026-06-12
+
+### 🌊 Wave Field
+
+A whole new emission mode: a **real wave-equation simulation** running live on the GPU inside the room — the genuine physics that geometric rays (beams and rings) can only approximate. Choose **Wave field** in the Emission selector.
+
+- A finite-difference (FDTD) solver evolves the 2D wave equation on a float texture grid. Emitters are continuous wave sources; **click the stage to drop a ripple**, or use the Pulse button
+- **Reflecting (Neumann) walls** turn any room into a resonator — the ellipse with a source on a focus, the parabolic resonator, bent rooms — all the cavities now show their true standing-wave and focusing patterns, nodal lines and all. **Absorbing** walls give an open, ripple-tank feel
+- Controls: frequency, amplitude, wave speed, damping, brightness, speed× (substeps), wall type, colour mode (spectral / bipolar / mono), and resolution (Low/Medium/High)
+- Runs through the existing Glow for a luminous look; works with every room shape; saved in scenes and presets
+- **Credit:** the wave-field mode was inspired by [Nils Berglund's](https://www.youtube.com/@NilsBerglund) wave-equation simulations (his code is released under CC0). The simulation here is an independent WebGL implementation.
+
+### Credits / licensing
+- Added an attribution comment for the public-domain `rgb2hsv`/`hsv2rgb` GLSL helpers by Sam Hocevar
+- Requires `EXT_color_buffer_float`; on the rare device without it, Wave field shows a notice and the other modes are unaffected
+
 ## [1.9.1] - 2026-06-12
 
 ### 🔧 Rings refinement

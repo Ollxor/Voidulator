@@ -10,6 +10,7 @@
 
 ### Core Simulation
 - **Beams + Rings** — Classic rotating beams, plus an independent Rings system: expanding circular wavefronts from their own draggable emitters that fold and reflect like real waves, with bounce-based lifetime, randomized burst spawning, and an optional rainbow swept around each ring
+- **Wave field** — A real wave-equation (FDTD) simulation running live on the GPU: emitters become wave sources, walls reflect or absorb, and cavities like the ellipse and parabolic resonator show their true standing-wave and focusing patterns. Click to drop ripples. _(Inspired by [Nils Berglund's](https://www.youtube.com/@NilsBerglund) simulations.)_
 - **Multiple room shapes** — Circle, ellipse (with eccentricity and marked foci), triangle, square, pentagon, hexagon, randomgon, organic blob, parabolic resonator
 - **Bendable walls** — Curve any polygon's walls from pillow-bulge to pinched focusing mirrors
 - **Phosphor walls** — Beams paint decaying glow onto the walls where they strike
@@ -117,6 +118,10 @@ MIT License — see [LICENSE](LICENSE) for details.
 Created by **Olle Bjerkås**
 
 Built with WebGL, creativity, and lots of iterating.
+
+**Acknowledgements**
+- The **Wave field** mode was inspired by [Nils Berglund's](https://www.youtube.com/@NilsBerglund) wave-equation simulation videos ([source, CC0](https://github.com/nilsberglund-orleans/YouTube-simulations)). Voidulator's implementation is independent WebGL/GLSL code.
+- The branchless `rgb2hsv`/`hsv2rgb` GLSL helpers are by **Sam Hocevar** (public domain).
 
 ---
 

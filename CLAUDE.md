@@ -39,6 +39,17 @@ The entire application state is a single plain object `S`. Sliders, dropdowns, t
 
 Matrix routes + beat settings persist in `localStorage['voidulator-mod']` (global rig config, deliberately **not** per-scene — scenes are visual compositions, the matrix is the performance rig). They are also included in JSON preset export/import. MIDI bindings persist separately in `localStorage['voidulator-midi']`.
 
+## Wave field (FDTD simulation)
+
+`S.field` is a fourth emission mode (Emission select → "Wave field"), mutually exclusive with beams/rings. `renderBeamsGL` early-returns to `renderField()` when `S.field.enabled`. It's a real finite-difference wave-equation solver on the GPU:
+
+- **Float ping-pong**: two RGBA16F textures (`fieldTex[0/1]`), each texel storing `(u_n in .r, u_{n-1} in .g)`. Needs `EXT_color_buffer_float` (`fieldFloatOK`); without it `renderFieldUnsupported()` shows a notice.
+- **`waveProg`** (update): `u_{n+1} = 2u_n − u_{n−1} + C²·∇²u_n` with a 5-point Laplacian; `C = S.field.speed` must stay < 0.707 (2D stability). Out-of-room neighbours (mask < 0.5) mirror the centre value → **Neumann reflecting walls**; in absorb mode they read 0. Sources injected as gaussian bumps at emitter UVs; `S.field.substeps` passes per frame.
+- **Mask**: `buildFieldMask()` rasterizes the current room (circle/polygon/bent/ellipse/parabola — uses `S.vertices`/`S.circle`) into a square texture via the 2D canvas, keyed on geometry so it rebuilds only on change. `fieldMaskMap` stores the px→grid-UV transform; `fieldPxToUV()` maps emitter/click positions in.
+- **`waveColorProg`** (colorize): soft tone-map `1−exp(−|u|·gain)` (never harsh-clips a resonating cavity) → spectral/bipolar/mono, into `sceneTex`, then the existing `runBloom`/`compositeWithBloom`.
+- Source phase advances in `loopBody` (`S.field.phase`); the FDTD itself is dt-independent (fixed C, fixed substeps). Click-on-stage and the Pulse button push one-shot `fieldImpulses`.
+- Inspired by Nils Berglund's wave sims (CC0); this is independent code. Defaults (damping 0.02, amp 0.4, gain 2.5) give clean travelling fronts rather than a saturated standing wave.
+
 ## Bloom (Glow) pipeline
 
 `S.bloom = {enabled, strength, threshold}`, persisted per-scene (lerped in transitions) and in presets. GL flow in `renderBeamsGL`:

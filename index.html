@@ -1894,6 +1894,7 @@
           <option value="beams" selected="" data-i18n="optBeams">Beams</option>
           <option value="rings" data-i18n="optRings">Rings</option>
           <option value="both" data-i18n="optBoth">Both</option>
+          <option value="field" data-i18n="optField">Wave field</option>
         </select>
       </div>
 
@@ -2162,6 +2163,57 @@
           <div class="dual-range-slot" id="ringSpacingSlot"></div>
         </div>
         <div class="hint" data-i18n="hintRings">Expanding rings from their own emitters (teal dots). Lifetime in bounces: 1 = reach the wall, 2 = back through center. Range sliders pick a random value between the two markers.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible advanced-only" id="fieldGroup">
+      <div class="group-title" data-i18n="fieldTitle">Wave Field</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label data-i18n="enable">Enable</label>
+          <button class="btn" id="fieldToggle">Off</button>
+          <label data-i18n="fieldPulse">Pulse</label>
+          <button class="btn" id="fieldImpulseBtn">&#9889; Drop</button>
+          <label data-i18n="fieldContinuous">Continuous</label>
+          <button class="btn" id="fieldContToggle">On</button>
+          <label data-i18n="fieldFreq">Frequency</label>
+          <div class="ctrl-row">
+            <input id="fieldFreq" type="range" min="0.05" max="4" step="0.05" value="0.6">
+            <input id="fieldFreqNum" type="number" min="0.05" max="4" step="0.05" value="0.6">
+          </div>
+          <label data-i18n="fieldAmp">Amplitude</label>
+          <input id="fieldAmp" type="range" min="0.05" max="2" step="0.05" value="0.4">
+          <label data-i18n="fieldSpeed">Wave speed</label>
+          <input id="fieldSpeed" type="range" min="0.1" max="0.7" step="0.01" value="0.45">
+          <label data-i18n="fieldDamping">Damping</label>
+          <input id="fieldDamping" type="range" min="0" max="0.1" step="0.002" value="0.02">
+          <label data-i18n="fieldGain">Brightness</label>
+          <input id="fieldGain" type="range" min="0.2" max="6" step="0.1" value="2.5">
+          <label data-i18n="fieldSubsteps">Speed ×</label>
+          <div class="stepper">
+            <button class="btn step-btn" id="fieldSubDown">&#9660;</button>
+            <span class="step-val" id="fieldSubVal">2</span>
+            <button class="btn step-btn" id="fieldSubUp">&#9650;</button>
+          </div>
+          <label data-i18n="fieldWalls">Walls</label>
+          <select id="fieldBoundary">
+            <option value="reflect" data-i18n="fieldReflect">Reflecting</option>
+            <option value="absorb" data-i18n="fieldAbsorb">Absorbing</option>
+          </select>
+          <label data-i18n="fieldColor">Color</label>
+          <select id="fieldColorMode">
+            <option value="bipolar" data-i18n="fieldBipolar">Bipolar</option>
+            <option value="mono" data-i18n="fieldMono">Mono</option>
+            <option value="spectral" data-i18n="fieldSpectral">Spectral</option>
+          </select>
+          <label data-i18n="fieldRes">Resolution</label>
+          <select id="fieldRes">
+            <option value="192">Low</option>
+            <option value="320" selected="">Medium</option>
+            <option value="448">High</option>
+          </select>
+        </div>
+        <div class="hint" data-i18n="hintField">A real wave-equation simulation inside the room. Emitters are wave sources; click the stage to drop a ripple. Reflecting walls give resonances — try the ellipse with a source on a focus. Inspired by Nils Berglund's simulations.</div>
       </div>
     </div>
 
@@ -2464,7 +2516,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.9.1';
+  const APP_VERSION = 'v1.10.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2676,6 +2728,22 @@
       persistence: 2.5, // seconds to fade
       intensity: 1,
       width: 12         // px the glow band extends inward from the wall
+    },
+    // Wave field: real wave-equation FDTD simulation inside the room.
+    // Inspired by Nils Berglund's wave-equation videos (his code is CC0).
+    field: {
+      enabled: false,
+      speed: 0.45,      // Courant number c·dt/dx — must stay < 0.707 for stability
+      damping: 0.02,    // loss so energy-in ≈ energy-out: clean travelling fronts
+      freq: 0.6,        // source oscillation frequency
+      amp: 0.4,         // source amplitude
+      substeps: 2,      // sim steps per frame (faster propagation)
+      res: 320,         // grid resolution (square)
+      gain: 2.5,        // display brightness multiplier (soft-tonemapped)
+      colorMode: 'spectral', // spectral | bipolar | mono (spectral is palette-independent)
+      boundary: 'reflect',  // reflect (Neumann mirror) | absorb (open)
+      continuous: true,     // continuous source vs single impulses only
+      phase: 0          // runtime source phase accumulator
     },
     // Width wave effect (sine wave along beam width)
     widthWave: {
@@ -3213,6 +3281,7 @@
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
       showBeams: S.showBeams,
+      field: JSON.parse(JSON.stringify(S.field)),
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -3311,7 +3380,13 @@
       S.rings.rainbow = scene.waveRainbow ?? true;
       S.rings.taper = scene.waveTaper ?? 0;
     }
-    
+    if (scene.field) {
+      S.field = Object.assign({}, S.field, scene.field);
+      S.field.phase = 0;
+    } else {
+      S.field.enabled = false;
+    }
+
     // Shape (widthWave)
     if (scene.widthWave) {
       S.widthWave.enabled = scene.widthWave.enabled ?? false;
@@ -3377,6 +3452,8 @@
     if (edgeIntensityEl) edgeIntensityEl.value = S.beamEdge.intensity;
     // Rings
     syncRingsUI();
+    // Wave field
+    if (typeof syncFieldUI === 'function') syncFieldUI();
     // Phosphor
     syncPhosphorUI();
     // Bloom
@@ -3543,8 +3620,12 @@
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
 
-    // Beams visibility switches at the midpoint
+    // Beams visibility + wave-field mode switch at the midpoint
     S.showBeams = t > 0.5 ? (to.showBeams ?? true) : (from.showBeams ?? true);
+    const toField = (to.field && to.field.enabled) || false;
+    const fromField = (from.field && from.field.enabled) || false;
+    const wantField = t > 0.5 ? toField : fromField;
+    if (wantField !== S.field.enabled) { S.field.enabled = wantField; if (wantField) clearField(); }
 
     // Rings: numeric fields lerp, the rest switches at the midpoint
     const ringsNow = S.rings;
@@ -4484,7 +4565,14 @@
   let sceneFBO, sceneTex;
   let bloomFBOA, bloomTexA, bloomFBOB, bloomTexB;
   let brightProg, blurProg, blitProg;
-  
+
+  // Wave field FDTD: float ping-pong textures hold (u_n in .r, u_{n-1} in .g)
+  let fieldFloatOK = false;     // float render targets available?
+  let fieldFBO = [null, null], fieldTex = [null, null], fieldPing = 0;
+  let fieldMaskTex = null, fieldMaskKey = null;
+  let waveProg, waveColorProg;
+  let fieldImpulses = [];       // {x, y} grid-UV points to inject a one-shot bump
+
   // Reusable vertex buffer — grows as needed, never re-allocated per frame
   let vertBuf = new Float32Array(65536);
   let vertCount = 0;
@@ -4611,6 +4699,8 @@ uniform float u_hueShift;
 uniform float u_threshold;
 out vec4 outColor;
 
+// rgb2hsv / hsv2rgb: the well-known branchless versions by Sam Hocevar,
+// released into the public domain (https://lolengine.net/blog/2013/07/27).
 vec3 rgb2hsv(vec3 c) {
   vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
   vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
@@ -4717,6 +4807,98 @@ void main() {
     brightProg = makeProgram(copyVs, brightFs);
     blurProg = makeProgram(copyVs, blurFs);
     blitProg = makeProgram(copyVs, blitFs);
+
+    // === Wave field (FDTD) shaders ===
+    // Float-renderable targets needed for the wave accumulator. RGBA16F is
+    // color-renderable with EXT_color_buffer_float and supports LINEAR
+    // filtering as core WebGL2 — good range/precision for displacements.
+    fieldFloatOK = !!gl.getExtension('EXT_color_buffer_float');
+
+    // FDTD update: u_{n+1} = 2u_n − u_{n−1} + C²·∇²u_n, with reflecting
+    // (Neumann) walls — out-of-room neighbours mirror the centre value so the
+    // gradient across the wall is zero. Sources injected sinusoidally.
+    const waveFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_state;   // .r = u_n, .g = u_{n-1}
+uniform sampler2D u_mask;    // 1 inside room, 0 wall
+uniform vec2 u_texel;        // 1/res
+uniform float u_c2;          // Courant²
+uniform float u_damp;        // velocity damping
+uniform float u_absorb;      // 1 = absorbing walls, 0 = reflecting
+uniform int u_srcN;
+uniform vec2 u_src[8];       // source positions in uv
+uniform float u_srcVal;      // current source displacement
+uniform float u_srcR;        // source radius (uv)
+out vec4 outColor;
+
+float sample_u(vec2 uv, float center) {
+  // Outside the room: reflect (Neumann) or zero (absorb)
+  float m = texture(u_mask, uv).r;
+  if (m < 0.5) return mix(center, 0.0, u_absorb);
+  return texture(u_state, uv).r;
+}
+
+void main() {
+  float inside = texture(u_mask, v_uv).r;
+  if (inside < 0.5) { outColor = vec4(0.0); return; }
+  vec2 s = texture(u_state, v_uv).rg;
+  float un = s.r, unm1 = s.g;
+  float l = sample_u(v_uv - vec2(u_texel.x, 0.0), un);
+  float r = sample_u(v_uv + vec2(u_texel.x, 0.0), un);
+  float d = sample_u(v_uv - vec2(0.0, u_texel.y), un);
+  float u = sample_u(v_uv + vec2(0.0, u_texel.y), un);
+  float lap = l + r + d + u - 4.0 * un;
+  float unp1 = 2.0 * un - unm1 + u_c2 * lap;
+  unp1 -= u_damp * (un - unm1);     // velocity damping (energy loss)
+  // Inject sources
+  for (int i = 0; i < 8; i++) {
+    if (i >= u_srcN) break;
+    float dist = length((v_uv - u_src[i]) / u_srcR);
+    unp1 += u_srcVal * exp(-dist * dist);
+  }
+  unp1 = clamp(unp1, -4.0, 4.0);
+  outColor = vec4(unp1, un, 0.0, 1.0);
+}`;
+
+    // Colorize the displacement field. Bipolar: +lobes get colour A, −lobes
+    // colour B, magnitude → brightness. Fed through the existing bloom.
+    const waveColorFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_state;
+uniform sampler2D u_mask;
+uniform vec3 u_colA;
+uniform vec3 u_colB;
+uniform float u_gain;
+uniform int u_mode;          // 0 bipolar, 1 mono, 2 spectral
+out vec4 outColor;
+
+vec3 spectral(float t) {     // smooth rainbow ramp over t∈[-1,1]
+  float h = (t * 0.5 + 0.5);
+  vec3 c = clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+  return c;
+}
+
+void main() {
+  if (texture(u_mask, v_uv).r < 0.5) { outColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  float u = texture(u_state, v_uv).r;
+  // Soft tone-map: brightness rolls off smoothly so a resonating cavity
+  // glows brighter without ever harsh-clipping to flat white
+  float mag = 1.0 - exp(-abs(u) * u_gain);
+  vec3 col;
+  if (u_mode == 1) {
+    col = u_colA * mag;
+  } else if (u_mode == 2) {
+    col = spectral(clamp(u * u_gain, -1.0, 1.0)) * mag;
+  } else {
+    col = (u > 0.0 ? u_colA : u_colB) * mag;
+  }
+  outColor = vec4(col, 1.0);
+}`;
+
+    waveProg = makeProgram(copyVs, waveFs);
+    waveColorProg = makeProgram(copyVs, waveColorFs);
 
     gl.enable(gl.BLEND);
     setBlendMode('normal');
@@ -5286,6 +5468,222 @@ void main() {
     setBlendMode(S.blendMode); // restore the blend state beams expect
   }
 
+  // ---- Wave field (FDTD simulation) ----
+  function makeFieldTarget(res) {
+    const tex = gl.createTexture();
+    tex._res = res;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, res, res, 0, gl.RGBA, gl.HALF_FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    return { tex, fbo };
+  }
+
+  function ensureFieldTargets() {
+    const res = S.field.res | 0;
+    if (fieldTex[0] && fieldTex[0]._res === res) return;
+    for (let i = 0; i < 2; i++) {
+      if (fieldFBO[i]) gl.deleteFramebuffer(fieldFBO[i]);
+      if (fieldTex[i]) gl.deleteTexture(fieldTex[i]);
+      const t = makeFieldTarget(res);
+      fieldTex[i] = t.tex; fieldFBO[i] = t.fbo;
+      // Clear to zero (a fresh, still field)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fieldFBO[i]);
+      gl.viewport(0, 0, res, res);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    fieldPing = 0;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  function clearField() {
+    if (!fieldFBO[0]) return;
+    for (let i = 0; i < 2; i++) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fieldFBO[i]);
+      gl.viewport(0, 0, S.field.res, S.field.res);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+    fieldImpulses = [];
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  // Rasterize the current room into a square mask texture (1 inside, 0 wall)
+  // via the 2D canvas, mapped from room-px space into the grid's UV square.
+  function buildFieldMask() {
+    const res = S.field.res | 0;
+    const key = res + '|' + (S.isCircle
+      ? 'c' + S.circle.cx.toFixed(0) + ',' + S.circle.cy.toFixed(0) + ',' + S.circle.R.toFixed(0)
+      : (S.vertices.length + ':' + (S.vertices[0] ? S.vertices[0].x.toFixed(0) + ',' + S.vertices[0].y.toFixed(0) : '')));
+    if (fieldMaskTex && fieldMaskKey === key) return;
+    fieldMaskKey = key;
+    const b = getRoomBounds();
+    // Pad so walls sit just inside the grid edge
+    const pad = 0.04;
+    const span = Math.max(b.maxX - b.minX, b.maxY - b.minY) / (1 - 2 * pad);
+    const ox = (b.minX + b.maxX) / 2 - span / 2;
+    const oy = (b.minY + b.maxY) / 2 - span / 2;
+    fieldMaskMap = { ox, oy, span }; // px → uv mapping, shared with sources
+    const cv = document.createElement('canvas');
+    cv.width = res; cv.height = res;
+    const cx2 = cv.getContext('2d');
+    cx2.fillStyle = '#000';
+    cx2.fillRect(0, 0, res, res);
+    cx2.fillStyle = '#fff';
+    const toG = (x, y) => ({ gx: (x - ox) / span * res, gy: (y - oy) / span * res });
+    cx2.beginPath();
+    if (S.isCircle) {
+      const c = toG(S.circle.cx, S.circle.cy);
+      cx2.arc(c.gx, c.gy, S.circle.R / span * res, 0, Math.PI * 2);
+    } else {
+      const v = S.vertices;
+      const p0 = toG(v[0].x, v[0].y);
+      cx2.moveTo(p0.gx, p0.gy);
+      for (let i = 1; i < v.length; i++) { const p = toG(v[i].x, v[i].y); cx2.lineTo(p.gx, p.gy); }
+      cx2.closePath();
+    }
+    cx2.fill();
+    if (!fieldMaskTex) fieldMaskTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, fieldMaskTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  let fieldMaskMap = null;
+
+  // Convert a room-px point to grid UV (y flipped: canvas y-down → texture)
+  function fieldPxToUV(x, y) {
+    if (!fieldMaskMap) return null;
+    return { u: (x - fieldMaskMap.ox) / fieldMaskMap.span, v: (y - fieldMaskMap.oy) / fieldMaskMap.span };
+  }
+
+  // Advance the simulation `substeps` times and colorize the result into
+  // sceneTex, then bloom + composite to screen.
+  function renderField(timeSec) {
+    if (!fieldFloatOK) { renderFieldUnsupported(); return; }
+    ensureFieldTargets();
+    buildFieldMask();
+    const res = S.field.res | 0;
+    const F = S.field;
+
+    // Source displacement this frame (continuous sine, advanced in loopBody)
+    const srcVal = F.continuous ? F.amp * Math.sin(F.phase) : 0;
+    // Source positions (beam emitters) in grid UV
+    const srcUV = [];
+    for (const e of S.emitters) {
+      const uv = fieldPxToUV(e.x, e.y);
+      if (uv) srcUV.push(uv.u, uv.v);
+      if (srcUV.length >= 16) break;
+    }
+    const srcN = srcUV.length / 2;
+
+    gl.disable(gl.BLEND);
+    gl.useProgram(waveProg);
+    gl.viewport(0, 0, res, res);
+    const uL = n => gl.getUniformLocation(waveProg, n);
+    gl.uniform1i(uL('u_state'), 0);
+    gl.uniform1i(uL('u_mask'), 1);
+    gl.uniform2f(uL('u_texel'), 1 / res, 1 / res);
+    gl.uniform1f(uL('u_c2'), F.speed * F.speed);
+    gl.uniform1f(uL('u_damp'), F.damping);
+    gl.uniform1f(uL('u_absorb'), F.boundary === 'absorb' ? 1 : 0);
+    gl.uniform1f(uL('u_srcR'), 2.5 / res);
+    if (srcN > 0) gl.uniform2fv(uL('u_src'), srcUV);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, fieldMaskTex);
+    gl.activeTexture(gl.TEXTURE0);
+
+    const steps = Math.max(1, F.substeps | 0);
+    for (let s = 0; s < steps; s++) {
+      // Continuous source applied on the first substep; queued impulses too
+      let val = (s === 0 && F.continuous) ? srcVal : 0;
+      const impulseUV = [];
+      if (s === 0 && fieldImpulses.length) {
+        for (const im of fieldImpulses) { impulseUV.push(im.u, im.v); }
+        fieldImpulses = [];
+      }
+      const src = srcN > 0 ? srcUV.slice() : [];
+      let count = srcN;
+      // Append impulses as extra one-shot sources at full amplitude
+      let useVal = val;
+      if (impulseUV.length) {
+        for (let i = 0; i < impulseUV.length && count < 8; i += 2) { src.push(impulseUV[i], impulseUV[i + 1]); count++; }
+        useVal = F.amp * 1.5; // impulse kick
+      }
+      gl.uniform1i(uL('u_srcN'), count);
+      if (count > 0) gl.uniform2fv(uL('u_src'), src);
+      gl.uniform1f(uL('u_srcVal'), useVal);
+
+      const dst = 1 - fieldPing;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fieldFBO[dst]);
+      gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldPing]);
+      drawPostQuad(waveProg);
+      fieldPing = dst;
+    }
+
+    // Colorize into the full-res scene target, then bloom + composite
+    ensureBloomTargets();
+    const pal = (S.emitterPalettes[0] || S.beamPalette);
+    const cA = pal[0] || { h: 30, s: 90, l: 55 };
+    const rgbA = hslToRgb((((cA.h + S.hueOffset) % 360) + 360) % 360, clamp(cA.s + S.satOffset, 0, 100), clamp(cA.l + S.lightOffset, 0, 100));
+    const cB = pal[1] || { h: (cA.h + 180) % 360, s: cA.s, l: cA.l };
+    const rgbB = hslToRgb((((cB.h + S.hueOffset) % 360) + 360) % 360, clamp(cB.s + S.satOffset, 0, 100), clamp(cB.l + S.lightOffset, 0, 100));
+
+    gl.useProgram(waveColorProg);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    const cL = n => gl.getUniformLocation(waveColorProg, n);
+    gl.uniform1i(cL('u_state'), 0);
+    gl.uniform1i(cL('u_mask'), 1);
+    gl.uniform3f(cL('u_colA'), rgbA[0], rgbA[1], rgbA[2]);
+    gl.uniform3f(cL('u_colB'), rgbB[0], rgbB[1], rgbB[2]);
+    gl.uniform1f(cL('u_gain'), F.gain);
+    gl.uniform1i(cL('u_mode'), F.colorMode === 'mono' ? 1 : (F.colorMode === 'spectral' ? 2 : 0));
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, fieldMaskTex);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldPing]);
+    drawPostQuad(waveColorProg);
+
+    if (S.bloom.enabled && S.bloom.strength > 0.001) {
+      runBloom(sceneTex);
+      compositeWithBloom(sceneTex);
+    } else {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(copyProg);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+      gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+      gl.disable(gl.BLEND);
+      drawPostQuad(copyProg);
+      gl.enable(gl.BLEND);
+    }
+    gl.enable(gl.BLEND);
+  }
+
+  let fieldWarned = false;
+  function renderFieldUnsupported() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    if (!fieldWarned) {
+      fieldWarned = true;
+      showCrashBadge({ message: 'Wave field needs float render targets (EXT_color_buffer_float), unavailable here' });
+    }
+  }
+
   // Helper: draw a polygon (circle or n-gon) at a point
   // Vertex layout (8 floats): x, y, t, r, g, b, alpha, edge
   // edge = cross-beam coordinate: 0 at the core, ±1 at the sides (drives the
@@ -5439,6 +5837,7 @@ void main() {
   }
 
   function renderBeamsGL(timeSec) {
+    if (S.field.enabled) { renderField(timeSec); return; }
     uploadBeamUniforms();
     if (S.phosphor.enabled) ensurePhosphorGeometry();
 
@@ -5822,6 +6221,11 @@ void main() {
     }
     if (ringIdx >= 0) { S.ringDraggingIdx = ringIdx; ovCanvas.setPointerCapture(e.pointerId); }
     else if (idx >= 0) { S.draggingIdx = idx; ovCanvas.setPointerCapture(e.pointerId); }
+    else if (S.field.enabled) {
+      // Click in empty space while the wave field is active = drop a ripple
+      const uv = fieldPxToUV(x, y);
+      if (uv && uv.u >= 0 && uv.u <= 1 && uv.v >= 0 && uv.v <= 1) fieldImpulses.push(uv);
+    }
   });
 
   ovCanvas.addEventListener('pointermove', (e) => {
@@ -6091,6 +6495,7 @@ void main() {
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
       showBeams: S.showBeams,
+      field: JSON.parse(JSON.stringify(S.field)),
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -6175,6 +6580,8 @@ void main() {
       S.rings.rainbow = P.waveRainbow ?? true;
       S.rings.taper = P.waveTaper ?? 0;
     }
+    if (P.field) { S.field = Object.assign({}, S.field, P.field); S.field.phase = 0; }
+    else S.field.enabled = false;
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
       renderModRoutes();
@@ -6346,16 +6753,21 @@ void main() {
   const emissionSelEl = _el('emissionSel');
   function syncEmissionSel() {
     if (!emissionSelEl) return;
-    emissionSelEl.value = S.showBeams && S.rings.enabled ? 'both' : (S.rings.enabled ? 'rings' : 'beams');
+    emissionSelEl.value = S.field.enabled ? 'field'
+      : (S.showBeams && S.rings.enabled ? 'both' : (S.rings.enabled ? 'rings' : 'beams'));
   }
   _on(emissionSelEl, 'change', () => {
     const v = emissionSelEl.value;
-    S.showBeams = v !== 'rings';
+    S.field.enabled = v === 'field';
+    // Field is its own full-screen mode — beams and rings step aside
+    S.showBeams = v === 'beams' || v === 'both';
     const wasOn = S.rings.enabled;
-    S.rings.enabled = v !== 'beams';
+    S.rings.enabled = v === 'rings' || v === 'both';
     if (S.rings.enabled && !wasOn) { ringClock = 0; nextActivationIn = 0; }
     if (!S.rings.enabled && wasOn) clearLiveRings();
+    if (S.field.enabled) clearField();
     syncRingsUI();
+    syncFieldUI();
   });
 
   // Move the emitter formation so its centroid lands on the room center
@@ -6485,6 +6897,55 @@ void main() {
   });
   _on(ringTaperEl, 'input', () => { S.rings.taper = parseFloat(ringTaperEl.value) || 0; });
   _on(ringRainbowToggleBtn, 'click', () => { S.rings.rainbow = !S.rings.rainbow; syncRingsUI(); });
+
+  // ---- Wave field UI bindings ----
+  const fieldToggleBtn = _el('fieldToggle');
+  const fieldContToggleBtn = _el('fieldContToggle');
+  const fieldFreqEl = _el('fieldFreq'), fieldFreqNumEl = _el('fieldFreqNum');
+  const fieldAmpEl = _el('fieldAmp'), fieldSpeedEl = _el('fieldSpeed');
+  const fieldDampingEl = _el('fieldDamping'), fieldGainEl = _el('fieldGain');
+  const fieldSubValEl = _el('fieldSubVal');
+  const fieldBoundaryEl = _el('fieldBoundary'), fieldColorModeEl = _el('fieldColorMode'), fieldResEl = _el('fieldRes');
+  function syncFieldUI() {
+    if (!fieldToggleBtn) return;
+    fieldToggleBtn.textContent = S.field.enabled ? 'On' : 'Off';
+    fieldToggleBtn.style.borderColor = S.field.enabled ? 'var(--accent)' : '';
+    fieldContToggleBtn.textContent = S.field.continuous ? 'On' : 'Off';
+    fieldFreqEl.value = fieldFreqNumEl.value = S.field.freq;
+    fieldAmpEl.value = S.field.amp;
+    fieldSpeedEl.value = S.field.speed;
+    fieldDampingEl.value = S.field.damping;
+    fieldGainEl.value = S.field.gain;
+    fieldSubValEl.textContent = S.field.substeps;
+    fieldBoundaryEl.value = S.field.boundary;
+    fieldColorModeEl.value = S.field.colorMode;
+    fieldResEl.value = S.field.res;
+  }
+  _on(fieldToggleBtn, 'click', () => {
+    S.field.enabled = !S.field.enabled;
+    if (S.field.enabled) { S.showBeams = false; S.rings.enabled = false; clearLiveRings(); clearField(); }
+    else S.showBeams = true;
+    syncFieldUI(); syncRingsUI();
+  });
+  _on(_el('fieldImpulseBtn'), 'click', () => {
+    // Drop a ripple at each emitter
+    for (const e of S.emitters) {
+      const uv = fieldPxToUV(e.x, e.y);
+      if (uv) fieldImpulses.push(uv);
+    }
+  });
+  _on(fieldContToggleBtn, 'click', () => { S.field.continuous = !S.field.continuous; syncFieldUI(); });
+  _on(fieldFreqEl, 'input', () => { S.field.freq = parseFloat(fieldFreqEl.value) || 0.6; fieldFreqNumEl.value = S.field.freq; });
+  _on(fieldFreqNumEl, 'input', () => { S.field.freq = clamp(parseFloat(fieldFreqNumEl.value) || 0.6, 0.05, 4); fieldFreqEl.value = S.field.freq; });
+  _on(fieldAmpEl, 'input', () => { S.field.amp = parseFloat(fieldAmpEl.value) || 0.7; });
+  _on(fieldSpeedEl, 'input', () => { S.field.speed = parseFloat(fieldSpeedEl.value) || 0.45; });
+  _on(fieldDampingEl, 'input', () => { S.field.damping = parseFloat(fieldDampingEl.value) || 0; });
+  _on(fieldGainEl, 'input', () => { S.field.gain = parseFloat(fieldGainEl.value) || 1.4; });
+  _on(_el('fieldSubUp'), 'click', () => { S.field.substeps = clamp(S.field.substeps + 1, 1, 8); syncFieldUI(); });
+  _on(_el('fieldSubDown'), 'click', () => { S.field.substeps = clamp(S.field.substeps - 1, 1, 8); syncFieldUI(); });
+  _on(fieldBoundaryEl, 'change', () => { S.field.boundary = fieldBoundaryEl.value; });
+  _on(fieldColorModeEl, 'change', () => { S.field.colorMode = fieldColorModeEl.value; });
+  _on(fieldResEl, 'change', () => { S.field.res = parseInt(fieldResEl.value) || 320; fieldMaskKey = null; });
 
   // Phosphor walls UI bindings
   const phosToggleBtn = _el('phosToggle');
@@ -7504,6 +7965,10 @@ void main() {
     }
     // Ring spawning + expansion (uses possibly-modulated ring speed)
     advanceRings(dtSec);
+    // Wave-field source phase advances each frame (sim itself is dt-independent)
+    if (S.field.enabled) {
+      S.field.phase = (S.field.phase + Math.PI * 2 * S.field.freq * dtSec) % (Math.PI * 2);
+    }
     renderBeamsGL(t / 1000);
     drawOverlay();
     captureRecFrame(t);
@@ -8534,6 +8999,25 @@ void main() {
       roomTitle: 'Room',
       optRings: 'Rings',
       optBoth: 'Both',
+      optField: 'Wave field',
+      fieldTitle: 'Wave Field',
+      fieldPulse: 'Pulse',
+      fieldContinuous: 'Continuous',
+      fieldFreq: 'Frequency',
+      fieldAmp: 'Amplitude',
+      fieldSpeed: 'Wave speed',
+      fieldDamping: 'Damping',
+      fieldGain: 'Brightness',
+      fieldSubsteps: 'Speed ×',
+      fieldWalls: 'Walls',
+      fieldReflect: 'Reflecting',
+      fieldAbsorb: 'Absorbing',
+      fieldColor: 'Color',
+      fieldBipolar: 'Bipolar',
+      fieldMono: 'Mono',
+      fieldSpectral: 'Spectral',
+      fieldRes: 'Resolution',
+      hintField: "A real wave-equation simulation inside the room. Emitters are wave sources; click the stage to drop a ripple. Reflecting walls give resonances — try the ellipse with a source on a focus. Inspired by Nils Berglund's simulations.",
       autoSpawn: 'Auto spawn',
       centerBtn: 'Center emitters',
       tabAll: 'All',
@@ -8708,6 +9192,25 @@ void main() {
       roomTitle: 'Sala',
       optRings: 'Anillos',
       optBoth: 'Ambos',
+      optField: 'Campo de onda',
+      fieldTitle: 'Campo de onda',
+      fieldPulse: 'Pulso',
+      fieldContinuous: 'Continuo',
+      fieldFreq: 'Frecuencia',
+      fieldAmp: 'Amplitud',
+      fieldSpeed: 'Velocidad de onda',
+      fieldDamping: 'Amortiguación',
+      fieldGain: 'Brillo',
+      fieldSubsteps: 'Velocidad ×',
+      fieldWalls: 'Paredes',
+      fieldReflect: 'Reflectantes',
+      fieldAbsorb: 'Absorbentes',
+      fieldColor: 'Color',
+      fieldBipolar: 'Bipolar',
+      fieldMono: 'Mono',
+      fieldSpectral: 'Espectral',
+      fieldRes: 'Resolución',
+      hintField: 'Una simulación real de la ecuación de onda dentro de la sala. Los emisores son fuentes de onda; haz clic en el escenario para soltar una onda. Las paredes reflectantes dan resonancias — prueba la elipse con una fuente en un foco. Inspirado en las simulaciones de Nils Berglund.',
       autoSpawn: 'Auto-generar',
       centerBtn: 'Centrar emisores',
       tabAll: 'Todo',
@@ -8882,6 +9385,25 @@ void main() {
       roomTitle: 'Sala',
       optRings: 'Anéis',
       optBoth: 'Ambos',
+      optField: 'Campo de onda',
+      fieldTitle: 'Campo de onda',
+      fieldPulse: 'Pulso',
+      fieldContinuous: 'Contínuo',
+      fieldFreq: 'Frequência',
+      fieldAmp: 'Amplitude',
+      fieldSpeed: 'Velocidade da onda',
+      fieldDamping: 'Amortecimento',
+      fieldGain: 'Brilho',
+      fieldSubsteps: 'Velocidade ×',
+      fieldWalls: 'Paredes',
+      fieldReflect: 'Refletoras',
+      fieldAbsorb: 'Absorventes',
+      fieldColor: 'Cor',
+      fieldBipolar: 'Bipolar',
+      fieldMono: 'Mono',
+      fieldSpectral: 'Espectral',
+      fieldRes: 'Resolução',
+      hintField: 'Uma simulação real da equação de onda dentro da sala. Os emissores são fontes de onda; clique no palco para soltar uma onda. Paredes refletoras dão ressonâncias — experimente a elipse com uma fonte num foco. Inspirado nas simulações de Nils Berglund.',
       autoSpawn: 'Auto-gerar',
       centerBtn: 'Centralizar emissores',
       tabAll: 'Tudo',
@@ -9056,6 +9578,25 @@ void main() {
       roomTitle: 'Salle',
       optRings: 'Anneaux',
       optBoth: 'Les deux',
+      optField: 'Champ d\'onde',
+      fieldTitle: 'Champ d\'onde',
+      fieldPulse: 'Impulsion',
+      fieldContinuous: 'Continu',
+      fieldFreq: 'Fréquence',
+      fieldAmp: 'Amplitude',
+      fieldSpeed: 'Vitesse d\'onde',
+      fieldDamping: 'Amortissement',
+      fieldGain: 'Luminosité',
+      fieldSubsteps: 'Vitesse ×',
+      fieldWalls: 'Murs',
+      fieldReflect: 'Réfléchissants',
+      fieldAbsorb: 'Absorbants',
+      fieldColor: 'Couleur',
+      fieldBipolar: 'Bipolaire',
+      fieldMono: 'Mono',
+      fieldSpectral: 'Spectral',
+      fieldRes: 'Résolution',
+      hintField: "Une vraie simulation de l'équation d'onde dans la salle. Les émetteurs sont des sources d'onde ; cliquez sur la scène pour lâcher une onde. Les murs réfléchissants donnent des résonances — essayez l'ellipse avec une source sur un foyer. Inspiré des simulations de Nils Berglund.",
       autoSpawn: 'Auto-génération',
       centerBtn: 'Centrer les émetteurs',
       tabAll: 'Tout',
@@ -9306,7 +9847,7 @@ void main() {
       speedPattern: S.speedPattern, patternBase: S.patternBase,
       pulseOn: S.pulseOn, pulseShape: S.pulseShape, pulseAmp: S.pulseAmp,
       pulseFreqCP100: S.pulseFreqCP100, pulseSpeed: S.pulseSpeed, pulseSoft: S.pulseSoft, pulseDuty: S.pulseDuty,
-      widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, phosphor: S.phosphor, rings: S.rings,
+      widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, phosphor: S.phosphor, rings: S.rings, field: S.field,
       audio: { sensitivity: S.audio.sensitivity, smoothing: S.audio.smoothing },
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep },
       lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2, sync1: S.lfo.sync1, sync2: S.lfo.sync2 },
@@ -9340,6 +9881,7 @@ void main() {
     },
     shapeTitle: () => { S.widthWave = F().widthWave; },
     ringsTitle: () => { S.rings = F().rings; syncRingsUI(); },
+    fieldTitle: () => { const en = S.field.enabled; S.field = F().field; S.field.enabled = en; syncFieldUI(); },
     trails: () => { S.trails = F().trails; },
     glow: () => { S.bloom = F().bloom; },
     phosphorWalls: () => { S.phosphor = F().phosphor; clearPhosphor(); syncPhosphorUI(); },
@@ -9395,7 +9937,7 @@ void main() {
     ['scenes', 'tabScenes', 'Scenes']
   ];
   const TAB_OF_GROUP = {
-    colors: 'beams', perBeamRotation: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams',
+    colors: 'beams', perBeamRotation: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams',
     trails: 'fx', glow: 'fx', phosphorWalls: 'fx',
     roomTitle: 'room', bonus: 'room',
     audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',

@@ -71,6 +71,13 @@ const result = await page.evaluate(() => {
   const litRings = countLit();
   V.S.rings.enabled = false;
 
+  // Wave field: enable, step the FDTD sim (tolerant of headless float support)
+  V.S.field.enabled = true; V.S.showBeams = false;
+  drive(40);
+  const litField = countLit();
+  V.S.field.enabled = false; V.S.showBeams = true;
+  drive(3);
+
   // Exercise every room shape
   const shapes = ['regular-3', 'regular-6', 'random-5', 'blob', 'ellipse', 'parabolic', 'circle'];
   const sel = document.getElementById('shape');
@@ -82,7 +89,7 @@ const result = await page.evaluate(() => {
     shapeLit[s] = countLit();
   }
 
-  return { litPlain, litKitchen, litRings, shapeLit, glError: ctx.getError(), canvas: gl.width + 'x' + gl.height };
+  return { litPlain, litKitchen, litRings, litField, shapeLit, glError: ctx.getError(), canvas: gl.width + 'x' + gl.height };
 });
 
 await browser.close();
