@@ -2,6 +2,13 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.11.0] - 2026-06-14
+
+### Mobile fix + room visibility + distinct wave rings
+- **Mobile wave field fixed**: the wave field no longer stretches into a wide ellipse on non-square (mobile) canvases — it now renders into the room's centred square, so circular waves stay circular at any aspect ratio
+- **Room outline now visible while editing**: changing Shape, Eccentricity, or Wall bend briefly highlights the room boundary in amber so you can see the shape you're adjusting (it fades back to invisible)
+- **Distinct wave rings**: the Wave Field has a new **Waveform** control — Continuous (steady tone), **Rings (pulsed)** which emits distinct expanding rings, or Manual only — plus **Ring rate** and **Ring sharpness** to shape them
+
 ## [1.10.1] - 2026-06-13
 
 ### Wave field: dedicated emitters

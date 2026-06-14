@@ -2174,8 +2174,19 @@
           <button class="btn" id="fieldToggle">Off</button>
           <label data-i18n="fieldPulse">Pulse</label>
           <button class="btn" id="fieldImpulseBtn">&#9889; Drop</button>
-          <label data-i18n="fieldContinuous">Continuous</label>
-          <button class="btn" id="fieldContToggle">On</button>
+          <label data-i18n="fieldWaveform">Waveform</label>
+          <select id="fieldWaveform">
+            <option value="continuous" data-i18n="fieldWfCont">Continuous</option>
+            <option value="rings" data-i18n="fieldWfRings">Rings (pulsed)</option>
+            <option value="off" data-i18n="fieldWfOff">Manual only</option>
+          </select>
+          <label data-i18n="fieldRingRate">Ring rate</label>
+          <div class="ctrl-row">
+            <input id="fieldPulseRate" type="range" min="0.2" max="5" step="0.1" value="1.2">
+            <input id="fieldPulseRateNum" type="number" min="0.2" max="5" step="0.1" value="1.2">
+          </div>
+          <label data-i18n="fieldRingSharp">Ring sharpness</label>
+          <input id="fieldPulseWidth" type="range" min="0.04" max="0.5" step="0.01" value="0.16">
           <label data-i18n="ringEmitters">Emitters</label>
           <div class="stepper">
             <button class="btn step-btn" id="fieldEmDown">&#9660;</button>
@@ -2529,7 +2540,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.10.1';
+  const APP_VERSION = 'v1.11.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2756,7 +2767,13 @@
       gain: 2.5,        // display brightness multiplier (soft-tonemapped)
       colorMode: 'spectral', // spectral | bipolar | mono (spectral is palette-independent)
       boundary: 'reflect',  // reflect (Neumann mirror) | absorb (open)
-      continuous: true,     // continuous source vs single impulses only
+      continuous: true,     // legacy; superseded by waveform (kept for compat)
+      // Source waveform: 'continuous' steady tone, 'rings' periodic bursts that
+      // travel out as distinct expanding rings, 'off' = manual impulses only
+      waveform: 'continuous',
+      pulseRate: 1.2,   // bursts per second in 'rings' mode
+      pulseWidth: 0.16, // burst sharpness (fraction of period the burst is on)
+      pulsePhase: 0,    // runtime burst-phase accumulator
       phase: 0,         // runtime source phase accumulator
       // Own wave-source emitters (like rings) — center by default
       emittersNorm: [{ nx: 0.5, ny: 0.5 }],
@@ -5654,8 +5671,18 @@ void main() {
     const res = S.field.res | 0;
     const F = S.field;
 
-    // Source displacement this frame (continuous sine, advanced in loopBody)
-    const srcVal = F.continuous ? F.amp * Math.sin(F.phase) : 0;
+    // Source displacement this frame (phases advanced in loopBody)
+    let srcVal = 0;
+    if (F.waveform === 'continuous') {
+      srcVal = F.amp * Math.sin(F.phase);
+    } else if (F.waveform === 'rings') {
+      // A windowed tone burst once per pulse period → distinct expanding rings.
+      // Window peaks at the start of each period; pulseWidth sets its sharpness.
+      const pf = (F.pulsePhase / (Math.PI * 2)) % 1;       // 0..1 within period
+      const edge = Math.min(pf, 1 - pf);                    // 0 at period boundary
+      const w = Math.exp(-Math.pow(edge / Math.max(0.02, F.pulseWidth), 2));
+      srcVal = F.amp * 1.4 * Math.sin(F.phase) * w;
+    }
     // Source positions (the field's own emitters) in grid UV
     updateFieldEmitters();
     const srcUV = [];
@@ -5720,7 +5747,17 @@ void main() {
 
     gl.useProgram(waveColorProg);
     gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+    // Clear full target, then draw the square field into the room's centred
+    // square region — so the field never stretches to a non-square (mobile)
+    // canvas. Matches how beams/rings letterbox the room.
+    gl.disable(gl.BLEND);
     gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    const sq = Math.round((fieldMaskMap ? fieldMaskMap.span : glCanvas.width / S.dpr) * S.dpr);
+    const vx = Math.round((fieldMaskMap ? fieldMaskMap.ox : 0) * S.dpr);
+    const vy = glCanvas.height - Math.round((fieldMaskMap ? fieldMaskMap.oy : 0) * S.dpr) - sq;
+    gl.viewport(vx, vy, sq, sq);
     const cL = n => gl.getUniformLocation(waveColorProg, n);
     gl.uniform1i(cL('u_state'), 0);
     gl.uniform1i(cL('u_mask'), 1);
@@ -5733,6 +5770,7 @@ void main() {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, fieldTex[fieldPing]);
     drawPostQuad(waveColorProg);
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
 
     if (S.bloom.enabled && S.bloom.strength > 0.001) {
       runBloom(sceneTex);
@@ -6218,6 +6256,10 @@ void main() {
     }
   }
 
+  // When room geometry is being edited, highlight the outline until this time
+  let roomOutlineUntil = 0;
+  function flashRoomOutline() { roomOutlineUntil = performance.now() + 1400; }
+
   function drawOverlay() {
     const W = ovCanvas.width / S.dpr, H = ovCanvas.height / S.dpr;
     octx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
@@ -6226,9 +6268,19 @@ void main() {
     // Skip boundary and emitters in fullscreen or hide-ui mode for clean look
     if (document.fullscreenElement || document.body.classList.contains('fullscreen-mode') || document.body.classList.contains('hide-ui')) return;
 
-    // Boundary - invisible on black background (pure black stroke)
-    octx.strokeStyle = '#000';
-    octx.lineWidth = 1;
+    // Boundary — normally invisible (black on black for a clean look), but
+    // briefly highlighted while room parameters change so you can see the
+    // shape you're editing. roomOutlineUntil is set on shape/ecc/bend change.
+    const now = performance.now();
+    const flashLeft = roomOutlineUntil - now;
+    if (flashLeft > 0) {
+      const k = Math.min(1, flashLeft / 600); // fade over the last 0.6s
+      octx.strokeStyle = 'rgba(255, 159, 28, ' + (0.85 * k).toFixed(3) + ')';
+      octx.lineWidth = 2;
+    } else {
+      octx.strokeStyle = '#000';
+      octx.lineWidth = 1;
+    }
     octx.beginPath();
     if (S.isCircle) {
       octx.arc(S.circle.cx, S.circle.cy, S.circle.R, 0, Math.PI * 2);
@@ -6416,6 +6468,7 @@ void main() {
     else { S.polygonType = 'blob'; S.blobPhases = null; }
     buildShape();
     randomizeEmitters();
+    flashRoomOutline();
   }
 
   _on(shapeSel, 'change', setShapeFromSelect);
@@ -6423,11 +6476,13 @@ void main() {
     S.wallBend = parseFloat(wallBendEl.value) || 0;
     wallBendNumEl.value = S.wallBend.toFixed(2);
     bendWalls();
+    flashRoomOutline();
   });
   _on(wallBendNumEl, 'input', () => {
     S.wallBend = clamp(parseFloat(wallBendNumEl.value) || 0, -0.8, 1);
     wallBendEl.value = S.wallBend;
     bendWalls();
+    flashRoomOutline();
   });
   function setEccentricity(v) {
     S.eccentricity = clamp(v, 0, 0.95);
@@ -6440,6 +6495,7 @@ void main() {
     }
     buildShape();
     updateEmittersFromNorm();
+    flashRoomOutline();
   }
   _on(eccentricityEl, 'input', () => setEccentricity(parseFloat(eccentricityEl.value) || 0));
   _on(eccentricityNumEl, 'input', () => setEccentricity(parseFloat(eccentricityNumEl.value) || 0));
@@ -7012,7 +7068,9 @@ void main() {
 
   // ---- Wave field UI bindings ----
   const fieldToggleBtn = _el('fieldToggle');
-  const fieldContToggleBtn = _el('fieldContToggle');
+  const fieldWaveformEl = _el('fieldWaveform');
+  const fieldPulseRateEl = _el('fieldPulseRate'), fieldPulseRateNumEl = _el('fieldPulseRateNum');
+  const fieldPulseWidthEl = _el('fieldPulseWidth');
   const fieldFreqEl = _el('fieldFreq'), fieldFreqNumEl = _el('fieldFreqNum');
   const fieldAmpEl = _el('fieldAmp'), fieldSpeedEl = _el('fieldSpeed');
   const fieldDampingEl = _el('fieldDamping'), fieldGainEl = _el('fieldGain');
@@ -7022,7 +7080,9 @@ void main() {
     if (!fieldToggleBtn) return;
     fieldToggleBtn.textContent = S.field.enabled ? 'On' : 'Off';
     fieldToggleBtn.style.borderColor = S.field.enabled ? 'var(--accent)' : '';
-    fieldContToggleBtn.textContent = S.field.continuous ? 'On' : 'Off';
+    fieldWaveformEl.value = S.field.waveform;
+    fieldPulseRateEl.value = fieldPulseRateNumEl.value = S.field.pulseRate;
+    fieldPulseWidthEl.value = S.field.pulseWidth;
     fieldFreqEl.value = fieldFreqNumEl.value = S.field.freq;
     fieldAmpEl.value = S.field.amp;
     fieldSpeedEl.value = S.field.speed;
@@ -7049,7 +7109,13 @@ void main() {
       if (uv) fieldImpulses.push(uv);
     }
   });
-  _on(fieldContToggleBtn, 'click', () => { S.field.continuous = !S.field.continuous; syncFieldUI(); });
+  _on(fieldWaveformEl, 'change', () => {
+    S.field.waveform = fieldWaveformEl.value;
+    S.field.continuous = S.field.waveform !== 'off'; // keep legacy flag coherent
+  });
+  _on(fieldPulseRateEl, 'input', () => { S.field.pulseRate = parseFloat(fieldPulseRateEl.value) || 1.2; fieldPulseRateNumEl.value = S.field.pulseRate; });
+  _on(fieldPulseRateNumEl, 'input', () => { S.field.pulseRate = clamp(parseFloat(fieldPulseRateNumEl.value) || 1.2, 0.2, 5); fieldPulseRateEl.value = S.field.pulseRate; });
+  _on(fieldPulseWidthEl, 'input', () => { S.field.pulseWidth = parseFloat(fieldPulseWidthEl.value) || 0.16; });
   // Field emitter formation controls (mirror the rings)
   function setFieldEmitterCount(n) {
     setFormationCount(S.field.emittersNorm, n, S.field.geometric, fieldLastMoved);
@@ -8094,9 +8160,10 @@ void main() {
     }
     // Ring spawning + expansion (uses possibly-modulated ring speed)
     advanceRings(dtSec);
-    // Wave-field source phase advances each frame (sim itself is dt-independent)
+    // Wave-field source phases advance each frame (sim itself is dt-independent)
     if (S.field.enabled) {
       S.field.phase = (S.field.phase + Math.PI * 2 * S.field.freq * dtSec) % (Math.PI * 2);
+      S.field.pulsePhase = (S.field.pulsePhase + Math.PI * 2 * S.field.pulseRate * dtSec) % (Math.PI * 2);
     }
     renderBeamsGL(t / 1000);
     drawOverlay();
@@ -9131,6 +9198,12 @@ void main() {
       optField: 'Wave field',
       fieldTitle: 'Wave Field',
       fieldPulse: 'Pulse',
+      fieldWaveform: 'Waveform',
+      fieldWfCont: 'Continuous',
+      fieldWfRings: 'Rings (pulsed)',
+      fieldWfOff: 'Manual only',
+      fieldRingRate: 'Ring rate',
+      fieldRingSharp: 'Ring sharpness',
       fieldContinuous: 'Continuous',
       fieldFreq: 'Frequency',
       fieldAmp: 'Amplitude',
@@ -9324,6 +9397,12 @@ void main() {
       optField: 'Campo de onda',
       fieldTitle: 'Campo de onda',
       fieldPulse: 'Pulso',
+      fieldWaveform: 'Forma de onda',
+      fieldWfCont: 'Continua',
+      fieldWfRings: 'Anillos (pulsada)',
+      fieldWfOff: 'Solo manual',
+      fieldRingRate: 'Frecuencia de anillos',
+      fieldRingSharp: 'Nitidez de anillos',
       fieldContinuous: 'Continuo',
       fieldFreq: 'Frecuencia',
       fieldAmp: 'Amplitud',
@@ -9517,6 +9596,12 @@ void main() {
       optField: 'Campo de onda',
       fieldTitle: 'Campo de onda',
       fieldPulse: 'Pulso',
+      fieldWaveform: 'Forma de onda',
+      fieldWfCont: 'Contínua',
+      fieldWfRings: 'Anéis (pulsada)',
+      fieldWfOff: 'Apenas manual',
+      fieldRingRate: 'Taxa de anéis',
+      fieldRingSharp: 'Nitidez dos anéis',
       fieldContinuous: 'Contínuo',
       fieldFreq: 'Frequência',
       fieldAmp: 'Amplitude',
@@ -9710,6 +9795,12 @@ void main() {
       optField: 'Champ d\'onde',
       fieldTitle: 'Champ d\'onde',
       fieldPulse: 'Impulsion',
+      fieldWaveform: 'Forme d\'onde',
+      fieldWfCont: 'Continue',
+      fieldWfRings: 'Anneaux (pulsée)',
+      fieldWfOff: 'Manuel seulement',
+      fieldRingRate: 'Cadence d\'anneaux',
+      fieldRingSharp: 'Netteté des anneaux',
       fieldContinuous: 'Continu',
       fieldFreq: 'Fréquence',
       fieldAmp: 'Amplitude',

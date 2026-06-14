@@ -49,6 +49,10 @@ Matrix routes + beat settings persist in `localStorage['voidulator-mod']` (globa
 - **`waveColorProg`** (colorize): soft tone-map `1−exp(−|u|·gain)` (never harsh-clips a resonating cavity) → spectral/bipolar/mono, into `sceneTex`, then the existing `runBloom`/`compositeWithBloom`.
 - Source phase advances in `loopBody` (`S.field.phase`); the FDTD itself is dt-independent (fixed C, fixed substeps). Click-on-stage and the Pulse button push one-shot `fieldImpulses`.
 - Inspired by Nils Berglund's wave sims (CC0); this is independent code. Defaults (damping 0.02, amp 0.4, gain 2.5) give clean travelling fronts rather than a saturated standing wave.
+- **Aspect handling**: the field grid is square; the colorize pass renders into a *centred square viewport* (`vx,vy,sq` from `fieldMaskMap × dpr`, GL bottom-left origin) on the otherwise-cleared scene target — never stretch the square field across a non-square canvas, or circular waves become ellipses on mobile.
+- **Waveform** (`S.field.waveform`): `continuous` (steady sine), `rings` (sine × a per-period gaussian burst window at `pulseRate`, `pulseWidth` sets sharpness → distinct expanding rings), or `off` (manual impulses only). Phases (`phase`, `pulsePhase`) advance in `loopBody`.
+- Field has its own draggable wave-source emitters (`S.field.emittersNorm`, magenta) with the shared formation helpers (`arrangeFormationGeometric`/`centerFormation`/`uprightFormation`/`setFormationCount`, `defaultFormationRadius` spreads a collapsed formation).
+- Editing Shape/Eccentricity/Wall bend calls `flashRoomOutline()` → `roomOutlineUntil`; `drawOverlay` draws the boundary in fading amber while active (it's normally black-on-black).
 
 ## Bloom (Glow) pipeline
 
