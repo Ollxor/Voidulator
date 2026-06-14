@@ -517,11 +517,12 @@
     .stage {
       flex-shrink: 0;
       position: relative;
-      height: 40svh;
-      min-height: 200px;
-      max-height: 50svh;
-      aspect-ratio: auto;
-      max-width: 100%;
+      /* Square, centred: the room fills it instead of sitting in a wide
+         letterbox, and the aspect never changes as the viewport shifts */
+      width: min(100%, 62svh);
+      height: auto;
+      aspect-ratio: 1 / 1;
+      margin: 0 auto;
       z-index: 10;
     }
     .panel {
@@ -2540,7 +2541,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.11.0';
+  const APP_VERSION = 'v1.12.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -7500,7 +7501,10 @@ void main() {
     eccentricity:  { label: 'Eccentricity',    get: () => S.eccentricity,    set: v => { S.eccentricity = v; if (S.polygonType === 'ellipse') buildShape(); }, min: 0, max: () => 0.95, range: () => 0.5 },
     phosphor:      { label: 'Phosphor intensity', get: () => S.phosphor.intensity, set: v => S.phosphor.intensity = v, min: 0, max: () => 2, range: () => 1.5 },
     ringSpeed:     { label: 'Ring speed ×',     get: () => S.rings.speedMul,  set: v => S.rings.speedMul = v,  min: 0.1,  max: () => 3,          range: () => 1.5 },
-    ringTaper:     { label: 'Ring taper',       get: () => S.rings.taper,     set: v => S.rings.taper = v,     min: -1,   max: () => 1,          range: () => 1 }
+    ringTaper:     { label: 'Ring taper',       get: () => S.rings.taper,     set: v => S.rings.taper = v,     min: -1,   max: () => 1,          range: () => 1 },
+    fieldAmp:      { label: 'Wave amplitude',   get: () => S.field.amp,       set: v => S.field.amp = v,       min: 0,    max: () => 2,          range: () => 1 },
+    fieldFreq:     { label: 'Wave frequency',   get: () => S.field.freq,      set: v => S.field.freq = v,      min: 0.05, max: () => 4,          range: () => 2 },
+    fieldGain:     { label: 'Wave brightness',  get: () => S.field.gain,      set: v => S.field.gain = v,      min: 0.2,  max: () => 6,          range: () => 3 }
   };
 
   const MOD_SOURCES = {

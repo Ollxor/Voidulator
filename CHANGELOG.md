@@ -2,6 +2,12 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.12.0] - 2026-06-14
+
+### Audio-reactive wave field + bigger mobile room
+- The **Wave Field is now modulatable**: Wave amplitude, Wave frequency, and Wave brightness are new Modulation Matrix targets — route bass to Wave amplitude or the beat envelope to Wave brightness and the field pulses with the music
+- **Mobile room is now a proper centred square** instead of a wide letterbox strip, so the room fills the screen and its aspect never shifts as the address bar/viewport changes
+
 ## [1.11.0] - 2026-06-14
 
 ### Mobile fix + room visibility + distinct wave rings
