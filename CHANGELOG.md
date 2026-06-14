@@ -2,6 +2,12 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.10.1] - 2026-06-13
+
+### Wave field: dedicated emitters
+- The wave field now has its **own draggable wave-source emitters** (magenta dots) instead of borrowing the beam emitters — fixes the source not rendering clearly
+- Same formation controls as the rings: **emitter count, Geometric arrangement, Center, and Upright**. Adding emitters from a collapsed centre now spreads them into a proper polygon. Persisted in scenes/presets.
+
 ## [1.10.0] - 2026-06-12
 
 ### 🌊 Wave Field

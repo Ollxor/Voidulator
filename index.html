@@ -2176,6 +2176,19 @@
           <button class="btn" id="fieldImpulseBtn">&#9889; Drop</button>
           <label data-i18n="fieldContinuous">Continuous</label>
           <button class="btn" id="fieldContToggle">On</button>
+          <label data-i18n="ringEmitters">Emitters</label>
+          <div class="stepper">
+            <button class="btn step-btn" id="fieldEmDown">&#9660;</button>
+            <span class="step-val" id="fieldEmVal">1</span>
+            <button class="btn step-btn" id="fieldEmUp">&#9650;</button>
+          </div>
+          <label data-i18n="geometric">Geometric</label>
+          <button class="btn" id="fieldGeoToggle">On</button>
+          <label data-i18n="alignLabel">Align</label>
+          <div class="btn-row">
+            <button class="btn" id="fieldCenterBtn" data-i18n="centerShort">Center</button>
+            <button class="btn" id="fieldUprightBtn" data-i18n="alignRot">Upright</button>
+          </div>
           <label data-i18n="fieldFreq">Frequency</label>
           <div class="ctrl-row">
             <input id="fieldFreq" type="range" min="0.05" max="4" step="0.05" value="0.6">
@@ -2516,7 +2529,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.10.0';
+  const APP_VERSION = 'v1.10.1';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2692,6 +2705,7 @@
     emittersNorm: [{ nx: 0.5, ny: 0.5 }],
     emitters: [{ x: 0, y: 0 }],
     draggingIdx: -1,
+    fieldDraggingIdx: -1,
     emitterSymmetry: true,
     symRadius: 0.15, // normalized radius for symmetric positioning
     symAngle: 0,     // angle of first emitter in formation
@@ -2743,7 +2757,10 @@
       colorMode: 'spectral', // spectral | bipolar | mono (spectral is palette-independent)
       boundary: 'reflect',  // reflect (Neumann mirror) | absorb (open)
       continuous: true,     // continuous source vs single impulses only
-      phase: 0          // runtime source phase accumulator
+      phase: 0,         // runtime source phase accumulator
+      // Own wave-source emitters (like rings) — center by default
+      emittersNorm: [{ nx: 0.5, ny: 0.5 }],
+      geometric: true
     },
     // Width wave effect (sine wave along beam width)
     widthWave: {
@@ -3383,6 +3400,7 @@
     if (scene.field) {
       S.field = Object.assign({}, S.field, scene.field);
       S.field.phase = 0;
+      if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }];
     } else {
       S.field.enabled = false;
     }
@@ -5128,6 +5146,68 @@ void main() {
   let nextActivationIn = 0;  // s until next automatic activation
   let ringColorIdx = 0;
   let ringLastMoved = 0;     // most recently dragged ring emitter (geo anchor)
+  let fieldEmitters = [];    // px positions derived from S.field.emittersNorm
+  let fieldLastMoved = 0;
+
+  // ---- Shared emitter-formation helpers (used by rings and the wave field) ----
+  // All operate on a `emittersNorm` array of {nx,ny} and return/derive px.
+  function normToRoomPx(emittersNorm) {
+    const b = getRoomBounds();
+    const w = b.maxX - b.minX, h = b.maxY - b.minY;
+    return emittersNorm.map(n => constrainToRoom({ x: b.minX + n.nx * w, y: b.minY + n.ny * h }));
+  }
+  function writeNormFromPx(emittersNorm, idx, px) {
+    const b = getRoomBounds();
+    const p = constrainToRoom(px);
+    emittersNorm[idx] = { nx: (p.x - b.minX) / (b.maxX - b.minX), ny: (p.y - b.minY) / (b.maxY - b.minY) };
+  }
+  // A sensible formation radius when the dots are collapsed at the centre,
+  // so adding emitters / arranging spreads them visibly instead of stacking
+  function defaultFormationRadius() {
+    const b = getRoomBounds();
+    return 0.28 * Math.min(b.maxX - b.minX, b.maxY - b.minY);
+  }
+  // Arrange as a regular polygon around the room centre, anchored on one dot
+  function arrangeFormationGeometric(emittersNorm, anchorIdx) {
+    const n = emittersNorm.length;
+    if (n < 2) return;
+    const px = normToRoomPx(emittersNorm);
+    const c = roomCenter();
+    const a0 = px[anchorIdx] || { x: c.x, y: c.y - 50 };
+    let radius = Math.hypot(a0.x - c.x, a0.y - c.y);
+    let baseAng = Math.atan2(a0.y - c.y, a0.x - c.x);
+    if (radius < 20) { radius = defaultFormationRadius(); baseAng = -Math.PI / 2; } // collapsed → spread upward
+    for (let i = 0; i < n; i++) {
+      const ang = baseAng + ((i - anchorIdx + n) % n) * 2 * Math.PI / n;
+      writeNormFromPx(emittersNorm, i, { x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
+    }
+  }
+  // Shift the whole formation so its centroid lands on the room centre
+  function centerFormation(emittersNorm) {
+    const px = normToRoomPx(emittersNorm);
+    const rc = roomCenter(), c = centroid(px);
+    for (let i = 0; i < px.length; i++) writeNormFromPx(emittersNorm, i, { x: px[i].x + rc.x - c.x, y: px[i].y + rc.y - c.y });
+  }
+  // Rotate the formation so the anchor dot points straight up from centre
+  function uprightFormation(emittersNorm, anchorIdx) {
+    const n = emittersNorm.length;
+    const px = normToRoomPx(emittersNorm);
+    const c = roomCenter();
+    const anchor = px[anchorIdx < n ? anchorIdx : 0] || { x: c.x, y: c.y - 50 };
+    let radius = Math.hypot(anchor.x - c.x, anchor.y - c.y);
+    if (radius < 20) radius = defaultFormationRadius();
+    for (let i = 0; i < n; i++) {
+      const ang = -Math.PI / 2 + i * 2 * Math.PI / Math.max(1, n);
+      writeNormFromPx(emittersNorm, i, { x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
+    }
+  }
+  function setFormationCount(emittersNorm, n, geometric, anchorIdx) {
+    n = clamp(n, 1, 6) | 0;
+    while (emittersNorm.length > n) emittersNorm.pop();
+    while (emittersNorm.length < n) emittersNorm.push({ nx: 0.5, ny: 0.5 });
+    if (geometric && n > 1) arrangeFormationGeometric(emittersNorm, anchorIdx < n ? anchorIdx : 0);
+  }
+  function updateFieldEmitters() { fieldEmitters = normToRoomPx(S.field.emittersNorm); }
 
   const randIn = (range) => range[0] + Math.random() * Math.max(0, range[1] - range[0]);
   // Migrates legacy scalar settings to [min,max] ranges
@@ -5576,9 +5656,10 @@ void main() {
 
     // Source displacement this frame (continuous sine, advanced in loopBody)
     const srcVal = F.continuous ? F.amp * Math.sin(F.phase) : 0;
-    // Source positions (beam emitters) in grid UV
+    // Source positions (the field's own emitters) in grid UV
+    updateFieldEmitters();
     const srcUV = [];
-    for (const e of S.emitters) {
+    for (const e of fieldEmitters) {
       const uv = fieldPxToUV(e.x, e.y);
       if (uv) srcUV.push(uv.u, uv.v);
       if (srcUV.length >= 16) break;
@@ -6197,6 +6278,18 @@ void main() {
           octx.stroke();
         }
       }
+      // Field wave-source emitters in magenta (with a ring halo so they read
+      // against the bright field)
+      if (S.field.enabled) {
+        updateFieldEmitters();
+        for (const e of fieldEmitters) {
+          octx.strokeStyle = '#0a0b0e';
+          octx.lineWidth = 2.5;
+          octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.stroke();
+          octx.fillStyle = '#ff4fd8';
+          octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.fill();
+        }
+      }
     }
   }
 
@@ -6219,7 +6312,16 @@ void main() {
         if (d < best) { best = d; ringIdx = i; idx = -1; }
       }
     }
-    if (ringIdx >= 0) { S.ringDraggingIdx = ringIdx; ovCanvas.setPointerCapture(e.pointerId); }
+    let fieldIdx = -1;
+    if (S.field.enabled) {
+      updateFieldEmitters();
+      for (let i = 0; i < fieldEmitters.length; i++) {
+        const d = Math.hypot(x - fieldEmitters[i].x, y - fieldEmitters[i].y);
+        if (d < best) { best = d; fieldIdx = i; idx = -1; ringIdx = -1; }
+      }
+    }
+    if (fieldIdx >= 0) { S.fieldDraggingIdx = fieldIdx; fieldLastMoved = fieldIdx; ovCanvas.setPointerCapture(e.pointerId); }
+    else if (ringIdx >= 0) { S.ringDraggingIdx = ringIdx; ovCanvas.setPointerCapture(e.pointerId); }
     else if (idx >= 0) { S.draggingIdx = idx; ovCanvas.setPointerCapture(e.pointerId); }
     else if (S.field.enabled) {
       // Click in empty space while the wave field is active = drop a ripple
@@ -6229,10 +6331,18 @@ void main() {
   });
 
   ovCanvas.addEventListener('pointermove', (e) => {
-    if (S.draggingIdx < 0 && S.ringDraggingIdx < 0) return;
+    if (S.draggingIdx < 0 && S.ringDraggingIdx < 0 && S.fieldDraggingIdx < 0) return;
     const r = ovCanvas.getBoundingClientRect();
     const newX = e.clientX - r.left, newY = e.clientY - r.top;
     const newPos = { x: newX, y: newY };
+    if (S.fieldDraggingIdx >= 0) {
+      writeNormFromPx(S.field.emittersNorm, S.fieldDraggingIdx, newPos);
+      fieldLastMoved = S.fieldDraggingIdx;
+      if (S.field.geometric && S.field.emittersNorm.length > 1) {
+        arrangeFormationGeometric(S.field.emittersNorm, S.fieldDraggingIdx);
+      }
+      return;
+    }
     if (S.ringDraggingIdx >= 0) {
       const p = constrainToRoom(newPos);
       const bounds = getRoomBounds();
@@ -6254,14 +6364,16 @@ void main() {
 
   // Use window to catch pointer release anywhere (fixes sticky dragging)
   window.addEventListener('pointerup', () => {
-    const wasDragging = S.draggingIdx >= 0 || S.ringDraggingIdx >= 0;
+    const wasDragging = S.draggingIdx >= 0 || S.ringDraggingIdx >= 0 || S.fieldDraggingIdx >= 0;
     S.draggingIdx = -1;
     S.ringDraggingIdx = -1;
+    S.fieldDraggingIdx = -1;
     if (wasDragging) requestAutosave();
   });
   window.addEventListener('pointercancel', () => {
     S.draggingIdx = -1;
     S.ringDraggingIdx = -1;
+    S.fieldDraggingIdx = -1;
   });
 
   // Double-tap on stage to toggle fullscreen (but not when dragging the emitter)
@@ -6580,7 +6692,7 @@ void main() {
       S.rings.rainbow = P.waveRainbow ?? true;
       S.rings.taper = P.waveTaper ?? 0;
     }
-    if (P.field) { S.field = Object.assign({}, S.field, P.field); S.field.phase = 0; }
+    if (P.field) { S.field = Object.assign({}, S.field, P.field); S.field.phase = 0; if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }]; }
     else S.field.enabled = false;
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
@@ -6920,6 +7032,8 @@ void main() {
     fieldBoundaryEl.value = S.field.boundary;
     fieldColorModeEl.value = S.field.colorMode;
     fieldResEl.value = S.field.res;
+    const ev = _el('fieldEmVal'); if (ev) ev.textContent = S.field.emittersNorm.length;
+    const gt = _el('fieldGeoToggle'); if (gt) gt.textContent = S.field.geometric ? 'On' : 'Off';
   }
   _on(fieldToggleBtn, 'click', () => {
     S.field.enabled = !S.field.enabled;
@@ -6928,13 +7042,28 @@ void main() {
     syncFieldUI(); syncRingsUI();
   });
   _on(_el('fieldImpulseBtn'), 'click', () => {
-    // Drop a ripple at each emitter
-    for (const e of S.emitters) {
+    // Drop a ripple at each field emitter
+    updateFieldEmitters();
+    for (const e of fieldEmitters) {
       const uv = fieldPxToUV(e.x, e.y);
       if (uv) fieldImpulses.push(uv);
     }
   });
   _on(fieldContToggleBtn, 'click', () => { S.field.continuous = !S.field.continuous; syncFieldUI(); });
+  // Field emitter formation controls (mirror the rings)
+  function setFieldEmitterCount(n) {
+    setFormationCount(S.field.emittersNorm, n, S.field.geometric, fieldLastMoved);
+    syncFieldUI(); requestAutosave();
+  }
+  _on(_el('fieldEmUp'), 'click', () => setFieldEmitterCount(S.field.emittersNorm.length + 1));
+  _on(_el('fieldEmDown'), 'click', () => setFieldEmitterCount(S.field.emittersNorm.length - 1));
+  _on(_el('fieldGeoToggle'), 'click', () => {
+    S.field.geometric = !S.field.geometric;
+    if (S.field.geometric) arrangeFormationGeometric(S.field.emittersNorm, fieldLastMoved < S.field.emittersNorm.length ? fieldLastMoved : 0);
+    syncFieldUI(); requestAutosave();
+  });
+  _on(_el('fieldCenterBtn'), 'click', () => { centerFormation(S.field.emittersNorm); requestAutosave(); });
+  _on(_el('fieldUprightBtn'), 'click', () => { uprightFormation(S.field.emittersNorm, fieldLastMoved); requestAutosave(); });
   _on(fieldFreqEl, 'input', () => { S.field.freq = parseFloat(fieldFreqEl.value) || 0.6; fieldFreqNumEl.value = S.field.freq; });
   _on(fieldFreqNumEl, 'input', () => { S.field.freq = clamp(parseFloat(fieldFreqNumEl.value) || 0.6, 0.05, 4); fieldFreqEl.value = S.field.freq; });
   _on(fieldAmpEl, 'input', () => { S.field.amp = parseFloat(fieldAmpEl.value) || 0.7; });
