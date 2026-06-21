@@ -2,6 +2,11 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.12.1] - 2026-06-15
+
+### Fix
+- **Canvas could get stuck tiny (blank stage) if the page laid out slowly.** `resize()` only ran on window-resize events, so if the very first layout was late the canvas stayed at its 2px floor and never recovered. A `ResizeObserver` on the stage now re-sizes the canvas whenever its box actually changes — also hardening mobile (address-bar show/hide, panel reflow, orientation).
+
 ## [1.12.0] - 2026-06-14
 
 ### Audio-reactive wave field + bigger mobile room
