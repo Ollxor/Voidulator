@@ -10,7 +10,7 @@ borrowing**. Append freely; keep license notes honest.
 - ⚠️ **Custom / non-commercial** — ideas only unless the author grants permission.
 - 🟢 **Math & algorithms are never copyrightable** — the wave equation, ray reflection, FFT, gaussian kernels, etc. are free to reimplement from any source.
 
-_Last updated: 2026-06-21._
+_Last updated: 2026-06-22._
 
 ---
 
@@ -126,6 +126,39 @@ right home for this: it's the analog-vector aesthetic Voidulator already evokes.
 
 **Idea: ILDA frame export.** Voidulator's beams *are* vector paths (point lists), which is precisely what ILDA wants. Exporting a scene as an `.ild` file (or streaming via WebSerial to a Helios DAC) would let it drive a **real laser projector** — turning the simulator into a genuine laser-show authoring tool. Niche but a true differentiator; rings/field (raster) wouldn't translate, but beams would.
 
+## 12. Sound-reactive techniques & libraries (deep dive)
+
+This is the engine room of a VJ instrument. **Where Voidulator is today:**
+`AnalyserNode.getByteFrequencyData` → RMS+peak per band (bass/mid/high/full) →
+attack/release smoothing → adaptive-threshold beat on the bass rolling mean →
+decaying beat envelope, plus manual tap-tempo. That's a solid *energy-based*
+rig. The ladder below shows what's beyond it.
+
+### Libraries
+
+| Library | License | Notes |
+|---|---|---|
+| [meyda/meyda](https://github.com/meyda/meyda) | **MIT** ✅ | 50+ features (RMS, spectral centroid/rolloff/flatness, ZCR, MFCC, chroma, **spectral flux**) over the Web Audio API, real-time. MIT = adoptable. The pragmatic upgrade path: drop in Meyda for spectral flux + centroid without writing DSP. |
+| [essentia.js](https://mtg.github.io/essentia.js/) | **AGPL-3.0** ⚠️ | Full MIR (BPM, beats, key, chords, chroma, melody, mood) via WASM. Powerful but copyleft — **ideas/algorithms only**, don't bundle. |
+| [audiojs/beat-detection](https://github.com/audiojs/beat-detection) | verify | Compact tempo/onset algorithms — readable reference for spectral-flux + autocorrelation tempo. |
+| [michaelkrzyzaniak/Beat-and-Tempo-Tracking](https://github.com/michaelkrzyzaniak/Beat-and-Tempo-Tracking) | verify (C) | Serious real-time beat/tempo tracker (BTT). Algorithm reference for auto-BPM. |
+| [sandner-art/Audio-Shader-Studio](https://github.com/sandner-art/Audio-Shader-Studio) | verify | WebGL + Web Audio: passes a bank of precomputed audio features straight to shaders. Reference for the feature→uniform plumbing. |
+
+### Techniques ladder (simplest → most sophisticated)
+
+1. **Energy per band** *(we do this)* — sum FFT bins in bass/mid/high, RMS, smooth. Cheap, robust.
+2. **Perceptual band mapping** — FFT bins are linear in Hz, so mids/highs get crushed. Map to **log / mel bins** (or just widen high bands) so treble actually reacts. Small change, big musical improvement. *(Easy win for Voidulator.)*
+3. **Spectral flux onset detection** — sum of *positive* bin-to-bin changes between frames; spikes on note onsets. More accurate than our energy-threshold beat and catches non-bass hits (hi-hats, snares). Meyda gives it for free.
+4. **Autocorrelation tempo** — autocorrelate the onset signal to find periodicity → **automatic BPM** (complement the manual tap; auto-sync the LFOs).
+5. **Loudness weighting** — A-weighting / true RMS for a stable "overall level" that tracks perceived loudness, not raw energy.
+6. **Pitch / chroma → colour (chromesthesia)** — dominant pitch class → hue. Maps *melody* to colour, not just amplitude. Distinctive and musical.
+7. **FFT-as-texture on the GPU** — upload the ~256–512 frequency bins as a 1-D texture each frame; sample it in shaders. Then reactivity can vary *spatially*: e.g. the **wave-field source amplitude around its circumference = the live spectrum**, or beam colour indexed by frequency. We already have the float-texture infrastructure — this is the highest-ceiling idea.
+
+### What's worth it for Voidulator (vs overkill)
+- **Worth it:** perceptual/log band mapping (#2, easy), spectral flux onset via Meyda (#3, MIT), FFT-texture for spatial spectral reactivity (#7, big payoff, reuses our infra).
+- **Nice:** autocorrelation auto-BPM (#4), chroma→hue (#6).
+- **Probably overkill:** full MIR (key/chord/mood via Essentia) — heavy WASM + AGPL; the instrument doesn't need musical *understanding*, just responsiveness.
+
 ---
 
 ## Ideas backlog (synthesised from the above)
@@ -146,6 +179,10 @@ Concrete features worth considering, roughly high→low leverage:
 12. **Curl-noise advection**: drift the phosphor/trail/field textures along a noise flow field for smoky motion.
 13. **Lissajous / XY mode**: stereo audio (or two LFOs) → X/Y → live vector curves through the existing beam/glow pipeline. Deeply on-brand for a laser app.
 14. **ILDA frame export**: beams are already vector point-paths = the ILDA format; export `.ild` or stream to a Helios DAC to drive a *real* laser projector.
+15. **Perceptual (log/mel) audio bands**: remap FFT bins so mids/highs react properly — small change, big musical feel. (Easy win.)
+16. **Spectral-flux onset detection** (via MIT Meyda): more accurate beats that catch hi-hats/snares, not just bass thumps.
+17. **FFT-as-texture → spatial spectral reactivity**: upload the live spectrum as a 1-D texture; e.g. wave-field source amplitude around its rim = the spectrum, or beam hue indexed by frequency. Reuses our float-texture infra; highest ceiling.
+18. **Auto-BPM (autocorrelation)** + **chroma→hue**: detect tempo automatically to sync LFOs; map dominant pitch class to colour.
 
 ## Insights, rabbit holes & curious paths
 
@@ -172,6 +209,9 @@ looks shiny but could swallow weeks, and the unexpected connections.
 - **Eigenmodes of the bent/parabolic rooms.** We have non-trivial cavity shapes already; their resonant modes are visually unique and not something the square/circle-only Chladni demos show. A genuine novelty.
 - **Voidulator's beams are already ILDA-shaped.** They're point-path vectors — the native format of real laser projectors. An `.ild` export (or WebSerial → Helios DAC) would quietly turn the toy into a real laser-show authoring tool. Almost nothing else in the browser does this. The rabbit-hole risk is hardware testing, but file *export* alone is low-risk and verifiable against open ILDA readers.
 - **The XY/oscilloscope aesthetic is "free" here.** Other people build whole apps around audio→XY curves; for a beam app it's just another emission source feeding the pipeline we already have.
+- **Our audio rig is good but linear-banded.** The single cheapest musical improvement is perceptual (log/mel) band mapping — right now treble barely moves because linear FFT bins bunch all the high frequencies into one wide band. Fixing the mapping makes the *whole* modulation matrix feel more alive at no UI cost.
+- **Spectral reactivity wants to be spatial, and we're uniquely set up for it.** Most audio-shader work feeds the spectrum as a texture to a fullscreen quad. We have emitters, rooms, and a wave field — feeding the FFT texture so that *different angles/positions respond to different frequencies* (a spectrum wrapped around the wave source, beams coloured by their frequency band) is a look almost no one else can do, because almost no one else has the physical-emitter substrate.
+- **Don't confuse responsiveness with understanding.** Full MIR (key/chord/mood) is seductive but it's the wrong axis for an instrument: a VJ tool needs to *react fast and feel right*, not *know the song's key*. Invest in flux/onset/loudness fidelity, not musicology.
 
 ## How to extend this file
 
