@@ -10,7 +10,7 @@ borrowing**. Append freely; keep license notes honest.
 - ⚠️ **Custom / non-commercial** — ideas only unless the author grants permission.
 - 🟢 **Math & algorithms are never copyrightable** — the wave equation, ray reflection, FFT, gaussian kernels, etc. are free to reimplement from any source.
 
-_Last updated: 2026-06-15._
+_Last updated: 2026-06-21._
 
 ---
 
@@ -101,6 +101,31 @@ living textures. A natural "3rd simulation mode" sibling.
 | **WebGPU** (Chrome/Edge/Opera desktop, Jan 2026) | Compute shaders give direct GPU buffers + workgroup memory. Quoted real-world: ~5k CPU particles → **1M particles sub-2ms** on WebGPU compute. Path: a particle/flow mode, or moving the FDTD to a compute pass for much higher field resolution. **Caveat:** still no Safari/iOS in stable, and it's a second renderer to maintain — keep the WebGL2 path as the baseline. |
 | [Codrops: WebGPU fluid sims](https://tympanus.net/codrops/2025/02/26/webgpu-fluid-simulations-high-performance-real-time-rendering/) | Tutorial-grade reference if/when we explore a fluid or high-res field mode. |
 
+## 10. Oscilloscope / Lissajous / vector (XY) art — strongly on-theme
+
+Stereo audio → X/Y deflection draws curves. A beam/laser app is *exactly* the
+right home for this: it's the analog-vector aesthetic Voidulator already evokes.
+
+| Project | License | Notes & ideas to borrow |
+|---|---|---|
+| [macumbista/vectorsynthesis](https://github.com/macumbista/vectorsynthesis) | verify (Pd) | Creating/animating vector *shapes* from audio for oscilloscopes/ILDA. The bible of the "oscilloscope music" aesthetic — idea source for shape-from-signal. |
+| [ffd8/xyscopejs](https://github.com/ffd8/xyscopejs) | verify (p5.js) | Render p5 graphics to an analog vector display via audio. Shows the geometry→XY-signal mapping cleanly. |
+| [Sean-Bradley/Oscilloscope](https://github.com/Sean-Bradley/Oscilloscope) | verify | Minimal HTML5 XY scope (L→x, R→y) via Web Audio. Smallest readable reference for an in-app XY mode. |
+| [ThatXliner/ljv](https://github.com/ThatXliner/ljv) | verify | Real-time Lissajous music visualizer. |
+
+**Idea: a Lissajous/XY emission mode** — feed the *stereo* mic (or two LFOs/audio bands) into X and Y to draw live curves, rendered with the existing beam/glow/trail pipeline. Distinctive, deeply on-brand for a laser app, and reuses everything we have.
+
+## 11. Real laser output / ILDA (a wild but real path)
+
+| Project | License | Notes |
+|---|---|---|
+| [brendan-w/lzr](https://github.com/brendan-w/lzr) | verify (FOSS@RIT) | Laser projection backend + ILDA parser + realtime preview. Reference for the ILDA point format. |
+| [marcan/openlase](https://marcan.st/2010/11/openlase-open-realtime-laser-graphics) | GPL ⚠️ | Realtime laser graphics; ideas only. |
+| [Grix/helios_dac](https://github.com/Grix/helios_dac) | open, cross-platform | The common hobbyist USB→ILDA DAC; C++/C#/Python examples. The hardware target if we ever export to real lasers. |
+| [echelon/ilda.rs](https://github.com/echelon/ilda.rs) | verify (Rust) | Clean ILDA file reader — reference for the .ild format if we add export. |
+
+**Idea: ILDA frame export.** Voidulator's beams *are* vector paths (point lists), which is precisely what ILDA wants. Exporting a scene as an `.ild` file (or streaming via WebSerial to a Helios DAC) would let it drive a **real laser projector** — turning the simulator into a genuine laser-show authoring tool. Niche but a true differentiator; rings/field (raster) wouldn't translate, but beams would.
+
 ---
 
 ## Ideas backlog (synthesised from the above)
@@ -119,6 +144,8 @@ Concrete features worth considering, roughly high→low leverage:
 10. **Analytic Chladni "modes" view**: pick (n,m) and show the exact eigenmode instantly — no FDTD settling. A fast, hypnotic addition to the Wave Field, and mode weights could be audio-driven.
 11. **Reaction-diffusion mode**: reuse the field's ping-pong float-texture machinery for a Gray-Scott "living texture" emission mode.
 12. **Curl-noise advection**: drift the phosphor/trail/field textures along a noise flow field for smoky motion.
+13. **Lissajous / XY mode**: stereo audio (or two LFOs) → X/Y → live vector curves through the existing beam/glow pipeline. Deeply on-brand for a laser app.
+14. **ILDA frame export**: beams are already vector point-paths = the ILDA format; export `.ild` or stream to a Helios DAC to drive a *real* laser projector.
 
 ## Insights, rabbit holes & curious paths
 
@@ -143,6 +170,8 @@ looks shiny but could swallow weeks, and the unexpected connections.
 - **Cross-mode feeding.** The phosphor buffer, the wave field, and trails are all textures. Feeding one as a *source/mask* for another (e.g. wave amplitude modulated by the phosphor image, or beams masked by a reaction-diffusion texture) opens a combinatorial space of looks with no new physics.
 - **"Real instrument" framing for distribution.** The MIDI-learn + modulation-matrix + recording stack means Voidulator is closer to a VJ *instrument* than a screensaver. A short "live set" demo video (beat-synced scene morphs, MIDI knobs) would communicate that far better than a feature list.
 - **Eigenmodes of the bent/parabolic rooms.** We have non-trivial cavity shapes already; their resonant modes are visually unique and not something the square/circle-only Chladni demos show. A genuine novelty.
+- **Voidulator's beams are already ILDA-shaped.** They're point-path vectors — the native format of real laser projectors. An `.ild` export (or WebSerial → Helios DAC) would quietly turn the toy into a real laser-show authoring tool. Almost nothing else in the browser does this. The rabbit-hole risk is hardware testing, but file *export* alone is low-risk and verifiable against open ILDA readers.
+- **The XY/oscilloscope aesthetic is "free" here.** Other people build whole apps around audio→XY curves; for a beam app it's just another emission source feeding the pipeline we already have.
 
 ## How to extend this file
 
