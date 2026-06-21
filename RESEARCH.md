@@ -159,6 +159,32 @@ rig. The ladder below shows what's beyond it.
 - **Nice:** autocorrelation auto-BPM (#4), chroma→hue (#6).
 - **Probably overkill:** full MIR (key/chord/mood via Essentia) — heavy WASM + AGPL; the instrument doesn't need musical *understanding*, just responsiveness.
 
+## 13. GPGPU particle systems (candidate emission mode)
+
+Hundreds of thousands–millions of points advected on the GPU. A natural sibling
+to the wave field, and a great host for audio + curl-noise flow.
+
+| Project | License | Notes |
+|---|---|---|
+| [soulwire/WebGL-GPU-Particles](https://github.com/soulwire/WebGL-GPU-Particles) | verify | 1M+ particles; state in texture+FBO, velocity on GPU. Classic readable reference. |
+| [jherman3/webgl-particle-toy](https://github.com/jherman3/webgl-particle-toy) | verify | WebGL2 **transform feedback** (no texture ping-pong) — 2M particles; the cleaner WebGL2 idiom for our stack. |
+| [poeti8/one-million-particles](https://github.com/poeti8/one-million-particles) | verify | three.js GPGPU; tidy demo. |
+| [gpfault.net: GPU particles with WebGL2](https://gpfault.net/posts/webgl2-particles.txt.html) | article | Best tutorial for transform-feedback particles — the technique we'd use. |
+
+**Idea: a particle emission mode** — particles spawned at emitters, advected by a flow field and/or bouncing off the room walls (we already have arc/poly collision), coloured by speed or audio band. Transform feedback keeps it on-GPU. Pairs perfectly with curl-noise (§8) and FFT-texture audio (§12).
+
+## 14. Export & sharing (how these tools actually spread)
+
+We already record WebM via `MediaRecorder`. These are faster/wider-format paths.
+
+| Tool | License | Notes |
+|---|---|---|
+| [dmnsgn/canvas-record](https://github.com/dmnsgn/canvas-record) | **MIT** ✅ | Records a canvas to MP4/WebM/MKV/MOV/GIF/PNG-seq via **WebCodecs + WASM**. WebCodecs is ~5–10× faster than MediaRecorder-style encoders and gives real **MP4** (far more shareable than WebM). MIT — adoptable. |
+| [jnordberg/gif.js](https://github.com/jnordberg/gif.js) | **MIT** ✅ | Worker-based GIF encoder. A looping GIF/short MP4 is the unit of social spread for generative art. |
+| [mattdesl/canvas-sketch](https://github.com/mattdesl/canvas-sketch) | MIT ✅ | Generative-art framework; its [exporting docs](https://github.com/mattdesl/canvas-sketch/blob/master/docs/exporting-artwork.md) are the reference for clean frame export + naming. |
+
+**Idea: MP4 + looping-GIF export** (via canvas-record/WebCodecs) alongside the existing WebM, plus a one-click "share" that produces a short seamless loop. This is the single biggest *distribution* lever — silent WebM doesn't travel; an MP4/GIF loop does.
+
 ---
 
 ## Ideas backlog (synthesised from the above)
@@ -183,6 +209,8 @@ Concrete features worth considering, roughly high→low leverage:
 16. **Spectral-flux onset detection** (via MIT Meyda): more accurate beats that catch hi-hats/snares, not just bass thumps.
 17. **FFT-as-texture → spatial spectral reactivity**: upload the live spectrum as a 1-D texture; e.g. wave-field source amplitude around its rim = the spectrum, or beam hue indexed by frequency. Reuses our float-texture infra; highest ceiling.
 18. **Auto-BPM (autocorrelation)** + **chroma→hue**: detect tempo automatically to sync LFOs; map dominant pitch class to colour.
+19. **GPGPU particle mode** (transform feedback): emitter-spawned particles advected by flow field, bouncing off the room walls (reuse arc/poly collision), coloured by speed/audio.
+20. **MP4 + looping-GIF export** (canvas-record/WebCodecs, MIT): real MP4 + seamless-loop GIF beside the WebM — the biggest distribution lever.
 
 ## Insights, rabbit holes & curious paths
 
@@ -212,6 +240,8 @@ looks shiny but could swallow weeks, and the unexpected connections.
 - **Our audio rig is good but linear-banded.** The single cheapest musical improvement is perceptual (log/mel) band mapping — right now treble barely moves because linear FFT bins bunch all the high frequencies into one wide band. Fixing the mapping makes the *whole* modulation matrix feel more alive at no UI cost.
 - **Spectral reactivity wants to be spatial, and we're uniquely set up for it.** Most audio-shader work feeds the spectrum as a texture to a fullscreen quad. We have emitters, rooms, and a wave field — feeding the FFT texture so that *different angles/positions respond to different frequencies* (a spectrum wrapped around the wave source, beams coloured by their frequency band) is a look almost no one else can do, because almost no one else has the physical-emitter substrate.
 - **Don't confuse responsiveness with understanding.** Full MIR (key/chord/mood) is seductive but it's the wrong axis for an instrument: a VJ tool needs to *react fast and feel right*, not *know the song's key*. Invest in flux/onset/loudness fidelity, not musicology.
+- **The biggest growth lever isn't a feature — it's the export format.** Voidulator records silent WebM, which barely travels (no autoplay-with-sound, poor social support). A real **MP4 / looping GIF** (WebCodecs, MIT canvas-record) is how generative-art tools actually spread. High impact, low risk, MIT-licensed path.
+- **One GPU substrate, many modes.** We now have three reusable GPU patterns: ping-pong float textures (wave field / reaction-diffusion / fluid), transform-feedback buffers (particles), and post-process passes (bloom / kaleidoscope). Almost every "new mode" idea in this file is a recombination of those three — the hard infrastructure is already built.
 
 ## How to extend this file
 
