@@ -2514,11 +2514,23 @@
             <button class="btn step-btn" id="emCountUp">▲</button>
           </div>
 
-          <label>Symmetry</label>
-          <select id="emitterSymmetry">
-            <option value="on" selected="">On</option>
-            <option value="off">Off</option>
-          </select>
+          <label data-i18n="alignLabel">Align</label>
+          <div class="btn-row">
+            <button class="btn" id="emitterAlignBtn" data-i18n="alignNow">Align</button>
+            <button class="btn" id="emitterGeoToggle" data-i18n="geometric">On</button>
+          </div>
+
+          <label data-i18n="clusterRotation">Rotation (°)</label>
+          <div class="ctrl-row">
+            <input id="emitterRot" type="range" min="0" max="360" step="1" value="0">
+            <input id="emitterRotNum" type="number" min="0" max="360" step="1" value="0">
+          </div>
+
+          <label data-i18n="clusterSpin">Spin (°/s)</label>
+          <div class="ctrl-row">
+            <input id="emitterSpin" type="range" min="-180" max="180" step="1" value="0">
+            <input id="emitterSpinNum" type="number" min="-180" max="180" step="1" value="0">
+          </div>
 
           <label>Move speed</label>
           <div class="ctrl-row">
@@ -2561,7 +2573,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.13.0';
+  const APP_VERSION = 'v1.14.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2741,6 +2753,12 @@
     emitterSymmetry: true,
     symRadius: 0.15, // normalized radius for symmetric positioning
     symAngle: 0,     // angle of first emitter in formation
+    // Emitter cluster: arrange the beam emitters as a regular polygon
+    // (2 = line, 3 = triangle, 4 = square…) with manual rotation + auto spin
+    emitterGeo: true,        // geometric alignment / drag-follow on
+    emitterRot: 0,           // manual cluster rotation, degrees
+    emitterSpin: 0,          // auto rotation speed, deg/s (±, CW/CCW)
+    emitterRadiusN: 0.32,    // cluster radius as fraction of min room dimension
     beamScheme: 'random',
     beamPalette: [],           // Legacy: palette for emitter 0
     emitterPalettes: [[]],     // Per-emitter palettes: emitterPalettes[emIdx][beamIdx]
@@ -3304,6 +3322,7 @@
       speedMultiplier: S.speedMultiplier,
       // Emitters
       emittersNorm: JSON.parse(JSON.stringify(S.emittersNorm)),
+      emitterGeo: S.emitterGeo, emitterRot: S.emitterRot, emitterSpin: S.emitterSpin, emitterRadiusN: S.emitterRadiusN,
       // Colors
       beamScheme: S.beamScheme,
       beamPalette: JSON.parse(JSON.stringify(S.beamPalette)),
@@ -3382,6 +3401,10 @@
     S.speedMultiplier = scene.speedMultiplier;
     S.emittersNorm = JSON.parse(JSON.stringify(scene.emittersNorm));
     S.emitters = scene.emittersNorm.map(() => ({ x: 0, y: 0 }));
+    S.emitterGeo = scene.emitterGeo ?? true;
+    S.emitterRot = scene.emitterRot ?? 0;
+    S.emitterSpin = scene.emitterSpin ?? 0;
+    S.emitterRadiusN = scene.emitterRadiusN ?? 0.32;
     S.beamPalette = JSON.parse(JSON.stringify(scene.beamPalette));
     if (scene.emitterPalettes) {
       S.emitterPalettes = JSON.parse(JSON.stringify(scene.emitterPalettes));
@@ -3489,6 +3512,7 @@
     widthEl.value = S.beamWidth;
     beamCountValEl.textContent = S.beamCount;
     emCountValEl.textContent = S.emittersNorm.length;
+    if (typeof syncEmitterClusterUI === 'function') syncEmitterClusterUI();
     spreadEl.value = S.spreadDeg;
     spreadNumEl.value = S.spreadDeg.toFixed(1);
     angleEl.value = S.angleDeg.toFixed(1);
@@ -4365,7 +4389,7 @@
       S.emitters[i] = randomPointInRoom();
     }
     updateNormFromEmitters();
-    if (S.emitterSymmetry && S.emitters.length > 1) {
+    if (S.emitterGeo && S.emitters.length > 1) {
       computeSymmetryFromEmitters();
     }
   }
@@ -4376,37 +4400,44 @@
     return centroid(S.vertices);
   }
 
-  function computeSymmetryFromEmitters() {
-    // Derive symmetry center/radius/angle from current first emitter position
-    const center = getRoomCenter();
-    const e0 = S.emitters[0];
-    S.symRadius = Math.hypot(e0.x - center.x, e0.y - center.y);
-    S.symAngle = Math.atan2(e0.y - center.y, e0.x - center.x);
+  // Emitter cluster: a regular polygon (n=2 line, 3 triangle, 4 square…)
+  // around the room centre, sized by emitterRadiusN, oriented by emitterRot
+  // (degrees, 0 = first emitter straight up), optionally spun in loopBody.
+  function clusterMinDim() {
+    const b = getRoomBounds();
+    return Math.min(b.maxX - b.minX, b.maxY - b.minY) || 1;
   }
-
-  function positionEmittersSymmetric() {
+  function applyEmitterCluster() {
     const n = S.emitters.length;
-    if (n <= 1) return; // No symmetry needed for single emitter
-    const center = getRoomCenter();
+    if (!S.emitterGeo || n < 2) return;
+    const c = getRoomCenter();
+    let radius = S.emitterRadiusN * clusterMinDim();
+    if (radius < 8) radius = defaultFormationRadius(); // never collapse to a point
+    const base = -Math.PI / 2 + S.emitterRot * Math.PI / 180;
     for (let i = 0; i < n; i++) {
-      const ang = S.symAngle + (i * 2 * Math.PI / n);
-      const pos = {
-        x: center.x + S.symRadius * Math.cos(ang),
-        y: center.y + S.symRadius * Math.sin(ang)
-      };
-      S.emitters[i] = constrainToRoom(pos);
+      const ang = base + i * 2 * Math.PI / n;
+      S.emitters[i] = constrainToRoom({ x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
     }
     updateNormFromEmitters();
   }
+  function positionEmittersSymmetric() { applyEmitterCluster(); }
 
+  // Derive cluster radius + rotation so the dragged emitter sits at newPos,
+  // then re-apply so the rest of the cluster follows it (drag-to-rotate/resize)
   function moveEmitterSymmetric(dragIdx, newPos) {
-    // Move the dragged emitter, compute formation, reposition all
-    const center = getRoomCenter();
-    S.symRadius = Math.hypot(newPos.x - center.x, newPos.y - center.y);
-    S.symAngle = Math.atan2(newPos.y - center.y, newPos.x - center.x);
-    // Offset so dragged emitter is at its angle position
-    S.symAngle -= (dragIdx * 2 * Math.PI / S.emitters.length);
-    positionEmittersSymmetric();
+    const c = getRoomCenter();
+    const radius = Math.hypot(newPos.x - c.x, newPos.y - c.y);
+    S.emitterRadiusN = radius / clusterMinDim();
+    const step = 2 * Math.PI / S.emitters.length;
+    const base = Math.atan2(newPos.y - c.y, newPos.x - c.x) - dragIdx * step;
+    S.emitterRot = (base + Math.PI / 2) * 180 / Math.PI;
+    applyEmitterCluster();
+  }
+
+  function computeSymmetryFromEmitters() {
+    // Adopt the current first emitter as the cluster anchor (used when turning
+    // alignment on or changing count); collapsed radius falls back to default
+    if (S.emitters[0]) moveEmitterSymmetric(0, S.emitters[0]);
   }
 
   function setEmitterCount(n) {
@@ -4421,7 +4452,7 @@
     S.emittersNorm.length = n;
     emCountValEl.textContent = n;
     
-    if (S.emitterSymmetry && n > 1) {
+    if (S.emitterGeo && n > 1) {
       computeSymmetryFromEmitters();
       positionEmittersSymmetric();
     } else if (n > oldCount) {
@@ -5645,12 +5676,22 @@ void main() {
       : (S.vertices.length + ':' + (S.vertices[0] ? S.vertices[0].x.toFixed(0) + ',' + S.vertices[0].y.toFixed(0) : '')));
     if (fieldMaskTex && fieldMaskKey === key) return;
     fieldMaskKey = key;
-    const b = getRoomBounds();
-    // Pad so walls sit just inside the grid edge
+    // Centre the field square on the room's CENTROID (its visual middle), not
+    // the bounding-box centre — for a triangle/randomgon those differ, so a
+    // bbox-centred field looks off-centre. Sized to contain the whole room.
     const pad = 0.04;
-    const span = Math.max(b.maxX - b.minX, b.maxY - b.minY) / (1 - 2 * pad);
-    const ox = (b.minX + b.maxX) / 2 - span / 2;
-    const oy = (b.minY + b.maxY) / 2 - span / 2;
+    let cx0, cy0, reach;
+    if (S.isCircle) {
+      cx0 = S.circle.cx; cy0 = S.circle.cy; reach = S.circle.R;
+    } else {
+      const c = centroid(S.vertices);
+      cx0 = c.x; cy0 = c.y;
+      reach = 0;
+      for (const v of S.vertices) reach = Math.max(reach, Math.hypot(v.x - cx0, v.y - cy0));
+    }
+    const span = (2 * reach) / (1 - 2 * pad);
+    const ox = cx0 - span / 2;
+    const oy = cy0 - span / 2;
     fieldMaskMap = { ox, oy, span }; // px → uv mapping, shared with sources
     const cv = document.createElement('canvas');
     cv.width = res; cv.height = res;
@@ -6437,7 +6478,7 @@ void main() {
       }
       return;
     }
-    if (S.emitterSymmetry && S.emitters.length > 1) {
+    if (S.emitterGeo && S.emitters.length > 1) {
       moveEmitterSymmetric(S.draggingIdx, newPos);
     } else {
       S.emitters[S.draggingIdx] = constrainToRoom(newPos);
@@ -6562,13 +6603,31 @@ void main() {
   _on(emCountUpBtn, 'click', () => setEmitterCount(S.emitters.length + 1));
   _on(emCountDownBtn, 'click', () => setEmitterCount(S.emitters.length - 1));
 
-  _on(emitterSymmetryEl, 'change', () => {
-    S.emitterSymmetry = emitterSymmetryEl.value === 'on';
-    if (S.emitterSymmetry && S.emitters.length > 1) {
-      computeSymmetryFromEmitters();
-      positionEmittersSymmetric();
-    }
+  // Emitter cluster controls
+  const emGeoToggle = _el('emitterGeoToggle');
+  const emAlignBtn = _el('emitterAlignBtn');
+  const emRotEl = _el('emitterRot'), emRotNumEl = _el('emitterRotNum');
+  const emSpinEl = _el('emitterSpin'), emSpinNumEl = _el('emitterSpinNum');
+  function syncEmitterClusterUI() {
+    if (emGeoToggle) emGeoToggle.textContent = S.emitterGeo ? 'On' : 'Off';
+    if (emRotEl) emRotEl.value = emRotNumEl.value = Math.round(S.emitterRot);
+    if (emSpinEl) emSpinEl.value = emSpinNumEl.value = S.emitterSpin;
+  }
+  _on(emGeoToggle, 'click', () => {
+    S.emitterGeo = !S.emitterGeo;
+    if (S.emitterGeo && S.emitters.length > 1) computeSymmetryFromEmitters();
+    syncEmitterClusterUI();
   });
+  _on(emAlignBtn, 'click', () => {
+    S.emitterGeo = true;
+    if (S.emitters.length > 1) applyEmitterCluster();
+    syncEmitterClusterUI();
+    requestAutosave();
+  });
+  _on(emRotEl, 'input', () => { S.emitterRot = parseFloat(emRotEl.value) || 0; emRotNumEl.value = Math.round(S.emitterRot); if (S.emitterGeo) applyEmitterCluster(); });
+  _on(emRotNumEl, 'input', () => { S.emitterRot = parseFloat(emRotNumEl.value) || 0; emRotEl.value = S.emitterRot; if (S.emitterGeo) applyEmitterCluster(); });
+  _on(emSpinEl, 'input', () => { S.emitterSpin = parseFloat(emSpinEl.value) || 0; emSpinNumEl.value = S.emitterSpin; });
+  _on(emSpinNumEl, 'input', () => { S.emitterSpin = clamp(parseFloat(emSpinNumEl.value) || 0, -180, 180); emSpinEl.value = S.emitterSpin; });
 
   _on(spreadEl, 'input', () => { S.spreadDeg = parseFloat(spreadEl.value) || 0; spreadNumEl.value = S.spreadDeg.toFixed(1); });
   _on(spreadNumEl, 'input', () => { S.spreadDeg = clamp(parseFloat(spreadNumEl.value) || 0, 0, 180); spreadEl.value = S.spreadDeg; });
@@ -6682,7 +6741,7 @@ void main() {
       reflectSlider: S.reflectSlider, maxBounces: S.maxBounces, beamCount: S.beamCount,
       spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
       speedMax: S.speedMax, speedMultiplier: S.speedMultiplier,
-      emittersNorm: S.emittersNorm, beamScheme: S.beamScheme,
+      emittersNorm: S.emittersNorm, emitterGeo: S.emitterGeo, emitterRot: S.emitterRot, emitterSpin: S.emitterSpin, emitterRadiusN: S.emitterRadiusN, beamScheme: S.beamScheme,
       beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
       perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
@@ -6720,6 +6779,10 @@ void main() {
       S.emittersNorm = P.emittersNorm;
       S.emitters = P.emittersNorm.map(() => ({ x: 0, y: 0 }));
     }
+    S.emitterGeo = P.emitterGeo ?? true;
+    S.emitterRot = P.emitterRot ?? 0;
+    S.emitterSpin = P.emitterSpin ?? 0;
+    S.emitterRadiusN = P.emitterRadiusN ?? 0.32;
     if (P.emitterPalettes) {
       S.emitterPalettes = P.emitterPalettes;
     }
@@ -8173,7 +8236,7 @@ void main() {
         };
         // If no center motion, also update emitters directly
         if (S.motion.mode === 'off') {
-          if (S.emitterSymmetry && S.emitters.length > 1) {
+          if (S.emitterGeo && S.emitters.length > 1) {
             moveEmitterSymmetric(0, newBase);
           } else {
             S.emitters[0] = newBase;
@@ -8185,6 +8248,12 @@ void main() {
     if (S.rotationSpeed > 0) {
       S.angleDeg = (S.angleDeg + S.rotationSpeed * dtSec) % 360;
       angleEl.value = S.angleDeg.toFixed(1);
+    }
+    // Auto-spin the emitter cluster
+    if (S.emitterGeo && S.emitterSpin && S.emitters.length > 1 && !S.transition.active) {
+      S.emitterRot = ((S.emitterRot + S.emitterSpin * dtSec) % 360 + 360) % 360;
+      applyEmitterCluster();
+      if (typeof emRotEl !== 'undefined' && emRotEl) { emRotEl.value = Math.round(S.emitterRot); emRotNumEl.value = Math.round(S.emitterRot); }
     }
     for (let i = 0; i < S.perBeamPhase.length; i++) {
       S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i] || 0) * S.speedMultiplier * dtSec) % 360;
@@ -9259,6 +9328,9 @@ void main() {
       hintField: "A real wave-equation simulation inside the room. Emitters are wave sources; click the stage to drop a ripple. Reflecting walls give resonances — try the ellipse with a source on a focus. Inspired by Nils Berglund's simulations.",
       autoSpawn: 'Auto spawn',
       centerBtn: 'Center emitters',
+      alignNow: 'Align',
+      clusterRotation: 'Rotation (°)',
+      clusterSpin: 'Spin (°/s)',
       tabAll: 'All',
       tabBeams: 'Beams',
       tabFx: 'Effects',
@@ -9459,6 +9531,9 @@ void main() {
       hintField: 'Una simulación real de la ecuación de onda dentro de la sala. Los emisores son fuentes de onda; haz clic en el escenario para soltar una onda. Las paredes reflectantes dan resonancias — prueba la elipse con una fuente en un foco. Inspirado en las simulaciones de Nils Berglund.',
       autoSpawn: 'Auto-generar',
       centerBtn: 'Centrar emisores',
+      alignNow: 'Alinear',
+      clusterRotation: 'Rotación (°)',
+      clusterSpin: 'Giro (°/s)',
       tabAll: 'Todo',
       tabBeams: 'Haces',
       tabFx: 'Efectos',
@@ -9659,6 +9734,9 @@ void main() {
       hintField: 'Uma simulação real da equação de onda dentro da sala. Os emissores são fontes de onda; clique no palco para soltar uma onda. Paredes refletoras dão ressonâncias — experimente a elipse com uma fonte num foco. Inspirado nas simulações de Nils Berglund.',
       autoSpawn: 'Auto-gerar',
       centerBtn: 'Centralizar emissores',
+      alignNow: 'Alinhar',
+      clusterRotation: 'Rotação (°)',
+      clusterSpin: 'Giro (°/s)',
       tabAll: 'Tudo',
       tabBeams: 'Feixes',
       tabFx: 'Efeitos',
@@ -9859,6 +9937,9 @@ void main() {
       hintField: "Une vraie simulation de l'équation d'onde dans la salle. Les émetteurs sont des sources d'onde ; cliquez sur la scène pour lâcher une onde. Les murs réfléchissants donnent des résonances — essayez l'ellipse avec une source sur un foyer. Inspiré des simulations de Nils Berglund.",
       autoSpawn: 'Auto-génération',
       centerBtn: 'Centrer les émetteurs',
+      alignNow: 'Aligner',
+      clusterRotation: 'Rotation (°)',
+      clusterSpin: 'Rotation auto (°/s)',
       tabAll: 'Tout',
       tabBeams: 'Faisceaux',
       tabFx: 'Effets',
@@ -10238,7 +10319,11 @@ void main() {
     midiTitle: 'Map a hardware MIDI knob to any parameter: click Learn, then move the knob.',
     recordVideo: 'Records the canvas to a WebM video at the chosen resolution.',
     tempoBpm: 'Global tempo. Tap the button in time with music to set it; synced LFOs follow it.',
-    centerBtn: 'Move the emitter formation so its centre sits at the room centre.'
+    centerBtn: 'Move the emitter formation so its centre sits at the room centre.',
+    alignLabel: 'Arrange emitters as a regular shape: 2 = line, 3 = triangle, 4 = square. Dragging one keeps the rest aligned.',
+    alignNow: 'Snap the emitters into a regular polygon around the room centre.',
+    clusterRotation: 'Rotate the whole emitter cluster (0° = first emitter straight up).',
+    clusterSpin: 'Spin the cluster automatically — negative = counter-clockwise, positive = clockwise.'
   };
   let tipEl = null;
   function showTip(text, x, y) {

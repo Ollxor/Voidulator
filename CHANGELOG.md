@@ -2,6 +2,14 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.14.0] - 2026-06-22
+
+### Emitter cluster geometry + wave-field centering
+- **Emitters arrange geometrically again** — adding emitters no longer stacks them in one spot. They form a regular shape (2 = line, 3 = triangle, 4 = square, …) around the room centre, and dragging any one keeps the rest aligned (resizes/rotates the whole cluster).
+- **Align** button snaps them into the regular polygon; a **Geometric** toggle turns the drag-follow alignment on/off.
+- **Rotation (°)** sets the cluster orientation manually; **Spin (°/s)** rotates it automatically (negative = counter-clockwise). Cluster settings save in scenes/presets.
+- **Wave field centering fix** — the field now centres on the room's centroid (its visual middle) instead of the bounding box, so non-symmetric rooms like the triangle no longer look off-centre.
+
 ## [1.13.0] - 2026-06-22
 
 ### Hover help + clarity fixes
