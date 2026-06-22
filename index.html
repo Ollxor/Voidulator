@@ -1588,6 +1588,26 @@
     white-space: pre;
   }
 
+  /* Hover help tooltip */
+  #vTooltip {
+    position: fixed;
+    z-index: 99998;
+    max-width: 260px;
+    padding: 7px 10px;
+    font: 400 11px/1.4 'Segoe UI', system-ui, sans-serif;
+    color: #e8e8ea;
+    background: rgba(18, 20, 26, 0.97);
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  #vTooltip.show { opacity: 1; }
+  /* Hint that a label has help (subtle dotted underline on hover) */
+  .has-tip:hover { text-decoration: underline dotted rgba(255,159,28,0.5); text-underline-offset: 3px; cursor: help; }
+
   /* Panel tools: search + collapse/expand */
   .panel-tools {
     display: flex;
@@ -1959,7 +1979,7 @@
       <div class="group-title" data-i18n="roomTitle">Room</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Shape</label>
+          <label data-i18n="roomShape">Room shape</label>
           <select id="shape">
             <option value="circle" selected="">Circle</option>
             <option value="regular-3">Triangle</option>
@@ -1972,8 +1992,8 @@
             <option value="parabolic">Parabolic resonator</option>
           </select>
 
-          <label data-i18n="eccentricityL">Eccentricity</label>
-          <div class="ctrl-row">
+          <label data-i18n="eccentricityL" id="lblEccentricity">Eccentricity</label>
+          <div class="ctrl-row" id="eccentricityCtrl">
             <input id="eccentricity" type="range" min="0" max="0.95" step="0.01" value="0.6">
             <input id="eccentricityNum" type="number" min="0" max="0.95" step="0.01" value="0.6">
           </div>
@@ -2096,7 +2116,7 @@
     </div>
 
     <div class="group collapsible advanced-only">
-      <div class="group-title" data-i18n="shapeTitle">Shape</div>
+      <div class="group-title" data-i18n="shapeTitle">Beam Shapes</div>
       <div class="group-content">
         <div class="subgrid">
           <label data-i18n="enable">Enable</label>
@@ -2541,7 +2561,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.12.1';
+  const APP_VERSION = 'v1.13.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -3463,6 +3483,7 @@
       (S.polygonType === 'ellipse' ? 'ellipse' : 'regular-' + S.sides))));
     if (wallBendEl) wallBendEl.value = wallBendNumEl.value = S.wallBend;
     if (eccentricityEl) eccentricityEl.value = eccentricityNumEl.value = S.eccentricity;
+    if (typeof updateEccentricityVisibility === 'function') updateEccentricityVisibility();
     reflectEl.value = S.reflectSlider;
     bouncesEl.value = S.maxBounces;
     widthEl.value = S.beamWidth;
@@ -4506,7 +4527,10 @@
         const t = k === 0 ? t1 : t2;
         if (t <= 1e-4 || t >= bestT) continue;
         const px = o.x + d.x * t, py = o.y + d.y * t;
-        if (Math.abs(angDiff(Math.atan2(py - A.cy, px - A.cx), A.apexAng)) <= A.halfSpan + 1e-4) {
+        // Small angular slack so adjacent arcs overlap slightly at the shared
+        // corner — without it a ray hitting near a corner can slip through the
+        // sub-pixel gap between two arcs and escape the room (corner bug).
+        if (Math.abs(angDiff(Math.atan2(py - A.cy, px - A.cx), A.apexAng)) <= A.halfSpan + 0.03) {
           best = { point: { x: px, y: py }, t, arc: A };
           bestT = t;
         }
@@ -6274,26 +6298,32 @@ void main() {
     // shape you're editing. roomOutlineUntil is set on shape/ecc/bend change.
     const now = performance.now();
     const flashLeft = roomOutlineUntil - now;
-    if (flashLeft > 0) {
-      const k = Math.min(1, flashLeft / 600); // fade over the last 0.6s
-      octx.strokeStyle = 'rgba(255, 159, 28, ' + (0.85 * k).toFixed(3) + ')';
-      octx.lineWidth = 2;
-    } else {
-      octx.strokeStyle = '#000';
-      octx.lineWidth = 1;
-    }
-    octx.beginPath();
-    if (S.isCircle) {
-      octx.arc(S.circle.cx, S.circle.cy, S.circle.R, 0, Math.PI * 2);
-    } else {
-      const v = S.vertices;
-      if (v.length) {
-        octx.moveTo(v[0].x, v[0].y);
-        for (let i = 1; i < v.length; i++) octx.lineTo(v[i].x, v[i].y);
-        octx.closePath();
+    // The wave field fills the room with bright colour, so a black boundary
+    // stroke shows up as an ugly black rim over it — skip it in field mode
+    // unless we're actively flashing the outline (amber) after an edit.
+    const drawBoundary = flashLeft > 0 || !S.field.enabled;
+    if (drawBoundary) {
+      if (flashLeft > 0) {
+        const k = Math.min(1, flashLeft / 600); // fade over the last 0.6s
+        octx.strokeStyle = 'rgba(255, 159, 28, ' + (0.85 * k).toFixed(3) + ')';
+        octx.lineWidth = 2;
+      } else {
+        octx.strokeStyle = '#000';
+        octx.lineWidth = 1;
       }
+      octx.beginPath();
+      if (S.isCircle) {
+        octx.arc(S.circle.cx, S.circle.cy, S.circle.R, 0, Math.PI * 2);
+      } else {
+        const v = S.vertices;
+        if (v.length) {
+          octx.moveTo(v[0].x, v[0].y);
+          for (let i = 1; i < v.length; i++) octx.lineTo(v[i].x, v[i].y);
+          octx.closePath();
+        }
+      }
+      octx.stroke();
     }
-    octx.stroke();
 
     // Focus markers (ellipse: two foci, parabola: one) — subtle crosses;
     // drop an emitter on one to get the resonator orbits
@@ -6470,6 +6500,7 @@ void main() {
     buildShape();
     randomizeEmitters();
     flashRoomOutline();
+    updateEccentricityVisibility();
   }
 
   _on(shapeSel, 'change', setShapeFromSelect);
@@ -6497,6 +6528,7 @@ void main() {
     buildShape();
     updateEmittersFromNorm();
     flashRoomOutline();
+    updateEccentricityVisibility();
   }
   _on(eccentricityEl, 'input', () => setEccentricity(parseFloat(eccentricityEl.value) || 0));
   _on(eccentricityNumEl, 'input', () => setEccentricity(parseFloat(eccentricityNumEl.value) || 0));
@@ -9144,7 +9176,8 @@ void main() {
       softness: 'Softness',
       dutyCycle: 'Duty cycle',
       // Shape
-      shapeTitle: 'Shape',
+      shapeTitle: 'Beam Shapes',
+      roomShape: 'Room shape',
       density: 'Density',
       size: 'Size',
       flow: 'Flow',
@@ -9344,7 +9377,8 @@ void main() {
       softness: 'Suavidad',
       dutyCycle: 'Ciclo de trabajo',
       // Shape
-      shapeTitle: 'Forma',
+      shapeTitle: 'Formas de haz',
+      roomShape: 'Forma de sala',
       density: 'Densidad',
       size: 'Tamaño',
       flow: 'Flujo',
@@ -9543,7 +9577,8 @@ void main() {
       softness: 'Suavidade',
       dutyCycle: 'Ciclo de trabalho',
       // Shape
-      shapeTitle: 'Forma',
+      shapeTitle: 'Formas de feixe',
+      roomShape: 'Forma da sala',
       density: 'Densidade',
       size: 'Tamanho',
       flow: 'Fluxo',
@@ -9742,7 +9777,8 @@ void main() {
       softness: 'Douceur',
       dutyCycle: 'Rapport cyclique',
       // Shape
-      shapeTitle: 'Forme',
+      shapeTitle: 'Formes de faisceau',
+      roomShape: 'Forme de salle',
       density: 'Densité',
       size: 'Taille',
       flow: 'Flux',
@@ -10168,6 +10204,82 @@ void main() {
     scenes: 'scenes', filePresets: 'scenes'
   };
 
+  // ---- Hover help tooltips ----
+  // Keyed by data-i18n value; covers the controls people ask about.
+  const TIP = {
+    roomShape: 'The boundary beams, rings and waves bounce inside. Circle is smoothest; polygons and bent/parabolic rooms give richer reflections.',
+    eccentricityL: 'How stretched the ellipse is (0 = circle). A source on one focus reflects through the other.',
+    wallBend: 'Curves straight walls outward (+) or inward (−), turning them into focusing mirrors. Only affects polygons.',
+    reflectivity: 'How much light each bounce keeps. Lower = beams fade out faster after fewer bounces.',
+    maxBounces: 'Maximum wall bounces traced per beam. Higher = longer, more intricate paths (costlier).',
+    beamWidth: 'Thickness of each beam / ring line, in pixels.',
+    beamCount: 'Number of beams fired from each emitter.',
+    emission: 'What the emitters produce: Beams (rotating lines), Rings (expanding circles), Both, or Wave field (real wave simulation).',
+    edgeSoftness: 'How far the soft fade reaches in from the beam edge toward its core.',
+    edgeIntensity: 'How strongly the beam sides fade out (0 = hard edge, 1 = gaussian glow).',
+    layerMode: 'Depth sorts beams by direction for a 3D feel; Static keeps a fixed draw order.',
+    blendMode: 'Normal = standard transparency; Additive = overlaps brighten (good for glow).',
+    glow: 'Bloom: bright beams bleed light like real lasers in haze.',
+    threshold: 'How bright a pixel must be before it starts to glow.',
+    trails: 'Persistent afterglow — previous frames fade out instead of clearing.',
+    phosphorWalls: 'Beams paint decaying glow onto the walls where they strike.',
+    ringsTitle: 'Expanding circular wavefronts from their own emitters that fold and reflect off the walls.',
+    autoSpawn: 'Off = rings appear only when you press Activate. On = a randomized scheduler keeps spawning them.',
+    ringLifetime: 'How many wall bounces a ring lives: 1 = first wall hit, 2 = second, etc.',
+    ringTaper: 'Thins (+) or swells (−) each ring as it ages.',
+    geometric: 'Dragging one emitter arranges them all as a regular polygon around the room centre.',
+    fieldTitle: 'A real wave-equation simulation inside the room. Emitters are wave sources; click the stage to drop a ripple.',
+    fieldWaveform: 'Continuous = steady tone; Rings = periodic bursts that travel out as distinct rings; Manual = silent until you click/Pulse.',
+    fieldDamping: 'Energy loss per step. Higher = waves fade faster (cleaner travelling fronts); 0 = endless resonance.',
+    fieldWalls: 'Reflecting walls build resonances; Absorbing walls give an open, ripple-tank feel.',
+    fieldColor: 'How displacement maps to colour. Spectral is palette-independent.',
+    modMatrix: 'Routes a source (audio band, beat, or LFO) to any parameter. Amount is bipolar — negative inverts.',
+    beatDetection: 'Detects beats from the bass and produces a decaying envelope you can route in the matrix.',
+    midiTitle: 'Map a hardware MIDI knob to any parameter: click Learn, then move the knob.',
+    recordVideo: 'Records the canvas to a WebM video at the chosen resolution.',
+    tempoBpm: 'Global tempo. Tap the button in time with music to set it; synced LFOs follow it.',
+    centerBtn: 'Move the emitter formation so its centre sits at the room centre.'
+  };
+  let tipEl = null;
+  function showTip(text, x, y) {
+    if (!tipEl) { tipEl = document.createElement('div'); tipEl.id = 'vTooltip'; document.body.appendChild(tipEl); }
+    tipEl.textContent = text;
+    tipEl.classList.add('show');
+    const r = tipEl.getBoundingClientRect();
+    let px = x + 14, py = y + 16;
+    if (px + r.width > window.innerWidth - 8) px = x - r.width - 14;
+    if (py + r.height > window.innerHeight - 8) py = y - r.height - 16;
+    tipEl.style.left = Math.max(8, px) + 'px';
+    tipEl.style.top = Math.max(8, py) + 'px';
+  }
+  function hideTip() { if (tipEl) tipEl.classList.remove('show'); }
+  function tipFor(el) {
+    if (!el) return null;
+    const node = el.closest && el.closest('[data-i18n]');
+    if (!node) return null;
+    const k = node.getAttribute('data-i18n');
+    return k && TIP[k] ? TIP[k] : null;
+  }
+  function initTooltips() {
+    const panel = document.querySelector('.panel');
+    if (!panel) return;
+    panel.querySelectorAll('[data-i18n]').forEach(el => { if (tipFor(el)) el.classList.add('has-tip'); });
+    panel.addEventListener('mousemove', (e) => {
+      const t = tipFor(e.target);
+      if (t) showTip(t, e.clientX, e.clientY); else hideTip();
+    });
+    panel.addEventListener('mouseleave', hideTip);
+  }
+
+  // Eccentricity only matters for the ellipse — hide its row otherwise
+  function updateEccentricityVisibility() {
+    const lbl = _el('lblEccentricity'), ctrl = _el('eccentricityCtrl');
+    if (!lbl || !ctrl) return;
+    const show = S.polygonType === 'ellipse';
+    lbl.style.display = show ? '' : 'none';
+    ctrl.style.display = show ? '' : 'none';
+  }
+
   function initPanelTools() {
     const panel = document.querySelector('.panel');
     if (!panel) return;
@@ -10363,6 +10475,8 @@ void main() {
     // Panel tabs, search, per-group reset, collapse-all (before translations
     // so the tab buttons pick up the language)
     initPanelTools();
+    initTooltips();
+    updateEccentricityVisibility();
 
     // Load language preferences and apply translations
     loadLanguage();

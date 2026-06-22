@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.13.0] - 2026-06-22
+
+### Hover help + clarity fixes
+- **Hover tooltips**: hovering a control label, section title, or option now shows a short plain-language explanation of what it does (dotted underline marks the ones with help).
+- **"Shape" disambiguated**: the room selector is now **Room shape**, and the beam shape-travelling effect is **Beam Shapes** (it used to also be titled "Shape").
+- **Eccentricity** only appears when the room is an Ellipse (it did nothing for other shapes).
+- **Wave field**: the room boundary is no longer stroked over the bright field (it was showing as a thin black rim). _Note: the curved black lines inside the field are the wave's real nodal lines, not an error._
+- **Bent-wall corners**: widened the arc overlap so beams no longer slip through the sub-pixel gap between two walls at a corner and escape the room.
+
 ## [1.12.1] - 2026-06-15
 
 ### Fix
