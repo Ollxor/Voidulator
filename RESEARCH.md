@@ -10,7 +10,7 @@ borrowing**. Append freely; keep license notes honest.
 - ⚠️ **Custom / non-commercial** — ideas only unless the author grants permission.
 - 🟢 **Math & algorithms are never copyrightable** — the wave equation, ray reflection, FFT, gaussian kernels, etc. are free to reimplement from any source.
 
-_Last updated: 2026-06-22._
+_Last updated: 2026-06-23._
 
 ---
 
@@ -74,7 +74,7 @@ living textures. A natural "3rd simulation mode" sibling.
 
 | Project | License | Notes |
 |---|---|---|
-| [amandaghassaei/ReactionDiffusionShader](https://github.com/amandaghassaei/ReactionDiffusionShader) | verify (likely MIT) | Gray-Scott with an **underlying vector field steering diffusion** → directed, flowing patterns. Amanda's GPU work is high quality and usually MIT — verify, then it's adaptable. |
+| [amandaghassaei/ReactionDiffusionShader](https://github.com/amandaghassaei/ReactionDiffusionShader) | **no LICENSE file** ⚠️ | Gray-Scott with an **underlying vector field steering diffusion** → directed, flowing patterns. High-quality work, but this repo carries *no licence* (Amanda's *other* repos are MIT) — **ideas only** unless clarified; the Gray-Scott math itself is free to reimplement. |
 | [tdhooper/webgl-grayscott](https://github.com/tdhooper/webgl-grayscott) | verify | Compact TWGL implementation — good reading reference for the two-chemical update. |
 | [piellardj/reaction-diffusion-webgl](https://piellardj.github.io/reaction-diffusion-webgl/) | verify (piellardj = usually MIT) | Polished interactive demo; piellardj's repos are consistently clean and MIT-licensed. |
 | [GregP-Navdna/InfiniBlend](https://github.com/GregP-Navdna/InfiniBlend) | verify | 16 generative algorithms incl. reaction-diffusion in one WebGL blender — a buffet of mode ideas. |
@@ -108,7 +108,7 @@ right home for this: it's the analog-vector aesthetic Voidulator already evokes.
 
 | Project | License | Notes & ideas to borrow |
 |---|---|---|
-| [macumbista/vectorsynthesis](https://github.com/macumbista/vectorsynthesis) | verify (Pd) | Creating/animating vector *shapes* from audio for oscilloscopes/ILDA. The bible of the "oscilloscope music" aesthetic — idea source for shape-from-signal. |
+| [macumbista/vectorsynthesis](https://github.com/macumbista/vectorsynthesis) | **MIT** ✅ (Pd) | Creating/animating vector *shapes* from audio for oscilloscopes/ILDA. The bible of the "oscilloscope music" aesthetic — idea source for shape-from-signal. |
 | [ffd8/xyscopejs](https://github.com/ffd8/xyscopejs) | verify (p5.js) | Render p5 graphics to an analog vector display via audio. Shows the geometry→XY-signal mapping cleanly. |
 | [Sean-Bradley/Oscilloscope](https://github.com/Sean-Bradley/Oscilloscope) | verify | Minimal HTML5 XY scope (L→x, R→y) via Web Audio. Smallest readable reference for an in-app XY mode. |
 | [ThatXliner/ljv](https://github.com/ThatXliner/ljv) | verify | Real-time Lissajous music visualizer. |
@@ -166,7 +166,7 @@ to the wave field, and a great host for audio + curl-noise flow.
 
 | Project | License | Notes |
 |---|---|---|
-| [soulwire/WebGL-GPU-Particles](https://github.com/soulwire/WebGL-GPU-Particles) | verify | 1M+ particles; state in texture+FBO, velocity on GPU. Classic readable reference. |
+| [soulwire/WebGL-GPU-Particles](https://github.com/soulwire/WebGL-GPU-Particles) | **MIT** ✅ | 1M+ particles; state in texture+FBO, velocity on GPU. Classic readable reference — MIT, adaptable with credit. |
 | [jherman3/webgl-particle-toy](https://github.com/jherman3/webgl-particle-toy) | verify | WebGL2 **transform feedback** (no texture ping-pong) — 2M particles; the cleaner WebGL2 idiom for our stack. |
 | [poeti8/one-million-particles](https://github.com/poeti8/one-million-particles) | verify | three.js GPGPU; tidy demo. |
 | [gpfault.net: GPU particles with WebGL2](https://gpfault.net/posts/webgl2-particles.txt.html) | article | Best tutorial for transform-feedback particles — the technique we'd use. |
@@ -184,6 +184,85 @@ We already record WebM via `MediaRecorder`. These are faster/wider-format paths.
 | [mattdesl/canvas-sketch](https://github.com/mattdesl/canvas-sketch) | MIT ✅ | Generative-art framework; its [exporting docs](https://github.com/mattdesl/canvas-sketch/blob/master/docs/exporting-artwork.md) are the reference for clean frame export + naming. |
 
 **Idea: MP4 + looping-GIF export** (via canvas-record/WebCodecs) alongside the existing WebM, plus a one-click "share" that produces a short seamless loop. This is the single biggest *distribution* lever — silent WebM doesn't travel; an MP4/GIF loop does.
+
+## 15. Colour science & perceptual palettes (relevant to colour schemes, transitions, glow)
+
+Voidulator's palettes and scene-transition lerps run in HSL/RGB, which is *not*
+perceptually uniform — equal numeric steps make uneven visual steps, and blends
+through blue/purple go muddy or shift hue. These fix that — and a real *laser*
+deserves real spectral colour.
+
+| Source | License | Notes & ideas to borrow |
+|---|---|---|
+| [Björn Ottosson — Oklab](https://bottosson.github.io/posts/oklab/) | **public domain / MIT** ✅ | The reference `linear_srgb_to_oklab()` + inverse, stated public-domain *or* MIT by the author — directly usable. **Idea:** interpolate scene transitions and colour ramps in **OKLab/OKLCH** instead of HSL → perceptually even fades, vivid (not muddy) midpoints, stable hue. The single highest-quality colour upgrade available. |
+| [CSS Color 4](https://www.w3.org/TR/css-color-4/) + [Evil Martians: OKLCH in CSS](https://evilmartians.com/chronicles/oklch-in-css-why-quit-rgb-hsl) | spec / article ✅ | Why OKLCH won for gradients (it's the recommended `color-mix` space; Tailwind v4 default). Reference for *which* space to lerp in: `oklab` for straight-line blends, `oklch` for hue-preserving ones. |
+| Spectral **wavelength→RGB** ([FourmiLab specrend, John Walker](https://www.fourmilab.ch/documents/specrend/); Dan Bruton's algorithm) | algorithm — **math, free** 🟢 | Map true laser wavelengths (405 nm violet, 532 nm green, 650 nm red…) through the CIE colour-matching functions to sRGB. **Idea:** a "real laser" palette where beam colour is chosen by nm — the green sits exactly where a 532 nm DPSS laser does. On-brand and physically grounded. |
+| Blue-noise dithering — [demofox: void-and-cluster](https://blog.demofox.org/2019/06/25/generating-blue-noise-textures-with-void-and-cluster/), [frost.kiwi: fixing banding](https://blog.frost.kiwi/GLSL-noise-and-radial-gradient/) (+ Christoph Peters' free blue-noise textures) | posts/textures freely shared; **math free** 🟢 | 8-bit output + smooth glow/trail gradients = visible **banding**. Add ~1/255 of blue-noise (or even cheap interleaved-gradient noise) *before* quantisation to dissolve the bands into imperceptible grain. One line in the composite shader; biggest cleanliness win for the bloom look. frost.kiwi shows how (and how *not*) to do it. |
+
+## 16. HDR tone-mapping & advanced bloom (upgrades the Glow pipeline)
+
+Today's glow does a smooth-knee bright-pass + one separable 9-tap gaussian, then
+clips to white. Two orthogonal upgrades: a *filmic* tone-map so bright beams roll
+off to colour-rich white instead of harsh clipping, and a *pyramidal* bloom for a
+wider, more cinematic, energy-stable glow.
+
+| Source | License | Notes & ideas to borrow |
+|---|---|---|
+| **AgX** — [Troy Sobotka AgX-S2O3](https://github.com/sobotka/AgX-S2O3), [iolite minimal impl](https://iolite-engine.com/blog_posts/minimal_agx_implementation) | verify (curve fit — **math free** 🟢) | Blender 4's default view transform. Desaturates highlights *gradually* as they brighten → saturated lasers bloom to warm white instead of clipping to flat clamped RGB. The minimal version is a 3×3 matrix + a polynomial; reimplement the fit (don't copy unlicensed code). |
+| **ACES filmic** — [Krzysztof Narkowicz fit](https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/) | published "use freely"; **math free** 🟢 | The one-liner `(x(ax+b))/(x(cx+d)+e)` filmic curve everyone uses. Cheaper than AgX, slightly more contrasty/saturated. Good default if AgX feels heavy. |
+| [Jorge Jimenez — Next-Gen Post Processing in CoD:AW](https://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare/) | slides — **technique** | The standard modern bloom: a **mip pyramid**, 13-tap filtered downsample, 3×3 tent-filter upsample with progressive add. Wide, soft, temporally stable, energy-preserving — far better than one fixed-radius gaussian and not much more code. |
+| [frost.kiwi — dual-Kawase explained](https://blog.frost.kiwi/dual-kawase/) (technique: Marius Bjørge, *Bandwidth-Efficient Rendering*, SIGGRAPH 2015) | technique | Cheaper cousin of the pyramid: ping-pong down/up with a 5-tap kernel; frost.kiwi is the clearest read. Good if the full pyramid is overkill on mobile. |
+
+## 17. Caustics & volumetric light (optics depth — lasers in haze)
+
+A laser room *is* light scattering in a medium. Two cheap fakes add huge
+atmosphere: screen-space "god rays" from a bright emitter, and animated caustic
+ripples cast on the walls.
+
+| Project | License | Notes & ideas to borrow |
+|---|---|---|
+| [evanw/webgl-water](https://github.com/evanw/webgl-water) ([writeup](https://medium.com/@evanwallace/rendering-realtime-caustics-in-webgl-2a99a29a0b2c)) | **MIT** (per-file headers) ✅ | The canonical WebGL **caustics** demo — derives caustic intensity from how light rays converge, using GLSL **derivative** functions (`dFdx`/`dFdy`). **Idea:** caustic shimmer cast by the wave-field surface onto the room, or animated caustics rippling under the beams. |
+| [GPU Gems 3, ch.13 — Volumetric Light Scattering as a Post-Process](https://developer.nvidia.com/gpugems/gpugems3/part-ii-light-and-shadows/chapter-13-volumetric-light-scattering-post-process) (Kenny Mitchell) | technique — **algorithm free** 🟢 | The classic **god-rays** fake: render occluders black + light bright, then a **radial blur** toward the light, additively composite. **Idea:** volumetric shafts radiating from a bright emitter through "haze" — two passes, deeply on-brand for a beam room. |
+| [math-araujo/screen-space-godrays](https://github.com/math-araujo/screen-space-godrays) + [fabiensanglard.net: light scattering](https://fabiensanglard.net/lightScattering/) | **MIT** ✅ / tutorial | Clean reference impl + the smallest readable GLSL walkthrough of the radial-blur god-ray pass. |
+
+## 18. Strange attractors & harmonographs (curve generators — sibling to Lissajous §10)
+
+If §10 (Lissajous) is "two sines → a curve", these are the richer cousins:
+iterated chaotic maps and damped many-pendulum figures. All are **point paths**,
+so they feed straight into the existing beam/glow/trail pipeline.
+
+| Source | License | Notes & ideas to borrow |
+|---|---|---|
+| [Paul Bourke — Clifford](https://paulbourke.net/fractals/clifford/) & [Peter de Jong attractors](https://paulbourke.net/fractals/peterdejong/) | equations — **math, free** 🟢 (reuse w/ acknowledgement) | Two-line iterated maps (`x' = sin(a·y)+c·cos(a·x)`, …) that trace dense, organic, parameter-morphable figures. **Idea:** an **attractor emission mode** — iterate the map, draw the point cloud/path with glow; sweep `a,b,c,d` slowly (or from audio) and the whole figure breathes. |
+| [Softology — 2D strange attractors](https://softologyblog.wordpress.com/2017/03/04/2d-strange-attractors/) | catalogue | A buffet of attractor families (Bedhead, Hopalong, Gumowski-Mira…) with formulas — feeder for variety. |
+| [Harmonograph](https://en.wikipedia.org/wiki/Harmonograph) ([Paul Bourke](https://paulbourke.net/geometry/harmonograph/), [bit-101 coding curves](https://www.bit-101.com/2017/2022/11/coding-curves-05-harmonographs/)) | **math, free** 🟢 | Sum of **exponentially-damped sinusoids** on X and Y → the Victorian "decaying Lissajous": `x(t)=Σ Aᵢ·e^(−dᵢt)·sin(fᵢt+φᵢ)`. **Idea:** a harmonograph curve that draws itself and slowly decays — gorgeous, evolving, and a near-free extension of the planned Lissajous/XY mode. Damping + frequencies are natural modulation/audio targets. |
+
+## 19. Quantum wave mode (Schrödinger cavity — extends the Wave Field)
+
+The Wave Field solves the *classical* wave equation. The **Schrödinger** equation
+runs on the *same* two-float-texture ping-pong machinery (complex ψ = real + imag),
+and the room mask becomes an infinite potential well → **quantum billiards**: the
+stadium/bent/blob rooms turn into quantum-chaos cavities showing scarring and
+interference no classical mode can. A novel, high-reuse new mode.
+
+| Project | License | Notes & ideas to borrow |
+|---|---|---|
+| [marl0ny/QM-Simulator-2D](https://github.com/marl0ny/QM-Simulator-2D) | **BSD-2-Clause** ✅ | WebGL 2D particle-in-a-box: draw potentials, scatter Gaussian wave-packets. Default integrator is **Visscher's staggered real/imaginary leapfrog** — an *explicit, real-valued* scheme that maps almost 1:1 onto our existing FDTD ping-pong (no FFT needed). BSD = adaptable with credit. |
+| [davidar.io — Shaders of Schrödinger](https://davidar.io/post/quantum-glsl) | blog — **technique** | Schrödinger in a single fragment shader; the clearest walkthrough of doing it the GPU way. |
+| [georgestagg/webgl_gpe](https://github.com/georgestagg/webgl_gpe) | **MIT** ✅ | WebGL **superfluid** (Gross–Pitaevskii = *nonlinear* Schrödinger) — quantised vortices and interference. A wilder variant once the linear version works. |
+| [quantum-visualizations/qmsolve](https://github.com/quantum-visualizations/qmsolve) | verify (Python) | Eigenstate solver — reference for displaying the cavity's **stationary states** analytically (the quantum cousin of §5's Chladni modes). |
+
+**Wave-field numerical upgrades** (math, all free to implement 🟢) — improvements to the *classical* field we already ship:
+- **PML absorbing boundaries** ([Wikipedia](https://en.wikipedia.org/wiki/Perfectly_matched_layer), [Bérenger lecture](https://www.ece.mcmaster.ca/faculty/bakr/ECE757/PMLlecture_Berenger.pdf)) — replace the current "read 0" absorb mode with a graded damping layer at the rim → **reflection-free open boundaries** (true ripple-tank feel, no edge echoes).
+- **Variable medium** `C(x,y)` as a texture — spatially-varying wave speed → lenses, waveguides, and the Falstad-style **double-slit / refraction** presets. Our solver already has a scalar `C`; promoting it to a sampled field is the unlock.
+- **9-point Laplacian** stencil — the 5-point Laplacian is grid-anisotropic (wavefronts go slightly square at high speed); the isotropic 9-point keeps circular fronts circular.
+
+## 20. Performance & profiling (app-health methods)
+
+| Source | License | Notes & ideas to borrow |
+|---|---|---|
+| [figma/webgl-profiler](https://github.com/figma/webgl-profiler) | **MIT** ✅ | GPU-side profiler built on `EXT_disjoint_timer_query`. Reference for *per-pass* GPU timing (trace vs. trails vs. bloom vs. field). |
+| [EXT_disjoint_timer_query_webgl2](https://registry.khronos.org/webgl/extensions/EXT_disjoint_timer_query_webgl2/) ([MDN: WebGLQuery](https://developer.mozilla.org/en-US/docs/Web/API/WebGLQuery)) | spec ✅ | Real GPU timings in ns (CPU-side `performance.now()` lies — the GPU runs async). **Idea:** an **adaptive-quality** governor — measure frame GPU time and auto-drop field resolution / bloom taps / bounce count when over a ~16 ms budget, so mobile and 4K-record stay smooth. |
 
 ---
 
@@ -211,6 +290,16 @@ Concrete features worth considering, roughly high→low leverage:
 18. **Auto-BPM (autocorrelation)** + **chroma→hue**: detect tempo automatically to sync LFOs; map dominant pitch class to colour.
 19. **GPGPU particle mode** (transform feedback): emitter-spawned particles advected by flow field, bouncing off the room walls (reuse arc/poly collision), coloured by speed/audio.
 20. **MP4 + looping-GIF export** (canvas-record/WebCodecs, MIT): real MP4 + seamless-loop GIF beside the WebM — the biggest distribution lever.
+21. **OKLab/OKLCH colour interpolation** (§15, Ottosson, public-domain): lerp scene transitions and palettes perceptually → even fades, no muddy midpoints. Highest-quality colour upgrade, small change.
+22. **Blue-noise dithering** (§15): add sub-LSB noise before 8-bit output to kill glow/trail gradient banding. One line in the composite shader.
+23. **Filmic tone-map + pyramidal bloom** (§16, AgX/ACES + Jimenez): roll highlights off to colour-rich white instead of clipping; wider, energy-stable glow. Directly upgrades the signature Glow look.
+24. **Spectral "real laser" palette** (§15): pick beam colours by wavelength (nm) via the CIE wavelength→RGB curve — physically grounded and on-brand.
+25. **Volumetric god-rays** (§17, GPU Gems 3 radial-blur; MIT impl): light shafts from a bright emitter through haze — two passes.
+26. **Caustics from the wave field** (§17, evanw/webgl-water, MIT): cast shimmering caustics from the field surface onto the room.
+27. **Attractor / harmonograph emission mode** (§18, Paul Bourke math): iterated-map and damped-pendulum curves through the beam/glow pipeline — Lissajous's richer, audio-morphable cousins.
+28. **Quantum (Schrödinger) cavity sub-mode** (§19, marl0ny BSD / Visscher scheme): complex ψ on the existing float ping-pong; the room becomes a quantum-billiard well — scarring & interference no classical mode shows.
+29. **PML absorbing boundaries + variable-medium field** (§19, math): reflection-free open walls, plus `C(x,y)` as a texture for lenses / waveguides / double-slit presets.
+30. **GPU-timer adaptive quality** (§20, EXT_disjoint_timer_query): auto-tune field res / bloom / bounces to a frame budget so mobile + 4K stay at 60.
 
 ## Insights, rabbit holes & curious paths
 
@@ -242,6 +331,9 @@ looks shiny but could swallow weeks, and the unexpected connections.
 - **Don't confuse responsiveness with understanding.** Full MIR (key/chord/mood) is seductive but it's the wrong axis for an instrument: a VJ tool needs to *react fast and feel right*, not *know the song's key*. Invest in flux/onset/loudness fidelity, not musicology.
 - **The biggest growth lever isn't a feature — it's the export format.** Voidulator records silent WebM, which barely travels (no autoplay-with-sound, poor social support). A real **MP4 / looping GIF** (WebCodecs, MIT canvas-record) is how generative-art tools actually spread. High impact, low risk, MIT-licensed path.
 - **One GPU substrate, many modes.** We now have three reusable GPU patterns: ping-pong float textures (wave field / reaction-diffusion / fluid), transform-feedback buffers (particles), and post-process passes (bloom / kaleidoscope). Almost every "new mode" idea in this file is a recombination of those three — the hard infrastructure is already built.
+- **One ping-pong, two physics.** The Wave Field's two-float-texture machinery already *is* a Schrödinger solver waiting to happen — classical waves and quantum ψ differ mainly in the update shader, and the reflecting-wall mask doubles as an infinite potential well. So our oddball cavities (stadium, bent, blob) become quantum-billiard scars almost for free. Highest novelty-per-line idea on the list (§19).
+- **Colour is the cheapest fidelity win we haven't taken.** Everything renders and blends in HSL/RGB. Moving transitions/palettes to OKLab, dithering the 8-bit output with blue noise, and offering a real wavelength-indexed "laser" palette would visibly clean up and authenticate *every* scene with no new features — pure polish that compounds (§15).
+- **Tone-mapping is the missing half of bloom.** We brighten and blur, but clip to white — adding a filmic curve (AgX/ACES) is what makes bright beams read as *hot* instead of *blown*. Small shader, big perceived-quality jump, and it composes with a wider pyramidal bloom (§16).
 
 ## How to extend this file
 
