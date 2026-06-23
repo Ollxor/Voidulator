@@ -2,6 +2,12 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.15.0] - 2026-06-22
+
+### Rotation + spin for ring and wave-field emitters
+- The **ring** and **wave-field** emitter clusters now have the same **Rotation (°)** and **Spin (°/s)** controls as the beam emitters — set the orientation by hand or let the whole cluster rotate automatically (negative = counter-clockwise). Saved in scenes/presets.
+- _Note: spinning **ring** emitters re-traces their reflection paths every frame, so keep Max bounces modest if it stutters. Field spin is cheap._
+
 ## [1.14.0] - 2026-06-22
 
 ### Emitter cluster geometry + wave-field centering

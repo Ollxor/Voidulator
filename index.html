@@ -2160,6 +2160,16 @@
             <button class="btn" id="ringsCenterBtn" data-i18n="centerShort">Center</button>
             <button class="btn" id="ringsUprightBtn" data-i18n="alignRot">Upright</button>
           </div>
+          <label data-i18n="clusterRotation">Rotation (°)</label>
+          <div class="ctrl-row">
+            <input id="ringRot" type="range" min="0" max="360" step="1" value="0">
+            <input id="ringRotNum" type="number" min="0" max="360" step="1" value="0">
+          </div>
+          <label data-i18n="clusterSpin">Spin (°/s)</label>
+          <div class="ctrl-row">
+            <input id="ringSpin" type="range" min="-180" max="180" step="1" value="0">
+            <input id="ringSpinNum" type="number" min="-180" max="180" step="1" value="0">
+          </div>
           <label data-i18n="ringEmitters">Emitters</label>
           <div class="stepper">
             <button class="btn step-btn" id="ringEmDown">&#9660;</button>
@@ -2220,6 +2230,16 @@
           <div class="btn-row">
             <button class="btn" id="fieldCenterBtn" data-i18n="centerShort">Center</button>
             <button class="btn" id="fieldUprightBtn" data-i18n="alignRot">Upright</button>
+          </div>
+          <label data-i18n="clusterRotation">Rotation (°)</label>
+          <div class="ctrl-row">
+            <input id="fieldRot" type="range" min="0" max="360" step="1" value="0">
+            <input id="fieldRotNum" type="number" min="0" max="360" step="1" value="0">
+          </div>
+          <label data-i18n="clusterSpin">Spin (°/s)</label>
+          <div class="ctrl-row">
+            <input id="fieldSpin" type="range" min="-180" max="180" step="1" value="0">
+            <input id="fieldSpinNum" type="number" min="-180" max="180" step="1" value="0">
           </div>
           <label data-i18n="fieldFreq">Frequency</label>
           <div class="ctrl-row">
@@ -2573,7 +2593,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.14.0';
+  const APP_VERSION = 'v1.15.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2727,6 +2747,8 @@
       autoSpawn: false,   // scheduler on/off — off = manual Activate only
       emittersNorm: [{ nx: 0.5, ny: 0.5 }], // own emitters, center by default
       geometric: true,    // dragging one dot arranges all as a regular polygon
+      rot: 0,             // cluster rotation tracker (deg) for the slider
+      spin: 0,            // auto cluster rotation (deg/s)
       speed: [250, 400],  // expansion speed px/s — [min,max], drawn per ring
       speedMul: 1,        // live multiplier (modulation matrix target)
       lifetime: [8, 16],  // wall bounces: 1 = first wall hit — [min,max] per ring
@@ -2816,7 +2838,9 @@
       phase: 0,         // runtime source phase accumulator
       // Own wave-source emitters (like rings) — center by default
       emittersNorm: [{ nx: 0.5, ny: 0.5 }],
-      geometric: true
+      geometric: true,
+      rot: 0,           // cluster rotation tracker (deg) for the slider
+      spin: 0           // auto cluster rotation (deg/s)
     },
     // Width wave effect (sine wave along beam width)
     widthWave: {
@@ -3451,6 +3475,7 @@
       S.rings.lifetime = normRange(S.rings.lifetime, [8, 16]);
       S.rings.speedMul = S.rings.speedMul ?? 1;
       S.rings.autoSpawn = S.rings.autoSpawn ?? false;
+      S.rings.rot = S.rings.rot ?? 0; S.rings.spin = S.rings.spin ?? 0;
       S.rings.fade = 1.3; // fixed, no UI
     } else if (scene.emissionMode === 'waves') {
       // Legacy wave-mode scenes map onto the rings system
@@ -3461,6 +3486,7 @@
     if (scene.field) {
       S.field = Object.assign({}, S.field, scene.field);
       S.field.phase = 0;
+      S.field.rot = S.field.rot ?? 0; S.field.spin = S.field.spin ?? 0;
       if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }];
     } else {
       S.field.enabled = false;
@@ -5274,6 +5300,19 @@ void main() {
       writeNormFromPx(emittersNorm, i, { x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
     }
   }
+  // Rotate the whole formation around the room centre by deltaDeg (preserves
+  // each emitter's radius/shape). Used by ring/field manual rotation + spin.
+  function rotateFormationBy(emittersNorm, deltaDeg) {
+    if (emittersNorm.length < 2 || !deltaDeg) return;
+    const c = roomCenter();
+    const px = normToRoomPx(emittersNorm);
+    const dr = deltaDeg * Math.PI / 180;
+    for (let i = 0; i < px.length; i++) {
+      const a = Math.atan2(px[i].y - c.y, px[i].x - c.x) + dr;
+      const r = Math.hypot(px[i].x - c.x, px[i].y - c.y);
+      writeNormFromPx(emittersNorm, i, { x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) });
+    }
+  }
   function setFormationCount(emittersNorm, n, geometric, anchorIdx) {
     n = clamp(n, 1, 6) | 0;
     while (emittersNorm.length > n) emittersNorm.pop();
@@ -6838,13 +6877,14 @@ void main() {
       S.rings.lifetime = normRange(S.rings.lifetime, [8, 16]);
       S.rings.speedMul = S.rings.speedMul ?? 1;
       S.rings.autoSpawn = S.rings.autoSpawn ?? false;
+      S.rings.rot = S.rings.rot ?? 0; S.rings.spin = S.rings.spin ?? 0;
       S.rings.fade = 1.3; // fixed, no UI
     } else if (P.emissionMode === 'waves') {
       S.rings.enabled = true;
       S.rings.rainbow = P.waveRainbow ?? true;
       S.rings.taper = P.waveTaper ?? 0;
     }
-    if (P.field) { S.field = Object.assign({}, S.field, P.field); S.field.phase = 0; if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }]; }
+    if (P.field) { S.field = Object.assign({}, S.field, P.field); S.field.phase = 0; S.field.rot = S.field.rot ?? 0; S.field.spin = S.field.spin ?? 0; if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }]; }
     else S.field.enabled = false;
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
@@ -7078,9 +7118,23 @@ void main() {
     ringRainbowToggleBtn.textContent = S.rings.rainbow ? 'On' : 'Off';
     ringEmValEl.textContent = S.rings.emittersNorm.length;
     ringTaperEl.value = S.rings.taper;
+    const rr = _el('ringRot'), rrn = _el('ringRotNum'); if (rr) rr.value = rrn.value = Math.round(S.rings.rot || 0);
+    const rs = _el('ringSpin'), rsn = _el('ringSpinNum'); if (rs) rs.value = rsn.value = S.rings.spin || 0;
     ringSpeedDR.sync(); ringLifetimeDR.sync();
     ringIntervalDR.sync(); ringPerActDR.sync(); ringSpacingDR.sync();
   }
+  // Ring cluster manual rotation (applies the delta) + auto spin
+  const ringRotEl = _el('ringRot'), ringRotNumEl = _el('ringRotNum');
+  const ringSpinEl = _el('ringSpin'), ringSpinNumEl = _el('ringSpinNum');
+  function ringRotateTo(deg) {
+    const delta = deg - (S.rings.rot || 0);
+    S.rings.rot = deg;
+    rotateFormationBy(S.rings.emittersNorm, delta);
+  }
+  _on(ringRotEl, 'input', () => { ringRotateTo(parseFloat(ringRotEl.value) || 0); ringRotNumEl.value = Math.round(S.rings.rot); });
+  _on(ringRotNumEl, 'input', () => { ringRotateTo(parseFloat(ringRotNumEl.value) || 0); ringRotEl.value = S.rings.rot; });
+  _on(ringSpinEl, 'input', () => { S.rings.spin = parseFloat(ringSpinEl.value) || 0; ringSpinNumEl.value = S.rings.spin; });
+  _on(ringSpinNumEl, 'input', () => { S.rings.spin = clamp(parseFloat(ringSpinNumEl.value) || 0, -180, 180); ringSpinEl.value = S.rings.spin; });
   _on(ringsToggleBtn, 'click', () => {
     S.rings.enabled = !S.rings.enabled;
     if (S.rings.enabled) { ringClock = 0; nextActivationIn = 0; }
@@ -7190,7 +7244,21 @@ void main() {
     fieldResEl.value = S.field.res;
     const ev = _el('fieldEmVal'); if (ev) ev.textContent = S.field.emittersNorm.length;
     const gt = _el('fieldGeoToggle'); if (gt) gt.textContent = S.field.geometric ? 'On' : 'Off';
+    const fr = _el('fieldRot'), frn = _el('fieldRotNum'); if (fr) fr.value = frn.value = Math.round(S.field.rot || 0);
+    const fs = _el('fieldSpin'), fsn = _el('fieldSpinNum'); if (fs) fs.value = fsn.value = S.field.spin || 0;
   }
+  // Field cluster manual rotation + auto spin
+  const fieldRotEl = _el('fieldRot'), fieldRotNumEl = _el('fieldRotNum');
+  const fieldSpinEl = _el('fieldSpin'), fieldSpinNumEl = _el('fieldSpinNum');
+  function fieldRotateTo(deg) {
+    const delta = deg - (S.field.rot || 0);
+    S.field.rot = deg;
+    rotateFormationBy(S.field.emittersNorm, delta);
+  }
+  _on(fieldRotEl, 'input', () => { fieldRotateTo(parseFloat(fieldRotEl.value) || 0); fieldRotNumEl.value = Math.round(S.field.rot); });
+  _on(fieldRotNumEl, 'input', () => { fieldRotateTo(parseFloat(fieldRotNumEl.value) || 0); fieldRotEl.value = S.field.rot; });
+  _on(fieldSpinEl, 'input', () => { S.field.spin = parseFloat(fieldSpinEl.value) || 0; fieldSpinNumEl.value = S.field.spin; });
+  _on(fieldSpinNumEl, 'input', () => { S.field.spin = clamp(parseFloat(fieldSpinNumEl.value) || 0, -180, 180); fieldSpinEl.value = S.field.spin; });
   _on(fieldToggleBtn, 'click', () => {
     S.field.enabled = !S.field.enabled;
     if (S.field.enabled) { S.showBeams = false; S.rings.enabled = false; clearLiveRings(); clearField(); }
@@ -8254,6 +8322,16 @@ void main() {
       S.emitterRot = ((S.emitterRot + S.emitterSpin * dtSec) % 360 + 360) % 360;
       applyEmitterCluster();
       if (typeof emRotEl !== 'undefined' && emRotEl) { emRotEl.value = Math.round(S.emitterRot); emRotNumEl.value = Math.round(S.emitterRot); }
+    }
+    // Auto-spin the ring cluster (rebuilds ray cache as emitters move — keep
+    // bounce counts modest if it stutters) and the field cluster (cheap)
+    if (S.rings.enabled && S.rings.spin && S.rings.emittersNorm.length > 1) {
+      rotateFormationBy(S.rings.emittersNorm, S.rings.spin * dtSec);
+      S.rings.rot = ((S.rings.rot + S.rings.spin * dtSec) % 360 + 360) % 360;
+    }
+    if (S.field.enabled && S.field.spin && S.field.emittersNorm.length > 1) {
+      rotateFormationBy(S.field.emittersNorm, S.field.spin * dtSec);
+      S.field.rot = ((S.field.rot + S.field.spin * dtSec) % 360 + 360) % 360;
     }
     for (let i = 0; i < S.perBeamPhase.length; i++) {
       S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i] || 0) * S.speedMultiplier * dtSec) % 360;
