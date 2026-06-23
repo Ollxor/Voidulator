@@ -86,6 +86,15 @@ living textures. A natural "3rd simulation mode" sibling.
 | [ameobea/web-synth](https://github.com/ameobea/web-synth) | verify | Browser DAW with a node-graph patcher and an explicit **"FM synth modulation matrix"**; params are first-class modulation targets with auto-generated UI — exactly our model, more mature. Best reference for a node-graph view and a proper parameter registry. |
 | [NoiseCraft](https://noisecraft.app/) ([repo](https://github.com/maximecb/noisecraft)) | verify (maximecb often permissive) | Max/MSP-style modular synth, deliberately beginner-friendly. UX reference for approachable patching. |
 
+**Reusable node-graph editor libraries** — if we build the node/patch view (backlog #6) on top of the matrix, don't hand-roll it; these are mature and (mostly) MIT:
+
+| Library | License | Notes |
+|---|---|---|
+| [rete.js](https://retejs.org/) ([repo](https://github.com/retejs/rete)) | **MIT** ✅ (a few advanced plugins are CC-BY-NC-SA) | Framework-agnostic visual-programming engine with a real **dataflow/control-flow processor** — closest fit for "nodes that actually *route* modulation," not just draw boxes. Core is MIT; check individual plugins (a couple are non-commercial). |
+| [litegraph.js](https://github.com/jagenjo/litegraph.js) | **MIT** ✅ | Canvas2D node engine à la PureData/Blueprints; exports graphs as JSON, self-contained, no framework. Mature and battle-tested (ComfyUI's node graph descends from it). |
+| [React Flow / Svelte Flow (xyflow)](https://github.com/xyflow/xyflow) | **MIT** ✅ | The most polished, best-documented node UI; great interactions out of the box. Heavier (needs React/Svelte) — fits only if we adopt a framework. |
+| [BaklavaJS](https://github.com/newcat/baklavajs) | **MIT** ✅ | Vue-based graph/node editor with a built-in execution engine and a clean TypeScript API. |
+
 ## 8. Generative-art techniques (candidate effects / post-FX)
 
 | Source | License | Notes |
@@ -100,6 +109,16 @@ living textures. A natural "3rd simulation mode" sibling.
 |---|---|
 | **WebGPU** (Chrome/Edge/Opera desktop, Jan 2026) | Compute shaders give direct GPU buffers + workgroup memory. Quoted real-world: ~5k CPU particles → **1M particles sub-2ms** on WebGPU compute. Path: a particle/flow mode, or moving the FDTD to a compute pass for much higher field resolution. **Caveat:** still no Safari/iOS in stable, and it's a second renderer to maintain — keep the WebGL2 path as the baseline. |
 | [Codrops: WebGPU fluid sims](https://tympanus.net/codrops/2025/02/26/webgpu-fluid-simulations-high-performance-real-time-rendering/) | Tutorial-grade reference if/when we explore a fluid or high-res field mode. |
+
+**WebGPU compute references** — concrete repos for an *optional* compute path (WebGL2 stays the baseline); all run fully on the GPU:
+
+| Project | License | Notes |
+|---|---|---|
+| [piellardj/particles-webgpu](https://github.com/piellardj/particles-webgpu) & [water-webgpu](https://github.com/piellardj/water-webgpu) | **MIT** ✅ | Clean, minimal GPU particles and a **1M-ball** fluid, both fully in compute. piellardj's code is consistently the most readable — the best starting reference. |
+| [scttfrdmn/webgpu-compute-exploration](https://github.com/scttfrdmn/webgpu-compute-exploration) | **MIT** ✅ | 10 WGSL compute demos in one repo — SPH fluid, DLA, **boids flocking**, molecular dynamics. A buffet for particle-behaviour ideas (boids = an audio-reactive swarm of emitters). |
+| [matsuoka-601/WebGPU-Ocean](https://github.com/matsuoka-601/WebGPU-Ocean) | **MIT** ✅ | MLS-MPM fluid, ~300k particles real-time. The aspirational ceiling for a fluid mode. |
+| [jeantimex/fluid](https://github.com/jeantimex/fluid) | **MIT** ✅ | SPH + PIC/FLIP grid solver, tens of thousands of particles at 60 fps; tidy modern code. |
+| [kishimisu/WebGPU-Fluid-Simulation](https://github.com/kishimisu/WebGPU-Fluid-Simulation) | **no LICENSE** ⚠️ | Jos Stam stable-fluids in WebGPU — great learning read, but unlicensed → **ideas only**. |
 
 ## 10. Oscilloscope / Lissajous / vector (XY) art — strongly on-theme
 
@@ -143,6 +162,7 @@ rig. The ladder below shows what's beyond it.
 | [audiojs/beat-detection](https://github.com/audiojs/beat-detection) | verify | Compact tempo/onset algorithms — readable reference for spectral-flux + autocorrelation tempo. |
 | [michaelkrzyzaniak/Beat-and-Tempo-Tracking](https://github.com/michaelkrzyzaniak/Beat-and-Tempo-Tracking) | verify (C) | Serious real-time beat/tempo tracker (BTT). Algorithm reference for auto-BPM. |
 | [sandner-art/Audio-Shader-Studio](https://github.com/sandner-art/Audio-Shader-Studio) | verify | WebGL + Web Audio: passes a bank of precomputed audio features straight to shaders. Reference for the feature→uniform plumbing. |
+| [jmerkt/rt-cqt](https://github.com/jmerkt/rt-cqt) | **BSD-3-Clause** ✅ (C++) | Real-time / **sliding Constant-Q Transform** — header-only C++ reference for musical (per-octave) frequency analysis. Not drop-in for the browser, but it's the algorithm reference if we go beyond linear FFT bins. |
 
 ### Techniques ladder (simplest → most sophisticated)
 
@@ -156,7 +176,7 @@ rig. The ladder below shows what's beyond it.
 
 ### What's worth it for Voidulator (vs overkill)
 - **Worth it:** perceptual/log band mapping (#2, easy), spectral flux onset via Meyda (#3, MIT), FFT-texture for spatial spectral reactivity (#7, big payoff, reuses our infra).
-- **Nice:** autocorrelation auto-BPM (#4), chroma→hue (#6).
+- **Nice:** autocorrelation auto-BPM (#4), chroma→hue (#6), **constant-Q / per-octave** bins for musical-pitch alignment — the cheap web-native route is a **`BiquadFilterNode` band-pass bank** (one `AnalyserNode` per note), no custom DSP.
 - **Probably overkill:** full MIR (key/chord/mood via Essentia) — heavy WASM + AGPL; the instrument doesn't need musical *understanding*, just responsiveness.
 
 ## 13. GPGPU particle systems (candidate emission mode)
@@ -264,6 +284,20 @@ interference no classical mode can. A novel, high-reuse new mode.
 | [figma/webgl-profiler](https://github.com/figma/webgl-profiler) | **MIT** ✅ | GPU-side profiler built on `EXT_disjoint_timer_query`. Reference for *per-pass* GPU timing (trace vs. trails vs. bloom vs. field). |
 | [EXT_disjoint_timer_query_webgl2](https://registry.khronos.org/webgl/extensions/EXT_disjoint_timer_query_webgl2/) ([MDN: WebGLQuery](https://developer.mozilla.org/en-US/docs/Web/API/WebGLQuery)) | spec ✅ | Real GPU timings in ns (CPU-side `performance.now()` lies — the GPU runs async). **Idea:** an **adaptive-quality** governor — measure frame GPU time and auto-drop field resolution / bloom taps / bounce count when over a ~16 ms budget, so mobile and 4K-record stay smooth. |
 
+## 21. GPU noise functions (reusable curl/flow building blocks)
+
+The file already wants curl-noise flow (§8) and smoky advection — these are the
+canonical, self-contained GLSL implementations to actually build them with. No
+textures, no lookup tables; drop straight into a fragment shader.
+
+| Source | License | Notes & ideas to borrow |
+|---|---|---|
+| [ashima/webgl-noise](https://github.com/ashima/webgl-noise) (Gustavson & McEwan) | **MIT** ✅ | The standard. Self-contained 2D/3D/4D **simplex**, classic Perlin, and **cellular (Worley)** noise — no uniform arrays or texture engine. *The* reusable noise toolkit; MIT, credit in-shader. |
+| [stegu/psrdnoise](https://github.com/stegu/psrdnoise) (Gustavson & McEwan, 2021) | **MIT** (per source headers) ✅ | **Periodic** simplex noise with **analytic derivatives** → exact, tileable **curl noise** for free (curl = the rotated analytic gradient). The right tool for *seamless looping* flow fields (pairs with §14 loop export) and divergence-free smoky advection of the trail/phosphor/field textures. |
+| [The Book of Shaders, ch.11–13](https://thebookofshaders.com/11/) | text CC-BY-SA, code usable | The readable intro to value/gradient/simplex noise and FBM if the above need unpacking. |
+
+**Idea: a flow-field substrate.** One curl-noise field (psrdnoise) can drive several modes at once — advect particles (§13), drift the phosphor/trail/wave textures for smoky motion (§8, backlog #12), or warp beam paths. One cheap function, many looks; the *periodic* variant keeps everything loop-friendly for GIF/MP4 export.
+
 ---
 
 ## Ideas backlog (synthesised from the above)
@@ -300,6 +334,10 @@ Concrete features worth considering, roughly high→low leverage:
 28. **Quantum (Schrödinger) cavity sub-mode** (§19, marl0ny BSD / Visscher scheme): complex ψ on the existing float ping-pong; the room becomes a quantum-billiard well — scarring & interference no classical mode shows.
 29. **PML absorbing boundaries + variable-medium field** (§19, math): reflection-free open walls, plus `C(x,y)` as a texture for lenses / waveguides / double-slit presets.
 30. **GPU-timer adaptive quality** (§20, EXT_disjoint_timer_query): auto-tune field res / bloom / bounces to a frame budget so mobile + 4K stay at 60.
+31. **GPU noise toolkit** (§21, webgl-noise/psrdnoise, MIT): adopt the standard simplex/curl-noise GLSL — the missing building block for the curl-noise advection (#12) and flow-field ideas.
+32. **Node-graph patch view** (§7, litegraph/rete/react-flow, all MIT): build the long-wanted visual modulation patcher (#6) on a ready MIT library instead of from scratch.
+33. **WebGPU compute mode** (§9, piellardj/scttfrdmn, MIT): a high-res field or million-particle flow as an *optional* compute path, with WebGL2 staying the baseline.
+34. **Constant-Q / per-octave audio** (§12): musical-pitch-aligned bins via a `BiquadFilterNode` band-pass bank — cheap, web-native, no DSP.
 
 ## Insights, rabbit holes & curious paths
 
@@ -334,6 +372,8 @@ looks shiny but could swallow weeks, and the unexpected connections.
 - **One ping-pong, two physics.** The Wave Field's two-float-texture machinery already *is* a Schrödinger solver waiting to happen — classical waves and quantum ψ differ mainly in the update shader, and the reflecting-wall mask doubles as an infinite potential well. So our oddball cavities (stadium, bent, blob) become quantum-billiard scars almost for free. Highest novelty-per-line idea on the list (§19).
 - **Colour is the cheapest fidelity win we haven't taken.** Everything renders and blends in HSL/RGB. Moving transitions/palettes to OKLab, dithering the 8-bit output with blue noise, and offering a real wavelength-indexed "laser" palette would visibly clean up and authenticate *every* scene with no new features — pure polish that compounds (§15).
 - **Tone-mapping is the missing half of bloom.** We brighten and blur, but clip to white — adding a filmic curve (AgX/ACES) is what makes bright beams read as *hot* instead of *blown*. Small shader, big perceived-quality jump, and it composes with a wider pyramidal bloom (§16).
+- **We keep inventing flow fields we could just import.** Curl noise, smoky advection, particle drift — every one of these wants the same well-tested noise function. webgl-noise/psrdnoise (MIT, analytic-derivative, *periodic* so it loops) is that function; adopting it once turns several "someday" ideas (§8 advection, §13 particles, beam-path warping) into a few lines each (§21).
+- **Don't hand-roll the node editor.** The visual patch view is the most-requested "someday" UI, and it's also the easiest to sink a month into. litegraph/rete/React Flow are mature and MIT — the interaction problem is solved; we'd only wire our `MOD_PARAMS` registry to nodes (§7).
 
 ## How to extend this file
 
