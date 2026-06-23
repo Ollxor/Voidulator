@@ -131,6 +131,23 @@ Two framebuffers (`fbA`, `fbB`) alternate each frame. The previous frame is blen
 - **Dual-range sliders**: `makeDualRange(slotId, …)` builds the two-thumb min/max control; `randIn(range)` draws the value. Reuse this for any future [min,max] randomized parameter.
 - Ring width floors at ~1.2px (sub-pixel quads alias into moiré). Taper uses per-ray life progress.
 
+## Emitters & formation clusters
+
+All three emission systems (beams, rings, wave field) keep their emitters as `{nx,ny}` norm coords and share one set of formation helpers (defined once, used by all):
+- `normToRoomPx(arr)` / `writeNormFromPx(arr,i,px)` — convert between norm and room-px via `getRoomBounds()`.
+- `roomCenter()` — circle centre or polygon **centroid** (the visual middle; for a triangle this is NOT the bbox centre — that distinction caused the wave-field off-centre bug, fixed by centring the field square on the centroid).
+- `defaultFormationRadius()` — 0.28×min room dim; used so a collapsed (all-at-centre) formation spreads instead of stacking.
+- `arrangeFormationGeometric(arr, anchorIdx)` — lay out as a regular polygon (2=line, 3=triangle, 4=square…) anchored on one dot; `centerFormation`, `uprightFormation`, `setFormationCount`, and `rotateFormationBy(arr, deltaDeg)` (rotate around centre, preserving radius — drives manual Rotation + auto Spin).
+
+Per-system specifics:
+- **Beams** (`S.emitters` / `S.emittersNorm`): cluster params `emitterGeo` (align/drag-follow on), `emitterRot` (deg), `emitterSpin` (deg/s), `emitterRadiusN`. `applyEmitterCluster()` lays them out; `moveEmitterSymmetric(idx,pos)` derives radius+rotation from a drag and re-applies so the rest follow. `setEmitterCount` / `randomizeEmitters` call the cluster when `emitterGeo`.
+- **Rings** (`S.rings.emittersNorm`, teal dots) and **field** (`S.field.emittersNorm`, magenta dots): each has `geometric`, `rot`, `spin`; manual rotation applies the delta via `rotateFormationBy`, spin advances in `loopBody`. **Ring spin re-traces the ray cache every frame** (emitter moved → `ensureRingRays` rebuilds) — expensive at high bounce counts; field spin just relocates wave sources (cheap).
+- Drag routing in the overlay pointer handlers: `S.draggingIdx` (beam), `S.ringDraggingIdx`, `S.fieldDraggingIdx`. Cluster params persist via scene/preset (beams explicitly; rings/field via whole-object JSON clone, defaulted in the apply migrations).
+
+## Hover tooltips
+
+`TIP` (object keyed by `data-i18n` value) + `initTooltips()` delegate `mousemove` on the panel: any hovered `[data-i18n]` whose key is in `TIP` shows `#vTooltip` and gets a `.has-tip` dotted underline. To document a new control, give its label a `data-i18n` key and add a `TIP[key]` line. Note: room shape selector label is `data-i18n="roomShape"` ("Room shape"); the beam-travelling-shapes effect group is `shapeTitle` = "Beam Shapes" (the two used to both say "Shape"). Eccentricity row (`lblEccentricity`/`eccentricityCtrl`) is shown only for the ellipse via `updateEccentricityVisibility()`.
+
 ## Phosphor walls
 
 512 perimeter energy bins (`phosR/G/B`); beam bounce points deposit color via an angle→bin LUT (`phosLUT`, built in `ensurePhosphorGeometry` whenever the wall geometry changes — keyed on the `S.vertices` array reference). Bins decay exponentially in `updatePhosphor`. `appendPhosphorQuads()` writes inward-fading quads into `vertBuf` **after** the beam geometry; `drawBeamGeometry()` draws beams first, then the phosphor range with `u_pulseOn`/`u_edgeIntensity` zeroed so the wall glow doesn't pulse. Because phosphor lives in the same draw call, it inherits trails, bloom, and blend modes with no pipeline changes.
