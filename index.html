@@ -40,7 +40,7 @@
     --accent-dim: #cc7a10;
     --accent-glow: rgba(255, 159, 28, 0.3);
     --text: #ffffff;
-    --text-dim: #c8c0b8;
+    --text-dim: #d8d1c8; /* brightened for readability */
     --input-bg: #0e1014;
     --slider-track: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
     --slider-track-border: #4a8595;
@@ -59,12 +59,31 @@
     --accent-dim: #40b090;
     --accent-glow: rgba(80, 220, 180, 0.4);
     --text: #c0e8ff;
-    --text-dim: #80b8d8;
+    --text-dim: #a6d2ec; /* brightened for readability */
     --input-bg: rgba(60, 140, 180, 0.08);
     --slider-track: linear-gradient(90deg, #20a0a0, #40c0b0, #80b0d0, #c080c0, #e080a0);
     --slider-track-border: rgba(80, 180, 220, 0.1);
     --slider-thumb: #60e0c0;
     --slider-thumb-border: #40c0a0;
+  }
+
+  /* === THEME: OBSIDIAN & EMBER (warm dark) === */
+  [data-theme="ember"] {
+    --bg: #0a0705;
+    --panel: #19100a;
+    --panel-top: #221610;
+    --stroke: rgba(245, 166, 35, 0.28);
+    --stroke-glow: rgba(245, 166, 35, 0.5);
+    --accent: #f5a623;
+    --accent-dim: #c47e10;
+    --accent-glow: rgba(245, 166, 35, 0.4);
+    --text: #fbf4ea;
+    --text-dim: #e9dcc6; /* brightened for readability */
+    --input-bg: rgba(255, 238, 214, 0.05);
+    --slider-track: linear-gradient(90deg, #2a1606, #b5781e, #ff6a00, #b5781e, #2a1606);
+    --slider-track-border: rgba(245, 166, 35, 0.25);
+    --slider-thumb: #f5a623;
+    --slider-thumb-border: #c47e10;
   }
 
   * { box-sizing: border-box; }
@@ -1807,6 +1826,7 @@
       <div class="settings-toggle">
         <button class="toggle-btn active" id="themeClassic">Classic</button>
         <button class="toggle-btn" id="themeCoral">Coral</button>
+        <button class="toggle-btn" id="themeEmber">Ember</button>
       </div>
     </div>
     
@@ -2593,7 +2613,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.15.0';
+  const APP_VERSION = 'v1.16.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -8731,7 +8751,7 @@ void main() {
   }
 
   // === THEME TOGGLE ===
-  const THEMES = ['classic', 'coral'];
+  const THEMES = ['classic', 'coral', 'ember'];
   let currentThemeIndex = 0;
   
   function loadTheme() {
@@ -8854,11 +8874,13 @@ void main() {
     // Update theme buttons
     const classicBtn = document.getElementById('themeClassic');
     const coralBtn = document.getElementById('themeCoral');
+    const emberBtn = document.getElementById('themeEmber');
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'classic';
     if (classicBtn && coralBtn) {
       classicBtn.classList.toggle('active', currentTheme === 'classic');
       coralBtn.classList.toggle('active', currentTheme === 'coral');
     }
+    if (emberBtn) emberBtn.classList.toggle('active', currentTheme === 'ember');
   }
   
   // === SETTINGS MODAL ===
@@ -8889,6 +8911,12 @@ void main() {
     document.documentElement.setAttribute('data-theme', 'coral');
     saveTheme('coral');
     currentThemeIndex = 1;
+    updateSettingsUI();
+  });
+  document.getElementById('themeEmber')?.addEventListener('click', () => {
+    document.documentElement.setAttribute('data-theme', 'ember');
+    saveTheme('ember');
+    currentThemeIndex = 2;
     updateSettingsUI();
   });
   document.getElementById('btnReplayTutorial')?.addEventListener('click', () => {
