@@ -2,13 +2,6 @@
 
 All notable changes to Voidulator will be documented in this file.
 
-## [1.16.0] - 2026-06-24
-
-### New theme: Obsidian & Ember 🔥
-- A third UI theme — a warm, near-black **Obsidian & Ember** skin with ember-gold accents — joins **Classic** and **Coral**. Switch it from the 🎨 toolbar button (now cycles all three) or pick it directly in ⚙ Settings → Theme.
-- **Brighter menu text** across all three themes for readability (secondary-label contrast raised).
-- _First step of a larger menu / command-deck UI redesign — more to come._
-
 ## [1.15.0] - 2026-06-22
 
 ### Rotation + spin for ring and wave-field emitters
