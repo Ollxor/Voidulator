@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.17.0] - 2026-07-23
+
+### 🌀 Generative — a shader gallery
+- New **Generative** emission mode (Emission selector) — a fifth alternative alongside Beams/Rings/Both/Wave field, standing in for the room simulation with a curated gallery of original fullscreen shaders. Same full-mode-swap pattern as Wave Field: beams/rings step aside, and it composites through the existing Glow and Kaleidoscope pipeline for free.
+- Three styles to start the gallery: **Aurora** (domain-warped noise flow), **Tunnel** (a classic polar zoom), and **Orbs** (glowing orbiting point-lights — a callback to the "dreamy pills" style that inspired this feature). All independently written from generic, freely-documented techniques — see RESEARCH.md §22 for the licensing reasoning.
+- Controls: **Style**, **Speed**, **Scale**, and **Colour** (a shared cosine-palette hue phase, so every style stays coherent with one dial — Inigo Quilez's classic palette formula, already credited elsewhere in the app).
+- Speed and Colour are new **Modulation Matrix** targets.
+- Fully saved in scenes and JSON presets, interpolated during scene transitions.
+
 ## [1.16.0] - 2026-07-23
 
 ### 🔺 Kaleidoscope

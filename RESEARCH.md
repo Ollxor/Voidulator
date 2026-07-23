@@ -369,7 +369,7 @@ Concrete features worth considering, roughly high→low leverage:
 32. **Node-graph patch view** (§7, litegraph/rete/react-flow, all MIT): build the long-wanted visual modulation patcher (#6) on a ready MIT library instead of from scratch.
 33. **WebGPU compute mode** (§9, piellardj/scttfrdmn, MIT): a high-res field or million-particle flow as an *optional* compute path, with WebGL2 staying the baseline.
 34. **Constant-Q / per-octave audio** (§12): musical-pitch-aligned bins via a `BiquadFilterNode` band-pass bank — cheap, web-native, no DSP.
-35. **Golfed-shader-art techniques, independently reimplemented** (§22): raymarched kaleidoscopic folds and palette-cycling domain warps, in our own code/style (like the Wave Field credits Berglund without copying his code) — reinforces #9 (kaleidoscope post-process, ✅ shipped) as the concrete first step; a fuller original "shader gallery" of ambient background loops in this genre (raymarched tunnels, domain-warped palette cycling) is a larger, separate follow-on if wanted later.
+35. ✅ **Golfed-shader-art techniques, independently reimplemented** (§22): raymarched kaleidoscopic folds and palette-cycling domain warps, in our own code/style (like the Wave Field credits Berglund without copying his code) — reinforced #9 (kaleidoscope post-process) as the first step. **Shipped v1.17.0** as the **Generative** emission mode: a 3-style shader gallery (Aurora/Tunnel/Orbs). Room to add more styles to the gallery later — the `GEN_PROGS` registry in index.html is built for it.
 
 ## Insights, rabbit holes & curious paths
 
