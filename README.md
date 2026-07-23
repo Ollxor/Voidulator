@@ -11,7 +11,8 @@
 ### Core Simulation
 - **Beams + Rings** — Classic rotating beams, plus an independent Rings system: expanding circular wavefronts from their own draggable emitters that fold and reflect like real waves, with bounce-based lifetime, randomized burst spawning, and an optional rainbow swept around each ring
 - **Wave field** — A real wave-equation (FDTD) simulation running live on the GPU: emitters become wave sources, walls reflect or absorb, and cavities like the ellipse and parabolic resonator show their true standing-wave and focusing patterns. Click to drop ripples. _(Inspired by [Nils Berglund's](https://www.youtube.com/@NilsBerglund) simulations.)_
-- **Multiple room shapes** — Circle, ellipse (with eccentricity and marked foci), triangle, square, pentagon, hexagon, randomgon, organic blob, parabolic resonator
+- **Multiple room shapes** — Circle, ellipse (with eccentricity and marked foci), triangle, square, pentagon, hexagon, randomgon, organic blob, parabolic resonator, vesica piscis
+- **Generative shader gallery** — A fifth emission mode: original fullscreen shaders (Aurora, Tunnel, Orbs) with speed/scale/colour controls, composited through the same Glow and Kaleidoscope pipeline
 - **Bendable walls** — Curve any polygon's walls from pillow-bulge to pinched focusing mirrors
 - **Phosphor walls** — Beams paint decaying glow onto the walls where they strike
 - **Realistic reflections** — Adjustable reflectivity with up to 375 bounces
@@ -21,8 +22,9 @@
 ### Visual Effects
 - **Pulse animation** — Sine/square wave patterns traveling along beams with adjustable frequency, speed, amplitude, softness, and duty cycle
 - **Shape effects** — Animated circles/ellipses flowing along beams
-- **Trails** — Persistent afterglow with hue shifting
+- **Trails** — Persistent afterglow with hue shifting, plus Filtering (Smooth/Crisp) and Cutoff controls that tune the emergent interference patterns thin slow beams create
 - **Glow (bloom)** — Bright beams bleed light like real lasers in haze, with strength and threshold controls
+- **Kaleidoscope** — N-fold radial mirror of the whole frame (2–16 segments, rotation/spin, mirror or rotational repeat), stacking on every emission mode
 - **Blend modes** — Normal or additive blending
 
 ### Color & Style

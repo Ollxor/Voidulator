@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.19.0] - 2026-07-23
+
+### 🎚️ Trail interference controls + review-pass fixes
+- Two new Trails controls giving direct command of the emergent interference/moiré patterns that thin, slow beams with long trails produce:
+  - **Filtering** — *Smooth* (the classic look: the trail buffer bilinearly re-blends sub-pixel detail every frame, which is what feeds the interference) or *Crisp* (pixel-exact re-sampling: sharp trails, no moiré).
+  - **Cutoff** — the brightness floor below which a trail pixel cuts to black. Lower keeps faint interference layers alive far longer; higher scrubs the buffer clean sooner. Also a new **Modulation Matrix** target (audio-driven cutoff makes the pattern "breathe").
+- Both persist in scenes/presets and interpolate through scene transitions.
+- Review-pass fixes: emitter dots no longer drawn over the Generative shader (they have no meaning there); README and CLAUDE.md caught up with the v1.16–1.18 features (Kaleidoscope, Generative gallery, Vesica Piscis).
+
 ## [1.18.0] - 2026-07-23
 
 ### 👁️ Vesica Piscis room shape

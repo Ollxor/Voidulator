@@ -2323,8 +2323,15 @@
           <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
           <label data-i18n="hueShift">Hue shift</label>
           <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
+          <label data-i18n="trailFilter">Filtering</label>
+          <button class="btn" id="trailsFilter">Smooth</button>
+          <label data-i18n="trailCutoff">Cutoff</label>
+          <div class="ctrl-row">
+            <input id="trailsCutoff" type="range" min="0" max="0.06" step="0.001" value="0.015">
+            <input id="trailsCutoffNum" type="number" min="0" max="0.06" step="0.001" value="0.015">
+          </div>
         </div>
-        <div class="hint" data-i18n="hintTrails">Length: trail duration. Hue shift: 0=same color, 180=complementary.</div>
+        <div class="hint" data-i18n="hintTrails">Length: trail duration. Hue shift: 0=same color, 180=complementary. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.</div>
       </div>
     </div>
 
@@ -2653,7 +2660,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.18.0';
+  const APP_VERSION = 'v1.19.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2706,6 +2713,8 @@
   const trailsToggle = _el('trailsToggle');
   const trailsLengthEl = _el('trailsLength');
   const trailsHueShiftEl = _el('trailsHueShift');
+  const trailsFilterBtn = _el('trailsFilter');
+  const trailsCutoffEl = _el('trailsCutoff'), trailsCutoffNumEl = _el('trailsCutoffNum');
   // Thickness pulse
   const widthWaveToggle = _el('widthWaveToggle');
   const widthWaveShapeEl = _el('widthWaveShape');
@@ -2866,7 +2875,10 @@
       enabled: false,
       length: 20,      // controls fade rate (1=fast, 180=slow)
       opacity: 1,      // intensity/brightness of trails (0.1-1)
-      hueShift: 0      // degrees of hue shift (0=none, 180=complement)
+      hueShift: 0,     // degrees of hue shift (0=none, 180=complement)
+      // The two "moiré dials": how the trail buffer re-samples itself each frame.
+      filter: 'smooth', // smooth (LINEAR, sub-pixel blur feeds interference) | crisp (NEAREST, pixel-exact)
+      cutoff: 0.015     // brightness floor before a trail pixel cuts to black — lower = faint layers persist longer
     },
     // Bloom post-process (real laser glow)
     bloom: {
@@ -3453,7 +3465,9 @@
         enabled: S.trails.enabled,
         length: S.trails.length,
         opacity: S.trails.opacity,
-        hueShift: S.trails.hueShift
+        hueShift: S.trails.hueShift,
+        filter: S.trails.filter,
+        cutoff: S.trails.cutoff
       },
       bloom: {
         enabled: S.bloom.enabled,
@@ -3548,6 +3562,8 @@
       S.trails.length = scene.trails.length ?? 20;
       S.trails.opacity = scene.trails.opacity ?? 1;
       S.trails.hueShift = scene.trails.hueShift ?? 0;
+      S.trails.filter = scene.trails.filter ?? 'smooth';
+      S.trails.cutoff = scene.trails.cutoff ?? 0.015;
     }
     if (scene.bloom) {
       S.bloom.enabled = scene.bloom.enabled ?? true;
@@ -3686,6 +3702,8 @@
     if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
     if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
     if (trailsHueShiftEl) trailsHueShiftEl.value = S.trails.hueShift;
+    if (trailsFilterBtn) trailsFilterBtn.textContent = S.trails.filter === 'crisp' ? 'Crisp' : 'Smooth';
+    if (trailsCutoffEl) trailsCutoffEl.value = trailsCutoffNumEl.value = S.trails.cutoff;
     // Shape (widthWave)
     if (widthWaveToggle) widthWaveToggle.textContent = S.widthWave.enabled ? 'On' : 'Off';
     if (widthWaveShapeEl) widthWaveShapeEl.value = S.widthWave.shape;
@@ -3808,6 +3826,8 @@
     S.trails.length = Math.round(lerp(fromTrails.length, toTrails.length, t));
     S.trails.opacity = lerp(fromTrails.opacity, toTrails.opacity, t);
     S.trails.hueShift = lerp(fromTrails.hueShift, toTrails.hueShift, t);
+    S.trails.filter = t > 0.5 ? (toTrails.filter ?? 'smooth') : (fromTrails.filter ?? 'smooth');
+    S.trails.cutoff = lerp(fromTrails.cutoff ?? 0.015, toTrails.cutoff ?? 0.015, t);
     
     // Lerp widthWave (Shape)
     const fromWave = from.widthWave || { enabled: false, shape: 'circle', freq: 0.5, speed: 0, duty: 0.5, rotation: 0 };
@@ -5311,9 +5331,26 @@ void main() {
     gl.blendEquation(gl.FUNC_ADD);
   }
   
+  // Re-apply the trail buffer's sampling filter when S.trails.filter changes.
+  // LINEAR (smooth) bilinearly re-blends sub-pixel detail every frame — the
+  // engine behind the slow-thin-beam interference patterns; NEAREST (crisp)
+  // keeps each pixel exact, so trails stay sharp and the moiré disappears.
+  let trailFilterApplied = null;
+  function applyTrailFilter() {
+    if (!trailTex || trailFilterApplied === S.trails.filter) return;
+    const f = S.trails.filter === 'crisp' ? gl.NEAREST : gl.LINEAR;
+    for (const t of [trailTex, trailTex2]) {
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+    }
+    trailFilterApplied = S.trails.filter;
+  }
+
   function ensureTrailFBO() {
     const w = glCanvas.width, h = glCanvas.height;
     if (trailTex && trailTex._w === w && trailTex._h === h) return;
+    trailFilterApplied = null; // fresh textures below are created LINEAR; re-stamp the chosen filter
     
     // Create two textures for ping-pong rendering
     if (trailFBO) gl.deleteFramebuffer(trailFBO);
@@ -6573,6 +6610,7 @@ void main() {
     if (S.trails.enabled) {
       // Framebuffer-based trails with ping-pong
       ensureTrailFBO();
+      applyTrailFilter();
       const w = glCanvas.width, h = glCanvas.height;
       
       // Determine read/write textures and FBOs
@@ -6590,8 +6628,10 @@ void main() {
       // Hue shift: shift toward complementary color (180 = opposite on color wheel)
       const hueShiftPerFrame = S.trails.hueShift / Math.max(1, len * 2);
       
-      // Threshold to cut to black (prevents grey residue)
-      const threshold = 0.015;
+      // Threshold to cut to black (prevents grey residue). User-tunable:
+      // lower keeps faint interference layers alive far longer, higher
+      // scrubs the buffer clean sooner.
+      const threshold = clamp(S.trails.cutoff ?? 0.015, 0, 0.06);
       
       // Step 1: Render to write FBO (faded previous + new beams)
       gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO);
@@ -6755,8 +6795,9 @@ void main() {
       }
     }
 
-    // Emitters (only if visible)
-    if (S.showEmitter) {
+    // Emitters (only if visible; hidden entirely in Generative mode, where
+    // the emitter dots have no meaning — the fullscreen shader ignores them)
+    if (S.showEmitter && !S.generative.enabled) {
       for (const e of S.emitters) {
         octx.fillStyle = '#ff9f1c';
         octx.strokeStyle = '#0a0b0e';
@@ -7059,6 +7100,12 @@ void main() {
   _on(trailsLengthEl, 'input', () => {
     S.trails.length = parseInt(trailsLengthEl.value) || 20;
   });
+  _on(trailsFilterBtn, 'click', () => {
+    S.trails.filter = S.trails.filter === 'crisp' ? 'smooth' : 'crisp';
+    trailsFilterBtn.textContent = S.trails.filter === 'crisp' ? 'Crisp' : 'Smooth';
+  });
+  _on(trailsCutoffEl, 'input', () => { S.trails.cutoff = parseFloat(trailsCutoffEl.value) || 0; trailsCutoffNumEl.value = S.trails.cutoff.toFixed(3); });
+  _on(trailsCutoffNumEl, 'input', () => { S.trails.cutoff = clamp(parseFloat(trailsCutoffNumEl.value) || 0, 0, 0.06); trailsCutoffEl.value = S.trails.cutoff; });
   _on(trailsHueShiftEl, 'input', () => {
     S.trails.hueShift = parseInt(trailsHueShiftEl.value) || 0;
   });
@@ -7122,7 +7169,7 @@ void main() {
       beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
       perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
-      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift },
+      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff },
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
@@ -7176,6 +7223,8 @@ void main() {
       S.trails.length = P.trails.length ?? 20;
       S.trails.opacity = P.trails.opacity ?? 1;
       S.trails.hueShift = P.trails.hueShift ?? 0;
+      S.trails.filter = P.trails.filter ?? 'smooth';
+      S.trails.cutoff = P.trails.cutoff ?? 0.015;
     }
     if (P.widthWave) {
       S.widthWave.enabled = P.widthWave.enabled ?? false;
@@ -8055,6 +8104,7 @@ void main() {
     reflect:       { label: 'Reflectivity',   get: () => S.reflectSlider,   set: v => { S.reflectSlider = v; S.reflectivity = 1 - Math.pow(1 - v, 3.2); }, min: 0, max: () => 1, range: () => 0.4 },
     speedMult:     { label: 'Beam anim speed', get: () => S.speedMultiplier, set: v => S.speedMultiplier = v, min: 0,   max: () => 2,          range: () => 0.2 },
     trailsLength:  { label: 'Trail length',   get: () => S.trails.length,   set: v => S.trails.length = v,   min: 1,    max: () => 180,        range: () => 80 },
+    trailsCutoff:  { label: 'Trail cutoff',   get: () => S.trails.cutoff,   set: v => S.trails.cutoff = v,   min: 0,    max: () => 0.06,       range: () => 0.03 },
     wwDuty:        { label: 'Shape wave size', get: () => S.widthWave.duty, set: v => S.widthWave.duty = v,  min: 0,    max: () => 1,          range: () => 1 },
     wwFreq:        { label: 'Shape wave density', get: () => S.widthWave.freq, set: v => S.widthWave.freq = v, min: 0.02, max: () => 8,        range: () => 4 },
     wwSpeed:       { label: 'Shape wave flow', get: () => S.widthWave.speed, set: v => S.widthWave.speed = v, min: -200, max: () => 200,       range: () => 100 },
@@ -9716,7 +9766,9 @@ void main() {
       hintDragSwatches: 'Drag swatches to reorder layers.',
       hintDuty: 'Duty: left = mostly dark, right = mostly light.',
       hintShape: 'Click labels to reset. Flow: left=in, right=out.',
-      hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary.',
+      hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
+      trailFilter: 'Filtering',
+      trailCutoff: 'Cutoff',
       hintScreensaver: 'Minutes per scene in screensaver mode (🌙 button).',
       hintAudio: 'Uses mic/system audio. Press F for clean fullscreen.',
       // Fullscreen
@@ -9931,7 +9983,9 @@ void main() {
       hintDragSwatches: 'Arrastra las muestras para reordenar capas.',
       hintDuty: 'Ciclo: izq = mayormente oscuro, der = mayormente claro.',
       hintShape: 'Haz clic en etiquetas para resetear. Flujo: izq=entrada, der=salida.',
-      hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario.',
+      hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
+      trailFilter: 'Filtrado',
+      trailCutoff: 'Corte',
       hintScreensaver: 'Minutos por escena en modo salvapantallas (botón 🌙).',
       hintAudio: 'Usa micrófono/audio del sistema. Presiona F para pantalla limpia.',
       // Fullscreen
@@ -10145,7 +10199,9 @@ void main() {
       hintDragSwatches: 'Arraste as amostras para reordenar camadas.',
       hintDuty: 'Ciclo: esq = principalmente escuro, dir = principalmente claro.',
       hintShape: 'Clique nos rótulos para resetar. Fluxo: esq=entrada, dir=saída.',
-      hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar.',
+      hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
+      trailFilter: 'Filtragem',
+      trailCutoff: 'Corte',
       hintScreensaver: 'Minutos por cena no modo proteção de tela (botão 🌙).',
       hintAudio: 'Usa microfone/áudio do sistema. Pressione F para tela limpa.',
       // Fullscreen
@@ -10359,7 +10415,9 @@ void main() {
       hintDragSwatches: 'Glissez les échantillons pour réorganiser les couches.',
       hintDuty: 'Cycle: gauche = principalement sombre, droite = principalement clair.',
       hintShape: 'Cliquez sur les étiquettes pour réinitialiser. Flux: gauche=entrée, droite=sortie.',
-      hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire.',
+      hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
+      trailFilter: 'Filtrage',
+      trailCutoff: 'Seuil',
       hintScreensaver: 'Minutes par scène en mode écran de veille (bouton 🌙).',
       hintAudio: 'Utilise le micro/audio système. Appuyez sur F pour plein écran propre.',
       // Fullscreen
