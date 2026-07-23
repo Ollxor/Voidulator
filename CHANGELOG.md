@@ -2,6 +2,14 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.16.0] - 2026-07-23
+
+### 🔺 Kaleidoscope
+- New **Kaleidoscope** post-process (Effects tab) — mirrors the entire final frame into N radial wedges, stacking on top of beams, rings, and the wave field alike. Controls: **Enable**, **Segments** (2–16), **Rotation (°)**, **Spin (°/s)** for auto-rotation, and **Mirror** (on = the classic reflected kaleidoscope fold, off = a plain rotational repeat).
+- Rotation is a new **Modulation Matrix** target — route audio or a beat envelope to spin the fold with the music.
+- Fully saved in scenes and JSON presets, and smoothly interpolated during scene transitions.
+- _Independently written from the standard polar angular-fold technique; math is not copyrightable — see RESEARCH.md §22 for the licensing research behind this one._
+
 ## [1.15.0] - 2026-06-22
 
 ### Rotation + spin for ring and wave-field emitters

@@ -2315,6 +2315,35 @@
       </div>
     </div>
 
+    <div class="group collapsible collapsed advanced-only" id="kaleidoGroup">
+      <div class="group-title" data-i18n="kaleido">Kaleidoscope</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label>Enable</label>
+          <button class="btn" id="kaleidoToggle">Off</button>
+          <label>Segments</label>
+          <div class="stepper">
+            <button class="btn step-btn" id="kaleidoSegDown">&#9660;</button>
+            <span class="step-val" id="kaleidoSegVal">6</span>
+            <button class="btn step-btn" id="kaleidoSegUp">&#9650;</button>
+          </div>
+          <label data-i18n="clusterRotation">Rotation (&deg;)</label>
+          <div class="ctrl-row">
+            <input id="kaleidoRot" type="range" min="0" max="360" step="1" value="0">
+            <input id="kaleidoRotNum" type="number" min="0" max="360" step="1" value="0">
+          </div>
+          <label data-i18n="clusterSpin">Spin (&deg;/s)</label>
+          <div class="ctrl-row">
+            <input id="kaleidoSpin" type="range" min="-180" max="180" step="1" value="0">
+            <input id="kaleidoSpinNum" type="number" min="-180" max="180" step="1" value="0">
+          </div>
+          <label>Mirror</label>
+          <button class="btn" id="kaleidoMirror">On</button>
+        </div>
+        <div class="hint" data-i18n="hintKaleido">N-fold radial mirror of the whole frame &mdash; stacks with beams, rings, and the wave field. Mirror off = a plain rotational repeat instead of a reflected fold.</div>
+      </div>
+    </div>
+
     <div class="group collapsible collapsed advanced-only" id="phosphorGroup">
       <div class="group-title" data-i18n="phosphorWalls">Phosphor Walls</div>
       <div class="group-content">
@@ -2593,7 +2622,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.15.0';
+  const APP_VERSION = 'v1.16.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2705,6 +2734,12 @@
   const bloomStrengthEl = _el('bloomStrength');
   const bloomStrengthNumEl = _el('bloomStrengthNum');
   const bloomThresholdEl = _el('bloomThreshold');
+  const kaleidoToggleBtn = _el('kaleidoToggle');
+  const kaleidoMirrorBtn = _el('kaleidoMirror');
+  const kaleidoSegValEl = _el('kaleidoSegVal');
+  const kaleidoSegUpBtn = _el('kaleidoSegUp'), kaleidoSegDownBtn = _el('kaleidoSegDown');
+  const kaleidoRotEl = _el('kaleidoRot'), kaleidoRotNumEl = _el('kaleidoRotNum');
+  const kaleidoSpinEl = _el('kaleidoSpin'), kaleidoSpinNumEl = _el('kaleidoSpinNum');
   // Recording
   const recResEl = _el('recRes');
   const recToggleBtn = _el('recToggle');
@@ -2807,6 +2842,15 @@
       enabled: true,
       strength: 0.85,
       threshold: 0.3
+    },
+    // Kaleidoscope post-process: N-fold radial mirror of the final composited
+    // frame (stacks on every emission mode — beams, rings, wave field).
+    kaleido: {
+      enabled: false,
+      segments: 6,
+      rot: 0,   // current angle, degrees — manual slider writes here directly
+      spin: 0,  // auto-rotate rate, deg/s (negative = reverse)
+      mirror: true // true = classic mirrored kaleidoscope; false = plain rotational repeat
     },
     // Phosphor walls: beams deposit decaying glow where they strike
     phosphor: {
@@ -3375,6 +3419,13 @@
         strength: S.bloom.strength,
         threshold: S.bloom.threshold
       },
+      kaleido: {
+        enabled: S.kaleido.enabled,
+        segments: S.kaleido.segments,
+        rot: S.kaleido.rot,
+        spin: S.kaleido.spin,
+        mirror: S.kaleido.mirror
+      },
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
@@ -3454,6 +3505,13 @@
       S.bloom.enabled = scene.bloom.enabled ?? true;
       S.bloom.strength = scene.bloom.strength ?? 0.85;
       S.bloom.threshold = scene.bloom.threshold ?? 0.3;
+    }
+    if (scene.kaleido) {
+      S.kaleido.enabled = scene.kaleido.enabled ?? false;
+      S.kaleido.segments = scene.kaleido.segments ?? 6;
+      S.kaleido.rot = scene.kaleido.rot ?? 0;
+      S.kaleido.spin = scene.kaleido.spin ?? 0;
+      S.kaleido.mirror = scene.kaleido.mirror ?? true;
     }
     if (scene.beamEdge) {
       S.beamEdge.width = scene.beamEdge.width ?? 0.6;
@@ -3565,6 +3623,7 @@
     syncPhosphorUI();
     // Bloom
     syncBloomUI();
+    syncKaleidoUI();
     // Trails
     if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
     if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
@@ -3723,6 +3782,16 @@
     S.bloom.enabled = t > 0.5 ? (toBloom.enabled ?? true) : (fromBloom.enabled ?? true);
     S.bloom.strength = lerp(fromBloom.strength ?? 0.85, toBloom.strength ?? 0.85, t);
     S.bloom.threshold = lerp(fromBloom.threshold ?? 0.3, toBloom.threshold ?? 0.3, t);
+
+    // Lerp kaleidoscope (older scenes without it keep the current settings)
+    const kNow = { enabled: S.kaleido.enabled, segments: S.kaleido.segments, rot: S.kaleido.rot, spin: S.kaleido.spin, mirror: S.kaleido.mirror };
+    const fromK = from.kaleido || kNow;
+    const toK = to.kaleido || kNow;
+    S.kaleido.enabled = t > 0.5 ? (toK.enabled ?? false) : (fromK.enabled ?? false);
+    S.kaleido.mirror = t > 0.5 ? (toK.mirror ?? true) : (fromK.mirror ?? true);
+    S.kaleido.segments = Math.round(lerp(fromK.segments ?? 6, toK.segments ?? 6, t));
+    S.kaleido.rot = lerpAngle(fromK.rot ?? 0, toK.rot ?? 0, t);
+    S.kaleido.spin = lerp(fromK.spin ?? 0, toK.spin ?? 0, t);
 
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
@@ -4862,15 +4931,33 @@ void main() {
     gl.bindBuffer(gl.ARRAY_BUFFER, trailBuf);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
     
+    // === Kaleidoscope fold (shared by every final-blit shader below) ===
+    // N-fold radial mirror of the already-composited frame. Independently
+    // written from the standard polar angular-fold technique (not
+    // copyrightable — see RESEARCH.md §22); inspired by the golfed-shader-art
+    // genre (kishimisu et al.) without reusing any of their code.
+    const kscopeGlsl = `
+uniform float u_kOn, u_kSegs, u_kAngle, u_kMirror;
+vec2 kfold(vec2 uv) {
+  if (u_kOn < 0.5) return uv;
+  vec2 p = uv - 0.5;
+  float r = length(p);
+  float a = atan(p.y, p.x) - u_kAngle;
+  float seg = 6.28318530718 / u_kSegs;
+  a = mod(a, seg);
+  a = mix(a, abs(a - seg * 0.5), u_kMirror); // fold each wedge in half for a seamless mirror
+  return vec2(cos(a), sin(a)) * r + 0.5;
+}`;
     // === Copy shader (for final composite) ===
     const copyVs = trailVs;
     const copyFs = `#version 300 es
 precision highp float;
 in vec2 v_uv;
 uniform sampler2D u_tex;
+${kscopeGlsl}
 out vec4 outColor;
 void main() {
-  outColor = texture(u_tex, v_uv);
+  outColor = texture(u_tex, kfold(v_uv));
 }`;
     const CV = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(CV, copyVs); gl.compileShader(CV);
     const CF = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(CF, copyFs); gl.compileShader(CF);
@@ -4917,9 +5004,10 @@ precision highp float;
 in vec2 v_uv;
 uniform sampler2D u_tex;
 uniform float u_mult;
+${kscopeGlsl}
 out vec4 outColor;
 void main() {
-  outColor = vec4(texture(u_tex, v_uv).rgb * u_mult, 1.0);
+  outColor = vec4(texture(u_tex, kfold(v_uv)).rgb * u_mult, 1.0);
 }`;
     brightProg = makeProgram(copyVs, brightFs);
     blurProg = makeProgram(copyVs, blurFs);
@@ -5604,6 +5692,18 @@ void main() {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
+  // Uploads the kaleidoscope-fold uniforms onto whichever final-blit program
+  // is currently bound (copyProg or blitProg — both declare kfold(), see the
+  // shared kscopeGlsl snippet above). Call once per program bind; the fold
+  // is a no-op (u_kOn=0) when the effect is disabled.
+  function uploadKscopeUniforms(prog) {
+    const K = S.kaleido;
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_kOn'), K.enabled ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_kSegs'), Math.max(2, K.segments));
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_kAngle'), K.rot * Math.PI / 180);
+    gl.uniform1f(gl.getUniformLocation(prog, 'u_kMirror'), K.mirror ? 1 : 0);
+  }
+
   // Bright-pass srcTex into bloomA, then blur A→B→A. Leaves result in bloomTexA.
   function runBloom(srcTex) {
     const bw = bloomTexA._w, bh = bloomTexA._h;
@@ -5644,6 +5744,7 @@ void main() {
 
     gl.useProgram(blitProg);
     gl.uniform1i(gl.getUniformLocation(blitProg, 'u_tex'), 0);
+    uploadKscopeUniforms(blitProg); // same fold for the scene AND the bloom layer, so glow stays aligned
     gl.activeTexture(gl.TEXTURE0);
 
     gl.disable(gl.BLEND);
@@ -5889,6 +5990,7 @@ void main() {
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, sceneTex);
       gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+      uploadKscopeUniforms(copyProg);
       gl.disable(gl.BLEND);
       drawPostQuad(copyProg);
       gl.enable(gl.BLEND);
@@ -6323,6 +6425,7 @@ void main() {
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, writeTex);
         gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+        uploadKscopeUniforms(copyProg);
 
         gl.disable(gl.BLEND);
         drawPostQuad(copyProg);
@@ -6332,8 +6435,9 @@ void main() {
       // Swap ping-pong for next frame
       trailPingPong = 1 - pp;
     } else {
-      // No trails - simple render (into the scene FBO when bloom is on)
+      // No trails - simple render (into the scene FBO when bloom or kaleidoscope needs a post-pass)
       const useBloom = S.bloom.enabled && S.bloom.strength > 0.001;
+      const useKscope = S.kaleido.enabled;
       uploadBeamUniforms();
 
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -6343,8 +6447,8 @@ void main() {
       gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
       gl.enableVertexAttribArray(a_edge); gl.vertexAttribPointer(a_edge, 1, gl.FLOAT, false, stride, 28);
 
-      if (useBloom) {
-        ensureBloomTargets();
+      if (useBloom || useKscope) {
+        ensureBloomTargets(); // also allocates sceneFBO/sceneTex, which the plain kaleidoscope-only path below reuses
         gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
       } else {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -6357,6 +6461,19 @@ void main() {
       if (useBloom) {
         runBloom(sceneTex);
         compositeWithBloom(sceneTex);
+      } else if (useKscope) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(copyProg);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+        gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+        uploadKscopeUniforms(copyProg);
+        gl.disable(gl.BLEND);
+        drawPostQuad(copyProg);
+        gl.enable(gl.BLEND);
       }
     }
   }
@@ -6790,6 +6907,7 @@ void main() {
       blendMode: S.blendMode,
       pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft, duty: S.pulseDuty },
       bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
+      kaleido: { enabled: S.kaleido.enabled, segments: S.kaleido.segments, rot: S.kaleido.rot, spin: S.kaleido.spin, mirror: S.kaleido.mirror },
       beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
@@ -6856,6 +6974,13 @@ void main() {
       S.bloom.enabled = P.bloom.enabled ?? true;
       S.bloom.strength = P.bloom.strength ?? 0.85;
       S.bloom.threshold = P.bloom.threshold ?? 0.3;
+    }
+    if (P.kaleido) {
+      S.kaleido.enabled = P.kaleido.enabled ?? false;
+      S.kaleido.segments = P.kaleido.segments ?? 6;
+      S.kaleido.rot = P.kaleido.rot ?? 0;
+      S.kaleido.spin = P.kaleido.spin ?? 0;
+      S.kaleido.mirror = P.kaleido.mirror ?? true;
     }
     if (P.beamEdge) {
       S.beamEdge.width = P.beamEdge.width ?? 0.6;
@@ -7342,6 +7467,24 @@ void main() {
   _on(bloomStrengthNumEl, 'input', () => { S.bloom.strength = clamp(parseFloat(bloomStrengthNumEl.value) || 0, 0, 3); bloomStrengthEl.value = S.bloom.strength; });
   _on(bloomThresholdEl, 'input', () => { S.bloom.threshold = parseFloat(bloomThresholdEl.value) || 0; });
 
+  function syncKaleidoUI() {
+    if (!kaleidoToggleBtn) return;
+    kaleidoToggleBtn.textContent = S.kaleido.enabled ? 'On' : 'Off';
+    kaleidoMirrorBtn.textContent = S.kaleido.mirror ? 'On' : 'Off';
+    kaleidoSegValEl.textContent = S.kaleido.segments;
+    kaleidoRotEl.value = kaleidoRotNumEl.value = Math.round(S.kaleido.rot);
+    kaleidoSpinEl.value = kaleidoSpinNumEl.value = S.kaleido.spin;
+  }
+  function setKaleidoSegments(n) { S.kaleido.segments = clamp(Math.round(n), 2, 16); syncKaleidoUI(); }
+  _on(kaleidoToggleBtn, 'click', () => { S.kaleido.enabled = !S.kaleido.enabled; syncKaleidoUI(); });
+  _on(kaleidoMirrorBtn, 'click', () => { S.kaleido.mirror = !S.kaleido.mirror; syncKaleidoUI(); });
+  _on(kaleidoSegUpBtn, 'click', () => setKaleidoSegments(S.kaleido.segments + 1));
+  _on(kaleidoSegDownBtn, 'click', () => setKaleidoSegments(S.kaleido.segments - 1));
+  _on(kaleidoRotEl, 'input', () => { S.kaleido.rot = parseFloat(kaleidoRotEl.value) || 0; kaleidoRotNumEl.value = S.kaleido.rot; });
+  _on(kaleidoRotNumEl, 'input', () => { S.kaleido.rot = ((parseFloat(kaleidoRotNumEl.value) || 0) % 360 + 360) % 360; kaleidoRotEl.value = S.kaleido.rot; });
+  _on(kaleidoSpinEl, 'input', () => { S.kaleido.spin = parseFloat(kaleidoSpinEl.value) || 0; kaleidoSpinNumEl.value = S.kaleido.spin; });
+  _on(kaleidoSpinNumEl, 'input', () => { S.kaleido.spin = clamp(parseFloat(kaleidoSpinNumEl.value) || 0, -180, 180); kaleidoSpinEl.value = S.kaleido.spin; });
+
   const lfoRate1El = _el('lfoRate1'), lfoRate1NumEl = _el('lfoRate1Num');
   const lfoRate2El = _el('lfoRate2'), lfoRate2NumEl = _el('lfoRate2Num');
   const lfoSync1El = _el('lfoSync1'), lfoSync2El = _el('lfoSync2');
@@ -7658,6 +7801,7 @@ void main() {
     wwSpeed:       { label: 'Shape wave flow', get: () => S.widthWave.speed, set: v => S.widthWave.speed = v, min: -200, max: () => 200,       range: () => 100 },
     wwRotation:    { label: 'Shape wave spin', get: () => S.widthWave.rotation, set: v => S.widthWave.rotation = v, min: -2, max: () => 2,     range: () => 1 },
     bloom:         { label: 'Glow strength',   get: () => S.bloom.strength,  set: v => S.bloom.strength = v,  min: 0,    max: () => 3,          range: () => 1.5 },
+    kaleidoRot:    { label: 'Kaleidoscope rotation', get: () => S.kaleido.rot, set: v => S.kaleido.rot = v, min: 0, max: () => 360, range: () => 180, wrap: true },
     edgeWidth:     { label: 'Edge softness',   get: () => S.beamEdge.width,  set: v => S.beamEdge.width = v,  min: 0,    max: () => 1,          range: () => 1 },
     edgeIntensity: { label: 'Edge intensity',  get: () => S.beamEdge.intensity, set: v => S.beamEdge.intensity = v, min: 0, max: () => 1,       range: () => 1 },
     wallBend:      { label: 'Wall bend',       get: () => S.wallBend,        set: v => { S.wallBend = v; bendWalls(); }, min: -0.8, max: () => 1, range: () => 0.6 },
@@ -8332,6 +8476,9 @@ void main() {
     if (S.field.enabled && S.field.spin && S.field.emittersNorm.length > 1) {
       rotateFormationBy(S.field.emittersNorm, S.field.spin * dtSec);
       S.field.rot = ((S.field.rot + S.field.spin * dtSec) % 360 + 360) % 360;
+    }
+    if (S.kaleido.enabled && S.kaleido.spin) {
+      S.kaleido.rot = ((S.kaleido.rot + S.kaleido.spin * dtSec) % 360 + 360) % 360;
     }
     for (let i = 0; i < S.perBeamPhase.length; i++) {
       S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i] || 0) * S.speedMultiplier * dtSec) % 360;
@@ -9433,6 +9580,7 @@ void main() {
       midiTitle: 'MIDI',
       recordVideo: 'Record Video',
       glow: 'Glow',
+      kaleido: 'Kaleidoscope',
       phosphorWalls: 'Phosphor Walls',
       level: 'Level',
       addRoute: '+ Add route',
@@ -9466,6 +9614,7 @@ void main() {
       hintMidi: 'Click Learn, then move a knob or fader on your controller to bind it.',
       hintRecord: 'Exports WebM at the chosen height; width follows the window aspect. Keep the tab visible while recording. 4K is GPU-heavy.',
       hintGlow: 'Real laser glow — bright beams bleed light like through haze. Threshold: how bright a pixel must be to bloom.',
+      hintKaleido: 'N-fold radial mirror of the whole frame — stacks with beams, rings, and the wave field. Mirror off swaps the reflected fold for a plain rotational repeat.',
       hintPhosphor: 'Beams paint glow onto the walls where they strike; it fades over Persistence seconds. Great with bent walls — the hot spots reveal the caustics.'
     },
     es: {
@@ -9636,6 +9785,7 @@ void main() {
       midiTitle: 'MIDI',
       recordVideo: 'Grabar vídeo',
       glow: 'Resplandor',
+      kaleido: 'Caleidoscopio',
       phosphorWalls: 'Paredes fosforescentes',
       level: 'Nivel',
       addRoute: '+ Añadir ruta',
@@ -9669,6 +9819,7 @@ void main() {
       hintMidi: 'Haz clic en Aprender y mueve un control de tu controlador para asignarlo.',
       hintRecord: 'Exporta WebM a la altura elegida; el ancho sigue la ventana. Mantén la pestaña visible al grabar. 4K exige mucha GPU.',
       hintGlow: 'Resplandor láser real: los haces brillantes difunden luz como entre niebla. Umbral: brillo mínimo para resplandecer.',
+      hintKaleido: 'Espejo radial de N pliegues de todo el cuadro — se combina con haces, anillos y el campo de ondas. Espejo desactivado cambia el pliegue reflejado por una simple repetición rotacional.',
       hintPhosphor: 'Los haces pintan brillo en las paredes donde golpean; se desvanece según la persistencia. Genial con paredes curvadas: los puntos calientes revelan las cáusticas.'
     },
     pt: {
@@ -9839,6 +9990,7 @@ void main() {
       midiTitle: 'MIDI',
       recordVideo: 'Gravar vídeo',
       glow: 'Brilho',
+      kaleido: 'Caleidoscópio',
       phosphorWalls: 'Paredes fosforescentes',
       level: 'Nível',
       addRoute: '+ Adicionar rota',
@@ -9872,6 +10024,7 @@ void main() {
       hintMidi: 'Clique em Aprender e mova um controle do seu controlador para vinculá-lo.',
       hintRecord: 'Exporta WebM na altura escolhida; a largura segue a janela. Mantenha a aba visível ao gravar. 4K exige muito da GPU.',
       hintGlow: 'Brilho de laser real — feixes brilhantes espalham luz como na névoa. Limiar: brilho mínimo para brilhar.',
+      hintKaleido: 'Espelho radial de N dobras de todo o quadro — combina-se com feixes, anéis e o campo de ondas. Espelho desativado troca a dobra refletida por uma simples repetição rotacional.',
       hintPhosphor: 'Os feixes pintam brilho nas paredes onde batem; desvanece conforme a persistência. Ótimo com paredes curvas — os pontos quentes revelam as cáusticas.'
     },
     fr: {
@@ -10042,6 +10195,7 @@ void main() {
       midiTitle: 'MIDI',
       recordVideo: 'Enregistrer la vidéo',
       glow: 'Halo',
+      kaleido: 'Kaléidoscope',
       phosphorWalls: 'Murs phosphorescents',
       level: 'Niveau',
       addRoute: '+ Ajouter une route',
@@ -10075,6 +10229,7 @@ void main() {
       hintMidi: 'Cliquez sur Apprendre puis bougez un bouton de votre contrôleur pour l\'assigner.',
       hintRecord: 'Exporte en WebM à la hauteur choisie ; la largeur suit la fenêtre. Gardez l\'onglet visible pendant l\'enregistrement. La 4K sollicite le GPU.',
       hintGlow: 'Halo laser réaliste — les faisceaux brillants diffusent comme dans la brume. Seuil : luminosité minimale pour rayonner.',
+      hintKaleido: 'Miroir radial à N plis de toute l\'image — se combine avec les faisceaux, les anneaux et le champ d\'onde. Miroir désactivé remplace le pli réfléchi par une simple répétition rotative.',
       hintPhosphor: 'Les faisceaux peignent les murs là où ils frappent ; le halo s\'estompe selon la persistance. Superbe avec des murs courbés — les points chauds révèlent les caustiques.'
     }
   };
@@ -10266,7 +10421,7 @@ void main() {
       speedPattern: S.speedPattern, patternBase: S.patternBase,
       pulseOn: S.pulseOn, pulseShape: S.pulseShape, pulseAmp: S.pulseAmp,
       pulseFreqCP100: S.pulseFreqCP100, pulseSpeed: S.pulseSpeed, pulseSoft: S.pulseSoft, pulseDuty: S.pulseDuty,
-      widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, phosphor: S.phosphor, rings: S.rings, field: S.field,
+      widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, kaleido: S.kaleido, phosphor: S.phosphor, rings: S.rings, field: S.field,
       audio: { sensitivity: S.audio.sensitivity, smoothing: S.audio.smoothing },
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep },
       lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2, sync1: S.lfo.sync1, sync2: S.lfo.sync2 },
@@ -10303,6 +10458,7 @@ void main() {
     fieldTitle: () => { const en = S.field.enabled; S.field = F().field; S.field.enabled = en; syncFieldUI(); },
     trails: () => { S.trails = F().trails; },
     glow: () => { S.bloom = F().bloom; },
+    kaleido: () => { S.kaleido = F().kaleido; },
     phosphorWalls: () => { S.phosphor = F().phosphor; clearPhosphor(); syncPhosphorUI(); },
     audio: () => {
       S.audio.sensitivity = FACTORY.audio.sensitivity;
@@ -10357,7 +10513,7 @@ void main() {
   ];
   const TAB_OF_GROUP = {
     colors: 'beams', perBeamRotation: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams',
-    trails: 'fx', glow: 'fx', phosphorWalls: 'fx',
+    trails: 'fx', glow: 'fx', kaleido: 'fx', phosphorWalls: 'fx',
     roomTitle: 'room', bonus: 'room',
     audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',
     scenes: 'scenes', filePresets: 'scenes'
@@ -10379,6 +10535,7 @@ void main() {
     layerMode: 'Depth sorts beams by direction for a 3D feel; Static keeps a fixed draw order.',
     blendMode: 'Normal = standard transparency; Additive = overlaps brighten (good for glow).',
     glow: 'Bloom: bright beams bleed light like real lasers in haze.',
+    kaleido: 'Mirrors the whole final frame into N radial wedges — works with any emission mode. Mirror off gives a plain rotating repeat instead of a reflected fold.',
     threshold: 'How bright a pixel must be before it starts to glow.',
     trails: 'Persistent afterglow — previous frames fade out instead of clearing.',
     phosphorWalls: 'Beams paint decaying glow onto the walls where they strike.',
