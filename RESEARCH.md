@@ -343,7 +343,7 @@ Concrete features worth considering, roughly high→low leverage:
 6. **Node-graph modulation view** (from Hydra / Three.js editor): optional visual patching as an alternative to matrix rows.
 7. **Verlet vs leapfrog** (from webgl-ripple): evaluate for the field's stability at high Courant numbers.
 8. **Preset gallery with shareable URLs + thumbnails** (from ray-optics): we already have thumbnails and URL state — a curated public gallery page is a small step.
-9. **Kaleidoscope / N-fold symmetry post-process**: one fragment pass mirroring the final image; stacks on *every* mode (beams, rings, field). Tiny effort, big payoff.
+9. ✅ **Kaleidoscope / N-fold symmetry post-process**: one fragment pass mirroring the final image; stacks on *every* mode (beams, rings, field). Tiny effort, big payoff. **Shipped v1.16.0.**
 10. **Analytic Chladni "modes" view**: pick (n,m) and show the exact eigenmode instantly — no FDTD settling. A fast, hypnotic addition to the Wave Field, and mode weights could be audio-driven.
 11. **Reaction-diffusion mode**: reuse the field's ping-pong float-texture machinery for a Gray-Scott "living texture" emission mode.
 12. **Curl-noise advection**: drift the phosphor/trail/field textures along a noise flow field for smoky motion.
@@ -369,7 +369,7 @@ Concrete features worth considering, roughly high→low leverage:
 32. **Node-graph patch view** (§7, litegraph/rete/react-flow, all MIT): build the long-wanted visual modulation patcher (#6) on a ready MIT library instead of from scratch.
 33. **WebGPU compute mode** (§9, piellardj/scttfrdmn, MIT): a high-res field or million-particle flow as an *optional* compute path, with WebGL2 staying the baseline.
 34. **Constant-Q / per-octave audio** (§12): musical-pitch-aligned bins via a `BiquadFilterNode` band-pass bank — cheap, web-native, no DSP.
-35. **Golfed-shader-art techniques, independently reimplemented** (§22): raymarched kaleidoscopic folds and palette-cycling domain warps, in our own code/style (like the Wave Field credits Berglund without copying his code) — reinforces #9 (kaleidoscope post-process) as the concrete first step; a fuller original "shader gallery" of ambient background loops in this genre is a larger, separate follow-on if wanted later.
+35. **Golfed-shader-art techniques, independently reimplemented** (§22): raymarched kaleidoscopic folds and palette-cycling domain warps, in our own code/style (like the Wave Field credits Berglund without copying his code) — reinforces #9 (kaleidoscope post-process, ✅ shipped) as the concrete first step; a fuller original "shader gallery" of ambient background loops in this genre (raymarched tunnels, domain-warped palette cycling) is a larger, separate follow-on if wanted later.
 
 ## Insights, rabbit holes & curious paths
 
