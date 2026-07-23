@@ -1932,12 +1932,24 @@
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
+      <div class="row"><label data-i18n="beamOpacity">Opacity</label>
+        <input id="beamAlpha" type="range" min="0.05" max="1" step="0.01" value="1">
+      </div>
+
       <div class="row advanced-only"><label data-i18n="edgeSoftness">Edge softness</label>
         <input id="edgeWidth" type="range" min="0" max="1" step="0.01" value="0.6">
       </div>
 
       <div class="row advanced-only"><label data-i18n="edgeIntensity">Edge intensity</label>
         <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
+      </div>
+
+      <div class="row advanced-only"><label data-i18n="beamAbsorb">Absorption</label>
+        <input id="beamAbsorb" type="range" min="0" max="1" step="0.01" value="0">
+      </div>
+
+      <div class="row advanced-only"><label data-i18n="beamHueDrift">Hue drift</label>
+        <input id="beamHueDrift" type="range" min="-360" max="360" step="5" value="0">
       </div>
 
       <div class="row advanced-only"><label>Layer mode</label>
@@ -2272,7 +2284,10 @@
             <option value="bipolar" data-i18n="fieldBipolar">Bipolar</option>
             <option value="mono" data-i18n="fieldMono">Mono</option>
             <option value="spectral" data-i18n="fieldSpectral">Spectral</option>
+            <option value="prism" data-i18n="fieldPrism">Prism</option>
           </select>
+          <label data-i18n="fieldFog">Fog</label>
+          <input id="fieldFog" type="range" min="0" max="1" step="0.01" value="0">
           <label data-i18n="fieldRes">Resolution</label>
           <select id="fieldRes">
             <option value="192">Low</option>
@@ -2660,7 +2675,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.19.0';
+  const APP_VERSION = 'v1.20.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2680,6 +2695,9 @@
   const reflectEl = _el('reflect');
   const bouncesEl = _el('bounces');
   const widthEl = _el('beamWidth');
+  const beamAlphaEl = _el('beamAlpha');
+  const beamAbsorbEl = _el('beamAbsorb');
+  const beamHueDriftEl = _el('beamHueDrift');
   const beamCountUpBtn = _el('beamCountUp');
   const beamCountDownBtn = _el('beamCountDown');
   const beamCountValEl = _el('beamCountVal');
@@ -2810,6 +2828,9 @@
     reflectivity: 0.8,
     maxBounces: 234,
     beamWidth: 2,
+    beamAlpha: 1,     // global beam opacity multiplier
+    beamAbsorb: 0,    // haze-like attenuation along the beam path (0 = off)
+    beamHueDrift: 0,  // hue rotation along the path, degrees per 1000 px
     // Edge gradient: soft alpha falloff across the beam width
     beamEdge: { width: 0.6, intensity: 0 },
     // Rings: an independent emission system — expanding circular wavefronts
@@ -2913,7 +2934,8 @@
       substeps: 2,      // sim steps per frame (faster propagation)
       res: 320,         // grid resolution (square)
       gain: 2.5,        // display brightness multiplier (soft-tonemapped)
-      colorMode: 'spectral', // spectral | bipolar | mono (spectral is palette-independent)
+      colorMode: 'spectral', // spectral | bipolar | mono | prism (spectral is palette-independent)
+      fog: 0,           // ambient haze lift in calm regions (0 = off)
       boundary: 'reflect',  // reflect (Neumann mirror) | absorb (open)
       continuous: true,     // legacy; superseded by waveform (kept for compat)
       // Source waveform: 'continuous' steady tone, 'rings' periodic bursts that
@@ -3435,6 +3457,9 @@
       reflectSlider: S.reflectSlider,
       maxBounces: S.maxBounces,
       beamWidth: S.beamWidth,
+      beamAlpha: S.beamAlpha,
+      beamAbsorb: S.beamAbsorb,
+      beamHueDrift: S.beamHueDrift,
       beamCount: S.beamCount,
       spreadDeg: S.spreadDeg,
       angleDeg: S.angleDeg,
@@ -3532,6 +3557,9 @@
     S.reflectivity = 1 - Math.pow(1 - scene.reflectSlider, 3.2);
     S.maxBounces = scene.maxBounces;
     S.beamWidth = scene.beamWidth;
+    S.beamAlpha = scene.beamAlpha ?? 1;
+    S.beamAbsorb = scene.beamAbsorb ?? 0;
+    S.beamHueDrift = scene.beamHueDrift ?? 0;
     S.spreadDeg = scene.spreadDeg;
     S.angleDeg = scene.angleDeg;
     S.rotationSpeed = scene.rotationSpeed;
@@ -3666,6 +3694,9 @@
     reflectEl.value = S.reflectSlider;
     bouncesEl.value = S.maxBounces;
     widthEl.value = S.beamWidth;
+    if (beamAlphaEl) beamAlphaEl.value = S.beamAlpha;
+    if (beamAbsorbEl) beamAbsorbEl.value = S.beamAbsorb;
+    if (beamHueDriftEl) beamHueDriftEl.value = S.beamHueDrift;
     beamCountValEl.textContent = S.beamCount;
     emCountValEl.textContent = S.emittersNorm.length;
     if (typeof syncEmitterClusterUI === 'function') syncEmitterClusterUI();
@@ -3745,6 +3776,9 @@
     S.reflectivity = 1 - Math.pow(1 - S.reflectSlider, 3.2);
     // Don't lerp maxBounces here - it's handled per-beam in updateTransition
     S.beamWidth = lerp(from.beamWidth, to.beamWidth, t);
+    S.beamAlpha = lerp(from.beamAlpha ?? 1, to.beamAlpha ?? 1, t);
+    S.beamAbsorb = lerp(from.beamAbsorb ?? 0, to.beamAbsorb ?? 0, t);
+    S.beamHueDrift = lerp(from.beamHueDrift ?? 0, to.beamHueDrift ?? 0, t);
     S.spreadDeg = lerp(from.spreadDeg, to.spreadDeg, t);
     S.angleDeg = lerpAngle(from.angleDeg, to.angleDeg, t);
     S.rotationSpeed = lerp(from.rotationSpeed, to.rotationSpeed, t);
@@ -4856,6 +4890,7 @@
   let gl, prog, buf, a_pos, a_t, a_col, a_alpha, a_edge;
   let u_res, u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
   let u_edgeWidth, u_edgeIntensity;
+  let u_beamAlpha, u_absorbK, u_hueDriftK;
   
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
@@ -4910,9 +4945,35 @@ precision highp float;
 in float v_t; in vec3 v_col; in float v_alpha; in float v_edge;
 uniform float u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
 uniform float u_edgeWidth, u_edgeIntensity;
+uniform float u_beamAlpha, u_absorbK, u_hueDriftK;
 out vec4 outColor;
+// Hocevar's public-domain branchless hsv converters (credited in the trail shader)
+vec3 rgb2hsvB(vec3 c) {
+  vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1.0e-10)), d / (q.x + 1.0e-10), q.x);
+}
+vec3 hsv2rgbB(vec3 c) {
+  vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
 void main() {
-  float a = v_alpha;
+  float a = v_alpha * u_beamAlpha;
+  vec3 col = v_col;
+  // Absorption: haze-like attenuation with distance travelled along the path
+  // (v_t is cumulative px) — each beam gets an internal brightness gradient,
+  // fading through its bounces like light through fog
+  if (u_absorbK > 0.00001) a *= exp(-v_t * u_absorbK);
+  // Hue drift: rotate hue with distance travelled — a colour gradient along
+  // the beam's whole folded path, continuous through every bounce
+  if (abs(u_hueDriftK) > 1.0e-8) {
+    vec3 hsv = rgb2hsvB(col);
+    hsv.x = fract(hsv.x + v_t * u_hueDriftK + 1.0);
+    col = hsv2rgbB(hsv);
+  }
   // Edge gradient: soft falloff across the beam width.
   // |v_edge| runs 0 (core) → 1 (side); u_edgeWidth sets how far the gradient
   // reaches inward, u_edgeIntensity how strongly the sides fade out.
@@ -4955,7 +5016,7 @@ void main() {
       a *= (1.0 - u_amp) + u_amp * f;
     }
   }
-  outColor = vec4(v_col, a);
+  outColor = vec4(col, a);
 }`;
 
     const V = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(V, vs); gl.compileShader(V);
@@ -4981,6 +5042,9 @@ void main() {
     u_duty = gl.getUniformLocation(prog, 'u_duty');
     u_edgeWidth = gl.getUniformLocation(prog, 'u_edgeWidth');
     u_edgeIntensity = gl.getUniformLocation(prog, 'u_edgeIntensity');
+    u_beamAlpha = gl.getUniformLocation(prog, 'u_beamAlpha');
+    u_absorbK = gl.getUniformLocation(prog, 'u_absorbK');
+    u_hueDriftK = gl.getUniformLocation(prog, 'u_hueDriftK');
 
     buf = gl.createBuffer();
     
@@ -5277,7 +5341,9 @@ uniform sampler2D u_mask;
 uniform vec3 u_colA;
 uniform vec3 u_colB;
 uniform float u_gain;
-uniform int u_mode;          // 0 bipolar, 1 mono, 2 spectral
+uniform int u_mode;          // 0 bipolar, 1 mono, 2 spectral, 3 prism
+uniform float u_fog;         // ambient haze lift in calm regions (0 = off)
+uniform float u_ptime;       // seconds, for slow prism/fog colour drift
 out vec4 outColor;
 
 vec3 spectral(float t) {     // smooth rainbow ramp over t∈[-1,1]
@@ -5297,8 +5363,22 @@ void main() {
     col = u_colA * mag;
   } else if (u_mode == 2) {
     col = spectral(clamp(u * u_gain, -1.0, 1.0)) * mag;
+  } else if (u_mode == 3) {
+    // Prism: each RGB channel responds to the displacement at a different
+    // phase — colours separate into soft chromatic fringes and gradients.
+    // The per-channel phase-offset technique is generic (famously showcased
+    // by Silexars' "Creation"; independently implemented here — see
+    // RESEARCH.md §22), driven by our own wave displacement.
+    float w = u * u_gain;
+    col = (0.55 + 0.45 * cos(6.2831853 * w + vec3(0.0, 2.094, 4.188) + u_ptime * 0.15)) * mag;
   } else {
     col = (u > 0.0 ? u_colA : u_colB) * mag;
+  }
+  // Fog: lift the calm (low-displacement) regions with a slowly drifting
+  // haze tint instead of leaving them black — waves glow through mist
+  if (u_fog > 0.001) {
+    vec3 haze = 0.5 + 0.5 * cos(vec3(4.5, 5.2, 5.9) + u_ptime * 0.05);
+    col += u_fog * 0.35 * haze * (1.0 - mag);
   }
   outColor = vec4(col, 1.0);
 }`;
@@ -5531,6 +5611,11 @@ void main() {
     if (phosVerts > 0) {
       gl.uniform1f(u_pulseOn, 0);
       gl.uniform1f(u_edgeIntensity, 0);
+      // Wall glow keeps full strength: beam opacity/absorption/hue-drift are
+      // beam-path effects (phosphor has its own intensity control)
+      gl.uniform1f(u_beamAlpha, 1);
+      gl.uniform1f(u_absorbK, 0);
+      gl.uniform1f(u_hueDriftK, 0);
       gl.drawArrays(gl.TRIANGLES, beamVerts, phosVerts);
     }
   }
@@ -6188,7 +6273,9 @@ void main() {
     gl.uniform3f(cL('u_colA'), rgbA[0], rgbA[1], rgbA[2]);
     gl.uniform3f(cL('u_colB'), rgbB[0], rgbB[1], rgbB[2]);
     gl.uniform1f(cL('u_gain'), F.gain);
-    gl.uniform1i(cL('u_mode'), F.colorMode === 'mono' ? 1 : (F.colorMode === 'spectral' ? 2 : 0));
+    gl.uniform1i(cL('u_mode'), F.colorMode === 'mono' ? 1 : (F.colorMode === 'spectral' ? 2 : (F.colorMode === 'prism' ? 3 : 0)));
+    gl.uniform1f(cL('u_fog'), F.fog || 0);
+    gl.uniform1f(cL('u_ptime'), timeSec);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, fieldMaskTex);
     gl.activeTexture(gl.TEXTURE0);
@@ -6416,6 +6503,11 @@ void main() {
     gl.uniform1f(u_duty, S.pulseDuty);
     gl.uniform1f(u_edgeWidth, S.beamEdge.width);
     gl.uniform1f(u_edgeIntensity, S.beamEdge.intensity);
+    gl.uniform1f(u_beamAlpha, S.beamAlpha);
+    // Absorption slider 0..1 → attenuation coefficient per px (curved for a fine low end)
+    gl.uniform1f(u_absorbK, Math.pow(S.beamAbsorb, 1.5) * 0.008);
+    // Hue drift slider is degrees per 1000 px of path → hue units per px
+    gl.uniform1f(u_hueDriftK, S.beamHueDrift / 360 / 1000);
   }
 
   function renderBeamsGL(timeSec) {
@@ -6996,6 +7088,9 @@ void main() {
   _on(bouncesEl, 'input', () => { S.maxBounces = parseInt(bouncesEl.value, 10) || 1; });
 
   _on(widthEl, 'input', () => S.beamWidth = parseFloat(widthEl.value) || 2);
+  _on(beamAlphaEl, 'input', () => S.beamAlpha = clamp(parseFloat(beamAlphaEl.value) || 1, 0.05, 1));
+  _on(beamAbsorbEl, 'input', () => S.beamAbsorb = clamp(parseFloat(beamAbsorbEl.value) || 0, 0, 1));
+  _on(beamHueDriftEl, 'input', () => S.beamHueDrift = clamp(parseFloat(beamHueDriftEl.value) || 0, -360, 360));
   _on(layerModeToggle, 'click', () => {
     S.layerMode = (S.layerMode === 'depth') ? 'static' : 'depth';
     layerModeToggle.textContent = S.layerMode === 'depth' ? 'Depth' : 'Static';
@@ -7162,6 +7257,7 @@ void main() {
   function currentPreset() {
     return {
       polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, eccentricity: S.eccentricity, beamWidth: S.beamWidth,
+      beamAlpha: S.beamAlpha, beamAbsorb: S.beamAbsorb, beamHueDrift: S.beamHueDrift,
       reflectSlider: S.reflectSlider, maxBounces: S.maxBounces, beamCount: S.beamCount,
       spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
       speedMax: S.speedMax, speedMultiplier: S.speedMultiplier,
@@ -7191,6 +7287,7 @@ void main() {
   function applyPreset(P) {
     Object.assign(S, {
       polygonType: P.polygonType || 'circle', sides: P.sides || 5, wallBend: P.wallBend ?? 0, eccentricity: P.eccentricity ?? 0.6, beamWidth: P.beamWidth || 2,
+      beamAlpha: P.beamAlpha ?? 1, beamAbsorb: P.beamAbsorb ?? 0, beamHueDrift: P.beamHueDrift ?? 0,
       reflectSlider: P.reflectSlider ?? 0.8, maxBounces: P.maxBounces || 8, beamCount: P.beamCount || 1,
       spreadDeg: P.spreadDeg ?? 0, angleDeg: P.angleDeg ?? 0, rotationSpeed: P.rotationSpeed ?? 0,
       speedMax: P.speedMax || 5, speedMultiplier: P.speedMultiplier ?? 0.01,
@@ -7643,6 +7740,7 @@ void main() {
     fieldSpeedEl.value = S.field.speed;
     fieldDampingEl.value = S.field.damping;
     fieldGainEl.value = S.field.gain;
+    const fgEl = _el('fieldFog'); if (fgEl) fgEl.value = S.field.fog ?? 0;
     fieldSubValEl.textContent = S.field.substeps;
     fieldBoundaryEl.value = S.field.boundary;
     fieldColorModeEl.value = S.field.colorMode;
@@ -7705,6 +7803,7 @@ void main() {
   _on(fieldSpeedEl, 'input', () => { S.field.speed = parseFloat(fieldSpeedEl.value) || 0.45; });
   _on(fieldDampingEl, 'input', () => { S.field.damping = parseFloat(fieldDampingEl.value) || 0; });
   _on(fieldGainEl, 'input', () => { S.field.gain = parseFloat(fieldGainEl.value) || 1.4; });
+  _on(_el('fieldFog'), 'input', () => { S.field.fog = clamp(parseFloat(_el('fieldFog').value) || 0, 0, 1); });
   _on(_el('fieldSubUp'), 'click', () => { S.field.substeps = clamp(S.field.substeps + 1, 1, 8); syncFieldUI(); });
   _on(_el('fieldSubDown'), 'click', () => { S.field.substeps = clamp(S.field.substeps - 1, 1, 8); syncFieldUI(); });
   _on(fieldBoundaryEl, 'change', () => { S.field.boundary = fieldBoundaryEl.value; });
@@ -8105,6 +8204,10 @@ void main() {
     speedMult:     { label: 'Beam anim speed', get: () => S.speedMultiplier, set: v => S.speedMultiplier = v, min: 0,   max: () => 2,          range: () => 0.2 },
     trailsLength:  { label: 'Trail length',   get: () => S.trails.length,   set: v => S.trails.length = v,   min: 1,    max: () => 180,        range: () => 80 },
     trailsCutoff:  { label: 'Trail cutoff',   get: () => S.trails.cutoff,   set: v => S.trails.cutoff = v,   min: 0,    max: () => 0.06,       range: () => 0.03 },
+    beamAlpha:     { label: 'Beam opacity',   get: () => S.beamAlpha,       set: v => S.beamAlpha = v,       min: 0.05, max: () => 1,          range: () => 0.5 },
+    beamAbsorb:    { label: 'Absorption',     get: () => S.beamAbsorb,      set: v => S.beamAbsorb = v,      min: 0,    max: () => 1,          range: () => 0.5 },
+    beamHueDrift:  { label: 'Beam hue drift', get: () => S.beamHueDrift,    set: v => S.beamHueDrift = v,    min: -360, max: () => 360,        range: () => 180 },
+    fieldFog:      { label: 'Wave fog',       get: () => S.field.fog,       set: v => S.field.fog = v,       min: 0,    max: () => 1,          range: () => 0.5 },
     wwDuty:        { label: 'Shape wave size', get: () => S.widthWave.duty, set: v => S.widthWave.duty = v,  min: 0,    max: () => 1,          range: () => 1 },
     wwFreq:        { label: 'Shape wave density', get: () => S.widthWave.freq, set: v => S.widthWave.freq = v, min: 0.02, max: () => 8,        range: () => 4 },
     wwSpeed:       { label: 'Shape wave flow', get: () => S.widthWave.speed, set: v => S.widthWave.speed = v, min: -200, max: () => 200,       range: () => 100 },
@@ -9769,6 +9872,11 @@ void main() {
       hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
       trailFilter: 'Filtering',
       trailCutoff: 'Cutoff',
+      beamOpacity: 'Opacity',
+      beamAbsorb: 'Absorption',
+      beamHueDrift: 'Hue drift',
+      fieldFog: 'Fog',
+      fieldPrism: 'Prism',
       hintScreensaver: 'Minutes per scene in screensaver mode (🌙 button).',
       hintAudio: 'Uses mic/system audio. Press F for clean fullscreen.',
       // Fullscreen
@@ -9986,6 +10094,11 @@ void main() {
       hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
       trailFilter: 'Filtrado',
       trailCutoff: 'Corte',
+      beamOpacity: 'Opacidad',
+      beamAbsorb: 'Absorción',
+      beamHueDrift: 'Deriva de tono',
+      fieldFog: 'Niebla',
+      fieldPrism: 'Prisma',
       hintScreensaver: 'Minutos por escena en modo salvapantallas (botón 🌙).',
       hintAudio: 'Usa micrófono/audio del sistema. Presiona F para pantalla limpia.',
       // Fullscreen
@@ -10202,6 +10315,11 @@ void main() {
       hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
       trailFilter: 'Filtragem',
       trailCutoff: 'Corte',
+      beamOpacity: 'Opacidade',
+      beamAbsorb: 'Absorção',
+      beamHueDrift: 'Deriva de tom',
+      fieldFog: 'Névoa',
+      fieldPrism: 'Prisma',
       hintScreensaver: 'Minutos por cena no modo proteção de tela (botão 🌙).',
       hintAudio: 'Usa microfone/áudio do sistema. Pressione F para tela limpa.',
       // Fullscreen
@@ -10418,6 +10536,11 @@ void main() {
       hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
       trailFilter: 'Filtrage',
       trailCutoff: 'Seuil',
+      beamOpacity: 'Opacité',
+      beamAbsorb: 'Absorption',
+      beamHueDrift: 'Dérive de teinte',
+      fieldFog: 'Brume',
+      fieldPrism: 'Prisme',
       hintScreensaver: 'Minutes par scène en mode écran de veille (bouton 🌙).',
       hintAudio: 'Utilise le micro/audio système. Appuyez sur F pour plein écran propre.',
       // Fullscreen
@@ -10893,6 +11016,10 @@ void main() {
     glow: 'Bloom: bright beams bleed light like real lasers in haze.',
     kaleido: 'Mirrors the whole final frame into N radial wedges — works with any emission mode. Mirror off gives a plain rotating repeat instead of a reflected fold.',
     generativeTitle: 'A gallery of original fullscreen shaders that stand in for beams/rings — pick a Style, then Speed/Scale/Colour tune it.',
+    beamOpacity: 'Global beam transparency. Pairs beautifully with Additive blend mode — and it\'s a Modulation Matrix target, so audio can breathe it.',
+    beamAbsorb: 'Beams fade with distance travelled, like light through haze — each beam gets a brightness gradient along its whole bounce path.',
+    beamHueDrift: 'Rotates the hue along the beam\'s path (°/1000px) — a colour gradient that runs continuously through every bounce.',
+    fieldFog: 'Lifts the calm regions of the field into a soft, slowly-drifting haze instead of black — waves glow through mist. Try it with the Prism colour mode.',
     threshold: 'How bright a pixel must be before it starts to glow.',
     trails: 'Persistent afterglow — previous frames fade out instead of clearing.',
     phosphorWalls: 'Beams paint decaying glow onto the walls where they strike.',

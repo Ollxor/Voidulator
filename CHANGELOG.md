@@ -2,6 +2,16 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.20.0] - 2026-07-23
+
+### 🌫️ Richer colour, gradients & transparency
+- **Wave field — Prism colour mode**: a new option in the field's Color selector. Each RGB channel responds to the wave displacement at a slightly offset phase, so the waves separate into soft chromatic gradients and prism-like fringes (the technique behind classics like Silexars' "Creation" — independently implemented on our own wave physics; see RESEARCH.md §22).
+- **Wave field — Fog**: a slider that lifts the calm regions of the field into a soft, slowly-drifting haze instead of leaving them black — the waves glow through mist. Pairs beautifully with Prism. Also a Modulation Matrix target.
+- **Beams — Opacity**: a global transparency slider for the beams (top of panel). Especially striking with Additive blend, and audio-drivable via the matrix.
+- **Beams — Absorption**: beams fade with distance travelled, like light through haze — each beam gains an internal brightness gradient across its whole bounce path.
+- **Beams — Hue drift**: rotates the hue continuously along each beam's path (°/1000px) — a colour gradient that flows unbroken through every bounce. This is the "complexity within the beams — gradients and shades" that flat single-colour beams couldn't give.
+- All five are saved in scenes/presets, interpolated through transitions, translated in all four languages, and (except Prism, an enum) are Modulation Matrix targets.
+
 ## [1.19.0] - 2026-07-23
 
 ### 🎚️ Trail interference controls + review-pass fixes
