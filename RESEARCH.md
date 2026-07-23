@@ -10,7 +10,7 @@ borrowing**. Append freely; keep license notes honest.
 - ⚠️ **Custom / non-commercial** — ideas only unless the author grants permission.
 - 🟢 **Math & algorithms are never copyrightable** — the wave equation, ray reflection, FFT, gaussian kernels, etc. are free to reimplement from any source.
 
-_Last updated: 2026-06-23._
+_Last updated: 2026-07-23._
 
 ---
 
@@ -300,6 +300,37 @@ textures, no lookup tables; drop straight into a fragment shader.
 
 ---
 
+## 22. Shader-art / golfed fragment-shader genre (kishimisu, XorDev — techniques are free, code isn't)
+
+Prompted by an Instagram account (@kishimisu) posting tight, "code-golfed" GLSL
+loops — raymarched kaleidoscopic tunnels, palette-cycling domain warps — with
+the source visible in-post. Investigated whether we could build a "shader
+library" for Voidulator from this genre. Short answer: **the techniques, yes;
+the literal code, no** — see the copyright note below for why, it's a genuinely
+useful distinction beyond just this one case.
+
+| Source | License | Notes |
+|---|---|---|
+| [kishimisu](https://www.kishimisu.art/) — [Shadertoy profile](https://www.shadertoy.com/user/kishimisu) | **CC BY-NC-SA 3.0** (Shadertoy's platform default; verified via the [Shadertoy terms](https://www.shadertoy.com/terms) — applies unless an author states otherwise) ⚠️ | Real, well-known Paris-based creative coder; the popular *"An Introduction to Shader Art Coding"* tutorial (raymarching, HSV cosine-palette loops, domain repetition) lives here as [shadertoy.com/view/mtyGWy](https://www.shadertoy.com/view/mtyGWy). **ShareAlike makes this incompatible with our MIT license regardless of commercial intent** — SA legally forces derivatives to carry the same license, which MIT can't satisfy. Shadertoy itself sits behind Cloudflare bot-protection (blocks both plain fetch and headless browser), which is moot given the license finding. **Ideas/technique only.** |
+| [kishimisu — GitHub](https://github.com/kishimisu) | Mixed: `Gaussian-Splatting-WebGL` is **MIT** ✅ (269★, unrelated to shader-art); `WebGPU-Fluid-Simulation`, `WebGPU-Radix-Sort`, and the rest carry **no LICENSE file** ⚠️ (checked via `gh api users/kishimisu/repos`) | No shader-art repo here — those pieces live on Shadertoy under the default above, not GitHub. The no-LICENSE repos default to "all rights reserved": ideas only. |
+| [XorDev](https://www.xordev.com/) — [Shader Arsenal](https://www.xordev.com/arsenal) | **Unclear / likely commercial** ⚠️ | 412 tiny (<280-char) shaders, explicitly pitched as *"license production-ready code for your commercial projects"* — reads as a paid-licensing storefront, not a giveaway; don't assume free without checking a specific shader's terms. |
+| [XorDev — GitHub](https://github.com/XorDev) | **25 of 26 repos have no LICENSE file** ⚠️ (checked via `gh api`); one demo (`GM_MRT`) is MIT | Same "all rights reserved by default" situation as kishimisu's GitHub — slightly more restrictive than his Shadertoy CC-BY-NC-SA default, which is a useful reminder that license posture varies repo-to-repo even within one author, let alone one genre. |
+| Inigo Quilez (iq) | see §4 | Already in this file — the one major figure in this exact genre who *does* release technique write-ups as MIT-usable. Cross-referenced, not duplicated here. |
+
+### Copyright reality check (why "he owns a bunch of shaders" isn't quite right)
+
+Worth being precise about, since it generalises past this one artist:
+
+- **Copyright protects the specific *expression* — the literal code as written — never the underlying idea, algorithm, or technique.** This is the idea/expression dichotomy, and it's the same principle this file already leans on ("Math & algorithms are never copyrightable"). Nobody owns *raymarching*, *kaleidoscopic N-fold folding*, or *HSV cosine-palette cycling* as concepts. Anyone can write their own implementation from scratch — that's not a loophole, it's how software copyright is supposed to work (same reason many companies can each sell their own word processor; the idea "edit text documents" isn't ownable, a specific codebase is).
+- **The merger doctrine cuts the other way for very generic code.** If there's essentially only one obvious way to express a technique, the expression "merges" with the idea and isn't protected — otherwise the license would silently monopolize the underlying idea. A boilerplate raymarch loop is unlikely to be protectable on its own.
+- **But golfed shader art is usually *not* generic** — the whole craft is unusual, idiosyncratic compression: specific variable reuse, clever operator tricks, hand-tuned constants for a particular look. That specific arrangement plausibly carries "thin" copyright protection the same way a very short, distinctive sentence can — short doesn't automatically mean unprotected. So: **reimplement the technique in our own structure and style (as we already do for the Wave Field, credited to Nils Berglund's videos but independently coded); don't transcribe someone's specific golfed lines.**
+- **License statements (Shadertoy's CC BY-NC-SA, XorDev's paid arsenal) are the *author choosing* how to license their own automatic copyright** — not the platform inventing new restrictions. Copyright exists the instant code is written, in every Berne-convention country (essentially everywhere), no registration needed. A GitHub repo with *no* LICENSE file is actually the *most* restrictive case ("all rights reserved," full stop) — more restrictive than Shadertoy's default, which at least permits non-commercial reuse with attribution and share-alike. Don't assume "posted publicly" or "short code" means "free to use" — check per-source, the way this whole file already tries to.
+- **On the Instagram angle specifically:** he posts the code openly in image carousels, which the write-ups describe as explicitly enabling people to *"literally replicate the artwork for themselves"* — a strong signal this is meant for personal learning, much like the tutorial video. Reading a handful of his posts by hand to understand a technique is well within that spirit. **Automating a bulk scrape of the whole feed is a different thing** — it's blocked by Instagram's terms, doesn't actually solve the underlying license question (the code would still be his specific expression), and isn't worth the effort here: the actual value for Voidulator is understanding the technique, which is achievable from general, decades-old, extremely well-documented graphics knowledge (raymarching, folding, palette cycling) without touching his account at all.
+
+**Idea: kaleidoscope / N-fold symmetry post-process** is the direct, buildable outcome of this research — already flagged in the Ideas backlog (#9) as the cheapest high-payoff win, and it sits squarely in the same visual language this genre showcases (radial symmetry, mirrored folds) while staying true to Voidulator's own "real physics you can play" identity rather than bolting on a generic unrelated background.
+
+---
+
 ## Ideas backlog (synthesised from the above)
 
 Concrete features worth considering, roughly high→low leverage:
@@ -338,6 +369,7 @@ Concrete features worth considering, roughly high→low leverage:
 32. **Node-graph patch view** (§7, litegraph/rete/react-flow, all MIT): build the long-wanted visual modulation patcher (#6) on a ready MIT library instead of from scratch.
 33. **WebGPU compute mode** (§9, piellardj/scttfrdmn, MIT): a high-res field or million-particle flow as an *optional* compute path, with WebGL2 staying the baseline.
 34. **Constant-Q / per-octave audio** (§12): musical-pitch-aligned bins via a `BiquadFilterNode` band-pass bank — cheap, web-native, no DSP.
+35. **Golfed-shader-art techniques, independently reimplemented** (§22): raymarched kaleidoscopic folds and palette-cycling domain warps, in our own code/style (like the Wave Field credits Berglund without copying his code) — reinforces #9 (kaleidoscope post-process) as the concrete first step; a fuller original "shader gallery" of ambient background loops in this genre is a larger, separate follow-on if wanted later.
 
 ## Insights, rabbit holes & curious paths
 
@@ -350,6 +382,7 @@ looks shiny but could swallow weeks, and the unexpected connections.
 - **Analytic ≠ time-stepped, and both have a place.** Chladni eigenmodes give *instant, exact, settling-free* standing-wave beauty; FDTD gives *live, interactive* propagation. Offering both (a "modes" toggle in the Wave Field) is cheap and covers two different aesthetics.
 - **The modulation matrix is the real spine.** Mature tools (web-synth) converge on exactly our model: every parameter is a first-class modulation target. The more we register, the more the whole app compounds. This is the highest-ROI architectural bet we've made.
 - **A symmetry/kaleidoscope post-process is the cheapest "wow" available.** One pass, multiplies the visual variety of everything that already exists.
+- **"Publicly posted" and "short code" both feel like they should mean "free to use" — neither does.** Checking actual per-repo/per-platform license status (§22) turned up three different postures within one small genre: an explicit MIT repo, a platform default that's non-commercial-and-share-alike, and a pile of no-LICENSE-file repos that are technically "all rights reserved" despite being public on GitHub. The reliable signal is never vibes or brevity — it's copyright's idea/expression line (technique is free, specific written code isn't) plus whatever license (or absence of one) the author actually attached. Keep checking per-source, same as everywhere else in this file.
 
 ### Rabbit holes (proceed with eyes open)
 - **WebGPU rewrite.** Tempting (1M particles!), but it's a *parallel renderer* to maintain, has no Safari/iOS in stable as of 2026, and most of Voidulator isn't compute-bound. Worth it only for a specific compute-heavy mode (huge-res field, million-particle flow) — not a wholesale port.
