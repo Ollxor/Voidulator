@@ -2,6 +2,12 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.18.0] - 2026-07-23
+
+### 👁️ Vesica Piscis room shape
+- New room shape: **Vesica Piscis** (Room shape selector) — the classical "eye"/almond lens formed by two equal circles, each centred on the other's circumference, in the canonical √3∶1 height-to-width proportion. Beams, rings, and the wave field all bounce and resonate inside it like any other room.
+- The two generating circle centres are marked in the overlay, the same way the ellipse marks its foci.
+
 ## [1.17.0] - 2026-07-23
 
 ### 🌀 Generative — a shader gallery
