@@ -2,6 +2,14 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.21.0] - 2026-07-23
+
+### 🎛️ Per-beam material
+- The **Opacity / Absorption / Hue-drift** controls are now **per-beam**, in a new **Beam Material** group. The three sliders at the top are the *master* for all beams (and stay Modulation-Matrix targets); below them, a **Per-beam trim** editor lets you pick any beam from a colour-coded chip strip and dial in its own Opacity (×), Absorption (×) and Hue drift (+). A dot on a chip marks beams you've customised; ↺ resets the selected one.
+- So you can, e.g., make one beam a faint hazy ghost while another blazes with a rainbow gradient down its length — each beam its own material.
+- Fully saved in scenes/presets and interpolated through scene transitions; new beams start neutral.
+- _Under the hood: beam material now bakes into per-vertex colour/alpha on the CPU (was three shader uniforms in 1.20), which is what makes it per-beam while keeping the render path rock-solid — no change to the shared beam/ring/phosphor vertex layout._
+
 ## [1.20.0] - 2026-07-23
 
 ### 🌫️ Richer colour, gradients & transparency

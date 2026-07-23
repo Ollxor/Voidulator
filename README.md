@@ -18,7 +18,7 @@
 - **Realistic reflections** — Adjustable reflectivity with up to 375 bounces
 - **Multiple emitters** — Up to 4 draggable laser emitters with WASD movement
 - **Beam spread** — Fan beams from focused to wide angles
-- **Beam material** — Global opacity/transparency, distance absorption (haze fade), and hue drift for continuous colour gradients running along each beam's whole bounce path
+- **Beam material (per-beam)** — Opacity/transparency, distance absorption (haze fade), and hue drift for continuous colour gradients along each beam's bounce path — set a master for all beams, then trim each beam individually in the Per-beam editor
 
 ### Visual Effects
 - **Pulse animation** — Sine/square wave patterns traveling along beams with adjustable frequency, speed, amplitude, softness, and duty cycle

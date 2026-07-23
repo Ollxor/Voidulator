@@ -1672,6 +1672,20 @@
   }
   .group-reset:hover { opacity: 1; color: var(--accent); }
 
+  /* Per-beam material editor */
+  .perbeam-head { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); opacity: 0.9; }
+  .perbeam-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+  .perbeam-chip {
+    width: 26px; height: 22px; border-radius: 4px; cursor: pointer; padding: 0;
+    border: 1px solid var(--stroke); background: var(--input-bg); color: #fff;
+    font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    position: relative; transition: border-color .12s, box-shadow .12s;
+  }
+  .perbeam-chip::after { content: ''; position: absolute; left: 3px; right: 3px; bottom: 2px; height: 3px; border-radius: 2px; background: var(--chipcol, #888); }
+  .perbeam-chip.trimmed { font-weight: 700; }
+  .perbeam-chip.trimmed::before { content: '•'; position: absolute; top: -1px; right: 2px; color: var(--accent); font-size: 12px; line-height: 1; }
+  .perbeam-chip.selected { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+
   /* Scene thumbnails */
   .scene-thumbs {
     display: grid;
@@ -1932,24 +1946,12 @@
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
-      <div class="row"><label data-i18n="beamOpacity">Opacity</label>
-        <input id="beamAlpha" type="range" min="0.05" max="1" step="0.01" value="1">
-      </div>
-
       <div class="row advanced-only"><label data-i18n="edgeSoftness">Edge softness</label>
         <input id="edgeWidth" type="range" min="0" max="1" step="0.01" value="0.6">
       </div>
 
       <div class="row advanced-only"><label data-i18n="edgeIntensity">Edge intensity</label>
         <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
-      </div>
-
-      <div class="row advanced-only"><label data-i18n="beamAbsorb">Absorption</label>
-        <input id="beamAbsorb" type="range" min="0" max="1" step="0.01" value="0">
-      </div>
-
-      <div class="row advanced-only"><label data-i18n="beamHueDrift">Hue drift</label>
-        <input id="beamHueDrift" type="range" min="-360" max="360" step="5" value="0">
       </div>
 
       <div class="row advanced-only"><label>Layer mode</label>
@@ -2103,6 +2105,35 @@
       <div class="btn-row">
         <button class="btn" id="resetPhases" data-i18n="resetPhases">Reset phases</button>
       </div>
+      </div>
+    </div>
+
+    <div class="group collapsible advanced-only" id="beamMaterialGroup">
+      <div class="group-title" data-i18n="beamMaterial">Beam Material</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label data-i18n="beamOpacity">Opacity</label>
+          <input id="beamAlpha" type="range" min="0.05" max="1" step="0.01" value="1">
+          <label data-i18n="beamAbsorb">Absorption</label>
+          <input id="beamAbsorb" type="range" min="0" max="1" step="0.01" value="0">
+          <label data-i18n="beamHueDrift">Hue drift</label>
+          <input id="beamHueDrift" type="range" min="-360" max="360" step="5" value="0">
+        </div>
+        <div class="hint" data-i18n="hintBeamMaster">Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path (°/1000px).</div>
+        <div class="perbeam-head">
+          <span data-i18n="perBeam">Per-beam trim</span>
+          <button class="btn tool-mini" id="perBeamReset" title="Reset selected beam to neutral">↺</button>
+        </div>
+        <div id="perBeamChips" class="perbeam-chips"></div>
+        <div class="subgrid">
+          <label data-i18n="beamOpacity">Opacity</label>
+          <input id="pbOpacity" type="range" min="0" max="1" step="0.01" value="1">
+          <label data-i18n="beamAbsorb">Absorption</label>
+          <input id="pbAbsorb" type="range" min="0" max="2" step="0.02" value="1">
+          <label data-i18n="beamHueDrift">Hue drift</label>
+          <input id="pbHueDrift" type="range" min="-360" max="360" step="5" value="0">
+        </div>
+        <div class="hint" data-i18n="hintBeamPerBeam">Pick a beam above, then trim its Opacity (×), Absorption (×) and Hue drift (+, added to master). New beams start neutral.</div>
       </div>
     </div>
 
@@ -2675,7 +2706,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.20.0';
+  const APP_VERSION = 'v1.21.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2828,9 +2859,16 @@
     reflectivity: 0.8,
     maxBounces: 234,
     beamWidth: 2,
-    beamAlpha: 1,     // global beam opacity multiplier
-    beamAbsorb: 0,    // haze-like attenuation along the beam path (0 = off)
-    beamHueDrift: 0,  // hue rotation along the path, degrees per 1000 px
+    // Beam material — a global MASTER (these three, also Modulation targets)
+    // combined with an optional PER-BEAM trim (the arrays below). Effective
+    // per beam: opacity = beamAlpha × perBeamOpacity[i]; absorb =
+    // beamAbsorb × perBeamAbsorb[i]; hueDrift = beamHueDrift + perBeamHueDrift[i].
+    beamAlpha: 1,     // master beam opacity
+    beamAbsorb: 0,    // master haze-like attenuation along the beam path (0 = off)
+    beamHueDrift: 0,  // master hue rotation along the path, degrees per 1000 px
+    perBeamOpacity: [],   // per-beam opacity multiplier (default 1)
+    perBeamAbsorb: [],    // per-beam absorption multiplier (default 1)
+    perBeamHueDrift: [],  // per-beam hue-drift offset, deg/1000px (default 0)
     // Edge gradient: soft alpha falloff across the beam width
     beamEdge: { width: 0.6, intensity: 0 },
     // Rings: an independent emission system — expanding circular wavefronts
@@ -3460,6 +3498,9 @@
       beamAlpha: S.beamAlpha,
       beamAbsorb: S.beamAbsorb,
       beamHueDrift: S.beamHueDrift,
+      perBeamOpacity: [...S.perBeamOpacity],
+      perBeamAbsorb: [...S.perBeamAbsorb],
+      perBeamHueDrift: [...S.perBeamHueDrift],
       beamCount: S.beamCount,
       spreadDeg: S.spreadDeg,
       angleDeg: S.angleDeg,
@@ -3560,6 +3601,10 @@
     S.beamAlpha = scene.beamAlpha ?? 1;
     S.beamAbsorb = scene.beamAbsorb ?? 0;
     S.beamHueDrift = scene.beamHueDrift ?? 0;
+    S.perBeamOpacity = Array.isArray(scene.perBeamOpacity) ? [...scene.perBeamOpacity] : [];
+    S.perBeamAbsorb = Array.isArray(scene.perBeamAbsorb) ? [...scene.perBeamAbsorb] : [];
+    S.perBeamHueDrift = Array.isArray(scene.perBeamHueDrift) ? [...scene.perBeamHueDrift] : [];
+    ensurePerBeamMaterial(S.beamCount | 0);
     S.spreadDeg = scene.spreadDeg;
     S.angleDeg = scene.angleDeg;
     S.rotationSpeed = scene.rotationSpeed;
@@ -3697,6 +3742,7 @@
     if (beamAlphaEl) beamAlphaEl.value = S.beamAlpha;
     if (beamAbsorbEl) beamAbsorbEl.value = S.beamAbsorb;
     if (beamHueDriftEl) beamHueDriftEl.value = S.beamHueDrift;
+    if (typeof rebuildPerBeamEditor === 'function') rebuildPerBeamEditor();
     beamCountValEl.textContent = S.beamCount;
     emCountValEl.textContent = S.emittersNorm.length;
     if (typeof syncEmitterClusterUI === 'function') syncEmitterClusterUI();
@@ -3779,6 +3825,16 @@
     S.beamAlpha = lerp(from.beamAlpha ?? 1, to.beamAlpha ?? 1, t);
     S.beamAbsorb = lerp(from.beamAbsorb ?? 0, to.beamAbsorb ?? 0, t);
     S.beamHueDrift = lerp(from.beamHueDrift ?? 0, to.beamHueDrift ?? 0, t);
+    // Per-beam material trims: element-wise lerp (missing entries = neutral)
+    ensurePerBeamMaterial(S.beamCount | 0);
+    const fO = from.perBeamOpacity || [], tO = to.perBeamOpacity || [];
+    const fA = from.perBeamAbsorb || [], tA = to.perBeamAbsorb || [];
+    const fH = from.perBeamHueDrift || [], tH = to.perBeamHueDrift || [];
+    for (let i = 0; i < S.perBeamOpacity.length; i++) {
+      S.perBeamOpacity[i] = lerp(fO[i] ?? 1, tO[i] ?? 1, t);
+      S.perBeamAbsorb[i] = lerp(fA[i] ?? 1, tA[i] ?? 1, t);
+      S.perBeamHueDrift[i] = lerp(fH[i] ?? 0, tH[i] ?? 0, t);
+    }
     S.spreadDeg = lerp(from.spreadDeg, to.spreadDeg, t);
     S.angleDeg = lerpAngle(from.angleDeg, to.angleDeg, t);
     S.rotationSpeed = lerp(from.rotationSpeed, to.rotationSpeed, t);
@@ -4293,6 +4349,16 @@
     S.perBeamSpeed.length = n;
     while (S.perBeamPhase.length < n) S.perBeamPhase.push(0);
     S.perBeamPhase.length = n;
+  }
+
+  // Per-beam material trim arrays: new beams default to neutral (1×, 1×, +0°)
+  function ensurePerBeamMaterial(n) {
+    while (S.perBeamOpacity.length < n) S.perBeamOpacity.push(1);
+    S.perBeamOpacity.length = n;
+    while (S.perBeamAbsorb.length < n) S.perBeamAbsorb.push(1);
+    S.perBeamAbsorb.length = n;
+    while (S.perBeamHueDrift.length < n) S.perBeamHueDrift.push(0);
+    S.perBeamHueDrift.length = n;
   }
 
   function applySpeedPattern() {
@@ -4890,7 +4956,6 @@
   let gl, prog, buf, a_pos, a_t, a_col, a_alpha, a_edge;
   let u_res, u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
   let u_edgeWidth, u_edgeIntensity;
-  let u_beamAlpha, u_absorbK, u_hueDriftK;
   
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
@@ -4945,35 +5010,14 @@ precision highp float;
 in float v_t; in vec3 v_col; in float v_alpha; in float v_edge;
 uniform float u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
 uniform float u_edgeWidth, u_edgeIntensity;
-uniform float u_beamAlpha, u_absorbK, u_hueDriftK;
 out vec4 outColor;
-// Hocevar's public-domain branchless hsv converters (credited in the trail shader)
-vec3 rgb2hsvB(vec3 c) {
-  vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
-  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
-  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-  float d = q.x - min(q.w, q.y);
-  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1.0e-10)), d / (q.x + 1.0e-10), q.x);
-}
-vec3 hsv2rgbB(vec3 c) {
-  vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
-  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
 void main() {
-  float a = v_alpha * u_beamAlpha;
+  // Beam material (opacity / absorption / per-beam hue drift) is baked into
+  // the vertex colour + alpha on the CPU in pushQuad — see beam loop. This
+  // keeps the vertex layout at 8 floats (shared with rings + phosphor) and
+  // makes every property per-beam without new attributes.
+  float a = v_alpha;
   vec3 col = v_col;
-  // Absorption: haze-like attenuation with distance travelled along the path
-  // (v_t is cumulative px) — each beam gets an internal brightness gradient,
-  // fading through its bounces like light through fog
-  if (u_absorbK > 0.00001) a *= exp(-v_t * u_absorbK);
-  // Hue drift: rotate hue with distance travelled — a colour gradient along
-  // the beam's whole folded path, continuous through every bounce
-  if (abs(u_hueDriftK) > 1.0e-8) {
-    vec3 hsv = rgb2hsvB(col);
-    hsv.x = fract(hsv.x + v_t * u_hueDriftK + 1.0);
-    col = hsv2rgbB(hsv);
-  }
   // Edge gradient: soft falloff across the beam width.
   // |v_edge| runs 0 (core) → 1 (side); u_edgeWidth sets how far the gradient
   // reaches inward, u_edgeIntensity how strongly the sides fade out.
@@ -5042,9 +5086,6 @@ void main() {
     u_duty = gl.getUniformLocation(prog, 'u_duty');
     u_edgeWidth = gl.getUniformLocation(prog, 'u_edgeWidth');
     u_edgeIntensity = gl.getUniformLocation(prog, 'u_edgeIntensity');
-    u_beamAlpha = gl.getUniformLocation(prog, 'u_beamAlpha');
-    u_absorbK = gl.getUniformLocation(prog, 'u_absorbK');
-    u_hueDriftK = gl.getUniformLocation(prog, 'u_hueDriftK');
 
     buf = gl.createBuffer();
     
@@ -5611,11 +5652,6 @@ void main() {
     if (phosVerts > 0) {
       gl.uniform1f(u_pulseOn, 0);
       gl.uniform1f(u_edgeIntensity, 0);
-      // Wall glow keeps full strength: beam opacity/absorption/hue-drift are
-      // beam-path effects (phosphor has its own intensity control)
-      gl.uniform1f(u_beamAlpha, 1);
-      gl.uniform1f(u_absorbK, 0);
-      gl.uniform1f(u_hueDriftK, 0);
       gl.drawArrays(gl.TRIANGLES, beamVerts, phosVerts);
     }
   }
@@ -6384,11 +6420,25 @@ void main() {
     vertCount = i;
   }
 
-  function pushQuad(x0, y0, x1, y1, halfW, t0, t1, rgb, alpha, timeSec) {
+  // Beam material sampled at path distance t (px). `mat` carries the beam's
+  // own coefficients so every property is per-beam with no shader uniforms.
+  // Baked into vertex colour/alpha (layout stays 8 floats, shared with rings).
+  function beamRgbAt(mat, t) {
+    if (mat.driftPerPx === 0) return mat.baseRgb; // no hue drift → constant colour
+    let hh = ((mat.h + t * mat.driftPerPx) % 360 + 360) % 360;
+    return hslToRgb(hh, mat.s, mat.l);
+  }
+  function beamAlphaAt(mat, alphaIn, t) {
+    let a = alphaIn * mat.opacity;
+    if (mat.absorbK > 1e-7) a *= Math.exp(-t * mat.absorbK); // haze fade with distance
+    return a;
+  }
+
+  function pushQuad(x0, y0, x1, y1, halfW, t0, t1, mat, alpha, timeSec) {
     const dx = x1 - x0, dy = y1 - y0;
     const segLen = Math.hypot(dx, dy) || 1;
     const nx = -dy / segLen, ny = dx / segLen;
-    
+
     // If width wave enabled, draw shapes along the beam
     if (S.widthWave.enabled) {
       const ww = S.widthWave;
@@ -6458,8 +6508,8 @@ void main() {
         
         // Spin angle based on time
         const rotation = rotSpeed * timeSec;
-        
-        pushShape(cx, cy, radius, sides, rotation, t, rgb, alpha);
+
+        pushShape(cx, cy, radius, sides, rotation, t, beamRgbAt(mat, t), beamAlphaAt(mat, alpha, t));
       }
       
       // Skip beam when shapes are enabled
@@ -6472,19 +6522,25 @@ void main() {
     vertReserve(48);
     const buf = vertBuf;
     let i = vertCount;
-    const r0 = rgb[0], r1 = rgb[1], r2 = rgb[2];
+    // Per-endpoint colour + alpha (absorption fades alpha with t; hue drift
+    // rotates colour with t; opacity scales both endpoints equally). The GPU
+    // interpolates linearly across the segment.
+    const c0 = beamRgbAt(mat, t0), c1 = beamRgbAt(mat, t1);
+    const a0 = beamAlphaAt(mat, alpha, t0), a1 = beamAlphaAt(mat, alpha, t1);
+    const r0 = c0[0], g0 = c0[1], b0 = c0[2];
+    const r1 = c1[0], g1 = c1[1], b1 = c1[2];
     const lx0 = x0 + nx * halfW, ly0 = y0 + ny * halfW;
     const rx0 = x0 - nx * halfW, ry0 = y0 - ny * halfW;
     const lx1 = x1 + nx * halfW, ly1 = y1 + ny * halfW;
     const rx1 = x1 - nx * halfW, ry1 = y1 - ny * halfW;
-    // Triangle 1
-    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
-    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
-    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
+    // Triangle 1 (t0 verts use c0/a0, t1 verts use c1/a1)
+    buf[i]=lx0; buf[i+1]=ly0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=g0; buf[i+5]=b0; buf[i+6]=a0; buf[i+7]=1;  i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r1; buf[i+4]=g1; buf[i+5]=b1; buf[i+6]=a1; buf[i+7]=1;  i+=8;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=g0; buf[i+5]=b0; buf[i+6]=a0; buf[i+7]=-1; i+=8;
     // Triangle 2
-    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
-    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=1;  i+=8;
-    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t1; buf[i+3]=r0; buf[i+4]=r1; buf[i+5]=r2; buf[i+6]=alpha; buf[i+7]=-1; i+=8;
+    buf[i]=rx0; buf[i+1]=ry0; buf[i+2]=t0; buf[i+3]=r0; buf[i+4]=g0; buf[i+5]=b0; buf[i+6]=a0; buf[i+7]=-1; i+=8;
+    buf[i]=lx1; buf[i+1]=ly1; buf[i+2]=t1; buf[i+3]=r1; buf[i+4]=g1; buf[i+5]=b1; buf[i+6]=a1; buf[i+7]=1;  i+=8;
+    buf[i]=rx1; buf[i+1]=ry1; buf[i+2]=t1; buf[i+3]=r1; buf[i+4]=g1; buf[i+5]=b1; buf[i+6]=a1; buf[i+7]=-1; i+=8;
     vertCount = i;
   }
 
@@ -6503,11 +6559,6 @@ void main() {
     gl.uniform1f(u_duty, S.pulseDuty);
     gl.uniform1f(u_edgeWidth, S.beamEdge.width);
     gl.uniform1f(u_edgeIntensity, S.beamEdge.intensity);
-    gl.uniform1f(u_beamAlpha, S.beamAlpha);
-    // Absorption slider 0..1 → attenuation coefficient per px (curved for a fine low end)
-    gl.uniform1f(u_absorbK, Math.pow(S.beamAbsorb, 1.5) * 0.008);
-    // Hue drift slider is degrees per 1000 px of path → hue units per px
-    gl.uniform1f(u_hueDriftK, S.beamHueDrift / 360 / 1000);
   }
 
   function renderBeamsGL(timeSec) {
@@ -6564,11 +6615,19 @@ void main() {
         totalSegs += segs.length;
         const col = palette[i % palette.length];
         // Global color offsets: runtime-only (modulation matrix / beat events)
-        const rgb = hslToRgb(
-          (((col.h + S.hueOffset) % 360) + 360) % 360,
-          clamp(col.s + S.satOffset, 0, 100),
-          clamp(col.l + S.lightOffset, 0, 100)
-        );
+        const mh = (((col.h + S.hueOffset) % 360) + 360) % 360;
+        const ms = clamp(col.s + S.satOffset, 0, 100);
+        const ml = clamp(col.l + S.lightOffset, 0, 100);
+        const rgb = hslToRgb(mh, ms, ml);
+        // Per-beam material = global master combined with this beam's trim.
+        const eOpacity = clamp(S.beamAlpha * (S.perBeamOpacity[i] ?? 1), 0, 1);
+        const eAbsorb = clamp(S.beamAbsorb * (S.perBeamAbsorb[i] ?? 1), 0, 2);
+        const mat = {
+          h: mh, s: ms, l: ml, baseRgb: rgb,
+          opacity: eOpacity,
+          absorbK: Math.pow(eAbsorb, 1.5) * 0.008,
+          driftPerPx: (S.beamHueDrift + (S.perBeamHueDrift[i] ?? 0)) / 1000
+        };
 
         // Phosphor: every segment endpoint is a wall strike — deposit glow
         if (S.phosphor.enabled && phosPoints) {
@@ -6598,7 +6657,7 @@ void main() {
         //        -1.0 = pointing toward center, should be BOTTOM
         const radialScore = Math.cos(angleDiff);
         
-        allBeams.push({ segs, rgb, radialScore, beamAngle, emitterIdx: em, beamIdx: i });
+        allBeams.push({ segs, rgb, mat, radialScore, beamAngle, emitterIdx: em, beamIdx: i });
       }
     }
     S.lastSegments = totalSegs;
@@ -6629,7 +6688,7 @@ void main() {
           
           allSegments.push({
             seg: s,
-            rgb: beam.rgb,
+            mat: beam.mat,
             distFromCenter,
             radialScore: beam.radialScore,
             bounceIdx: bounceIdx
@@ -6653,7 +6712,7 @@ void main() {
       // Render sorted segments
       for (const item of allSegments) {
         const s = item.seg;
-        pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.rgb, s.intensity, timeSec);
+        pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.mat, s.intensity, timeSec);
       }
     } else {
       // STATIC MODE: Render beams in beamOrder (user-defined layer order via drag-drop)
@@ -6679,7 +6738,7 @@ void main() {
           
           for (const beam of beams) {
             for (const s of beam.segs) {
-              pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.rgb, s.intensity, timeSec);
+              pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.mat, s.intensity, timeSec);
             }
           }
         }
@@ -7088,9 +7147,57 @@ void main() {
   _on(bouncesEl, 'input', () => { S.maxBounces = parseInt(bouncesEl.value, 10) || 1; });
 
   _on(widthEl, 'input', () => S.beamWidth = parseFloat(widthEl.value) || 2);
-  _on(beamAlphaEl, 'input', () => S.beamAlpha = clamp(parseFloat(beamAlphaEl.value) || 1, 0.05, 1));
-  _on(beamAbsorbEl, 'input', () => S.beamAbsorb = clamp(parseFloat(beamAbsorbEl.value) || 0, 0, 1));
-  _on(beamHueDriftEl, 'input', () => S.beamHueDrift = clamp(parseFloat(beamHueDriftEl.value) || 0, -360, 360));
+  _on(beamAlphaEl, 'input', () => { S.beamAlpha = clamp(parseFloat(beamAlphaEl.value) || 1, 0.05, 1); });
+  _on(beamAbsorbEl, 'input', () => { S.beamAbsorb = clamp(parseFloat(beamAbsorbEl.value) || 0, 0, 1); });
+  _on(beamHueDriftEl, 'input', () => { S.beamHueDrift = clamp(parseFloat(beamHueDriftEl.value) || 0, -360, 360); });
+
+  // ---- Per-beam material editor ----
+  const pbOpacityEl = _el('pbOpacity'), pbAbsorbEl = _el('pbAbsorb'), pbHueDriftEl = _el('pbHueDrift');
+  const perBeamChipsEl = _el('perBeamChips');
+  let selectedBeam = 0; // UI-only: which beam the trim sliders edit
+  function pbIsTrimmed(i) {
+    return (S.perBeamOpacity[i] ?? 1) !== 1 || (S.perBeamAbsorb[i] ?? 1) !== 1 || (S.perBeamHueDrift[i] ?? 0) !== 0;
+  }
+  function syncPerBeamSliders() {
+    const i = selectedBeam;
+    if (pbOpacityEl) pbOpacityEl.value = S.perBeamOpacity[i] ?? 1;
+    if (pbAbsorbEl) pbAbsorbEl.value = S.perBeamAbsorb[i] ?? 1;
+    if (pbHueDriftEl) pbHueDriftEl.value = S.perBeamHueDrift[i] ?? 0;
+  }
+  function rebuildPerBeamEditor() {
+    const n = S.beamCount | 0;
+    ensurePerBeamMaterial(n);
+    if (selectedBeam >= n) selectedBeam = Math.max(0, n - 1);
+    if (!perBeamChipsEl) return;
+    perBeamChipsEl.innerHTML = '';
+    const pal = S.beamPalette || [];
+    for (let i = 0; i < n; i++) {
+      const chip = document.createElement('button');
+      chip.className = 'perbeam-chip' + (i === selectedBeam ? ' selected' : '') + (pbIsTrimmed(i) ? ' trimmed' : '');
+      chip.textContent = String(i + 1);
+      const c = pal[i % Math.max(1, pal.length)];
+      if (c) chip.style.setProperty('--chipcol', `hsl(${c.h} ${c.s}% ${c.l}%)`);
+      chip.addEventListener('click', () => { selectedBeam = i; syncPerBeamSliders(); refreshChipState(); });
+      perBeamChipsEl.appendChild(chip);
+    }
+    syncPerBeamSliders();
+  }
+  function refreshChipState() {
+    if (!perBeamChipsEl) return;
+    const chips = perBeamChipsEl.children;
+    for (let i = 0; i < chips.length; i++) {
+      chips[i].classList.toggle('trimmed', pbIsTrimmed(i));
+      chips[i].classList.toggle('selected', i === selectedBeam);
+    }
+  }
+  _on(pbOpacityEl, 'input', () => { ensurePerBeamMaterial(S.beamCount | 0); S.perBeamOpacity[selectedBeam] = clamp(parseFloat(pbOpacityEl.value), 0, 1); refreshChipState(); });
+  _on(pbAbsorbEl, 'input', () => { ensurePerBeamMaterial(S.beamCount | 0); S.perBeamAbsorb[selectedBeam] = clamp(parseFloat(pbAbsorbEl.value), 0, 2); refreshChipState(); });
+  _on(pbHueDriftEl, 'input', () => { ensurePerBeamMaterial(S.beamCount | 0); S.perBeamHueDrift[selectedBeam] = clamp(parseFloat(pbHueDriftEl.value), -360, 360); refreshChipState(); });
+  _on(_el('perBeamReset'), 'click', () => {
+    ensurePerBeamMaterial(S.beamCount | 0);
+    S.perBeamOpacity[selectedBeam] = 1; S.perBeamAbsorb[selectedBeam] = 1; S.perBeamHueDrift[selectedBeam] = 0;
+    syncPerBeamSliders(); refreshChipState();
+  });
   _on(layerModeToggle, 'click', () => {
     S.layerMode = (S.layerMode === 'depth') ? 'static' : 'depth';
     layerModeToggle.textContent = S.layerMode === 'depth' ? 'Depth' : 'Static';
@@ -7109,6 +7216,7 @@ void main() {
     // ensurePaletteSize will add new colors using stable golden angle if needed
     ensurePaletteSize(v);
     rebuildBeamSwatches();
+    rebuildPerBeamEditor();
   };
   _on(beamCountUpBtn, 'click', () => syncCount(S.beamCount + 1));
   _on(beamCountDownBtn, 'click', () => syncCount(S.beamCount - 1));
@@ -7258,6 +7366,7 @@ void main() {
     return {
       polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, eccentricity: S.eccentricity, beamWidth: S.beamWidth,
       beamAlpha: S.beamAlpha, beamAbsorb: S.beamAbsorb, beamHueDrift: S.beamHueDrift,
+      perBeamOpacity: [...S.perBeamOpacity], perBeamAbsorb: [...S.perBeamAbsorb], perBeamHueDrift: [...S.perBeamHueDrift],
       reflectSlider: S.reflectSlider, maxBounces: S.maxBounces, beamCount: S.beamCount,
       spreadDeg: S.spreadDeg, angleDeg: S.angleDeg, rotationSpeed: S.rotationSpeed,
       speedMax: S.speedMax, speedMultiplier: S.speedMultiplier,
@@ -7288,6 +7397,9 @@ void main() {
     Object.assign(S, {
       polygonType: P.polygonType || 'circle', sides: P.sides || 5, wallBend: P.wallBend ?? 0, eccentricity: P.eccentricity ?? 0.6, beamWidth: P.beamWidth || 2,
       beamAlpha: P.beamAlpha ?? 1, beamAbsorb: P.beamAbsorb ?? 0, beamHueDrift: P.beamHueDrift ?? 0,
+      perBeamOpacity: Array.isArray(P.perBeamOpacity) ? [...P.perBeamOpacity] : [],
+      perBeamAbsorb: Array.isArray(P.perBeamAbsorb) ? [...P.perBeamAbsorb] : [],
+      perBeamHueDrift: Array.isArray(P.perBeamHueDrift) ? [...P.perBeamHueDrift] : [],
       reflectSlider: P.reflectSlider ?? 0.8, maxBounces: P.maxBounces || 8, beamCount: P.beamCount || 1,
       spreadDeg: P.spreadDeg ?? 0, angleDeg: P.angleDeg ?? 0, rotationSpeed: P.rotationSpeed ?? 0,
       speedMax: P.speedMax || 5, speedMultiplier: P.speedMultiplier ?? 0.01,
@@ -9872,6 +9984,10 @@ void main() {
       hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
       trailFilter: 'Filtering',
       trailCutoff: 'Cutoff',
+      beamMaterial: 'Beam Material',
+      perBeam: 'Per-beam trim',
+      hintBeamMaster: 'Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path (°/1000px).',
+      hintBeamPerBeam: 'Pick a beam above, then trim its Opacity (×), Absorption (×) and Hue drift (+, added to master). New beams start neutral.',
       beamOpacity: 'Opacity',
       beamAbsorb: 'Absorption',
       beamHueDrift: 'Hue drift',
@@ -10094,6 +10210,10 @@ void main() {
       hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
       trailFilter: 'Filtrado',
       trailCutoff: 'Corte',
+      beamMaterial: 'Material del haz',
+      perBeam: 'Ajuste por haz',
+      hintBeamMaster: 'Maestro para todos los haces. Opacidad = transparencia; Absorción = desvanecimiento por niebla a lo largo del trayecto; Deriva de tono = gradiente de color a lo largo del trayecto (°/1000px).',
+      hintBeamPerBeam: 'Elige un haz arriba y ajusta su Opacidad (×), Absorción (×) y Deriva de tono (+, sumada al maestro). Los haces nuevos empiezan neutros.',
       beamOpacity: 'Opacidad',
       beamAbsorb: 'Absorción',
       beamHueDrift: 'Deriva de tono',
@@ -10315,6 +10435,10 @@ void main() {
       hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
       trailFilter: 'Filtragem',
       trailCutoff: 'Corte',
+      beamMaterial: 'Material do feixe',
+      perBeam: 'Ajuste por feixe',
+      hintBeamMaster: 'Mestre para todos os feixes. Opacidade = transparência; Absorção = desvanecimento por névoa ao longo do trajeto; Deriva de tom = gradiente de cor ao longo do trajeto (°/1000px).',
+      hintBeamPerBeam: 'Escolha um feixe acima e ajuste a sua Opacidade (×), Absorção (×) e Deriva de tom (+, somada ao mestre). Feixes novos começam neutros.',
       beamOpacity: 'Opacidade',
       beamAbsorb: 'Absorção',
       beamHueDrift: 'Deriva de tom',
@@ -10536,6 +10660,10 @@ void main() {
       hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
       trailFilter: 'Filtrage',
       trailCutoff: 'Seuil',
+      beamMaterial: 'Matériau du faisceau',
+      perBeam: 'Réglage par faisceau',
+      hintBeamMaster: 'Maître pour tous les faisceaux. Opacité = transparence ; Absorption = fondu de brume le long du trajet ; Dérive de teinte = dégradé de couleur le long du trajet (°/1000px).',
+      hintBeamPerBeam: 'Choisissez un faisceau ci-dessus, puis réglez son Opacité (×), Absorption (×) et Dérive de teinte (+, ajoutée au maître). Les nouveaux faisceaux démarrent neutres.',
       beamOpacity: 'Opacité',
       beamAbsorb: 'Absorption',
       beamHueDrift: 'Dérive de teinte',
@@ -10897,6 +11025,7 @@ void main() {
       speedMultiplier: S.speedMultiplier, emitterMoveSpeed: S.emitterMoveSpeed,
       polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, eccentricity: S.eccentricity,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
+      beamAlpha: S.beamAlpha, beamAbsorb: S.beamAbsorb, beamHueDrift: S.beamHueDrift,
       pulseOn: S.pulseOn, pulseShape: S.pulseShape, pulseAmp: S.pulseAmp,
       pulseFreqCP100: S.pulseFreqCP100, pulseSpeed: S.pulseSpeed, pulseSoft: S.pulseSoft, pulseDuty: S.pulseDuty,
       widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, kaleido: S.kaleido, generative: S.generative, phosphor: S.phosphor, rings: S.rings, field: S.field,
@@ -10918,6 +11047,13 @@ void main() {
       ensureEmitterPalettes();
       ensurePaletteSize(S.beamCount);
       rebuildBeamSwatches();
+    },
+    beamMaterial: () => {
+      S.beamAlpha = FACTORY.beamAlpha; S.beamAbsorb = FACTORY.beamAbsorb; S.beamHueDrift = FACTORY.beamHueDrift;
+      const n = S.beamCount | 0;
+      S.perBeamOpacity = new Array(n).fill(1);
+      S.perBeamAbsorb = new Array(n).fill(1);
+      S.perBeamHueDrift = new Array(n).fill(0);
     },
     perBeamRotation: () => {
       S.speedPattern = FACTORY.speedPattern;
@@ -10991,7 +11127,7 @@ void main() {
     ['scenes', 'tabScenes', 'Scenes']
   ];
   const TAB_OF_GROUP = {
-    colors: 'beams', perBeamRotation: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams', generativeTitle: 'beams',
+    colors: 'beams', perBeamRotation: 'beams', beamMaterial: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams', generativeTitle: 'beams',
     trails: 'fx', glow: 'fx', kaleido: 'fx', phosphorWalls: 'fx',
     roomTitle: 'room', bonus: 'room',
     audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',
@@ -11234,6 +11370,8 @@ void main() {
     rebuildBeamSwatches();
     ensureSpeedArrays(S.beamCount);
     applySpeedPattern();
+    ensurePerBeamMaterial(S.beamCount);
+    rebuildPerBeamEditor();
     loadScenes();
     
     // Initialize wander seeds with random phases
