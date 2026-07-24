@@ -21,7 +21,7 @@
 - **Beam material (per-beam)** — Opacity/transparency, distance absorption (haze fade), and hue drift for continuous colour gradients along each beam's bounce path — set a master for all beams, then trim each beam individually in the Per-beam editor
 
 ### Visual Effects
-- **Pulse animation** — Sine/square wave patterns traveling along beams with adjustable frequency, speed, amplitude, softness, and duty cycle
+- **Segments** — Slice each beam's length into a repeating, scrolling cycle of segments, each with its own colour, opacity, width and softness. 1 segment = a solid beam; add more to build travelling colour/hole patterns. A "hole" is just a segment at 0 opacity, and any segment can be given its own speed/length (Drift) to slide free of the cycle. (Replaces the old Pulse effect, which migrates automatically.)
 - **Shape effects** — Animated circles/ellipses flowing along beams
 - **Trails** — Persistent afterglow with hue shifting, plus Filtering (Smooth/Crisp) and Cutoff controls that tune the emergent interference patterns thin slow beams create
 - **Glow (bloom)** — Bright beams bleed light like real lasers in haze, with strength and threshold controls

@@ -2,6 +2,20 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.23.0] - 2026-07-24
+
+### 🧩 Segments — Pulse, reimagined
+Pulse is gone; **Segments** takes its place and is far more expressive. A beam's length is now a repeating **cycle** you slice into **segments**, each with its own **colour, opacity, width and softness**.
+
+- **1 segment = a solid beam** (the standard look). Click **+** to add segments — the beam splits into a repeating, scrolling cycle. Click any segment in the strip to edit it.
+- **A "hole" is just a segment at 0 opacity** — and you can now set the hole's *colour and opacity* independently (e.g. a half-transparent blue stretch, or an opaque dark-red one). This dissolves the old amplitude-vs-opacity confusion: there is no amplitude any more, you set each segment's colour and opacity directly.
+- **Colour** per segment can be **Beam** (inherits that beam's own palette colour, so it still works across every beam) or a **Custom** picked colour.
+- **Length** (cycle wavelength) and **Speed** (scroll) are global per beam by default. Toggle **Drift** on a segment to give it *its own* Length/Speed — it detaches from the cycle and slides freely through the others for organic, desynced motion.
+- Clickable **segment strip** shows every segment proportionally (striped = inherits beam colour, solid = custom, faint = a hole), with the selected one highlighted; **+ / −** add and remove (up to 8).
+- **Segment speed** and **Segment length** are new **Modulation Matrix** targets.
+- Fully saved in scenes and JSON presets and interpolated through scene transitions. **Old Pulse settings migrate automatically** — every saved scene/preset that used Pulse loads as the equivalent two-segment cycle, so nothing looks different than before until you start editing.
+- _Under the hood: the beam fragment shader composites up to 8 soft-edged segment bands over the solid beam; non-drift segments tile one global cycle, drift segments scroll on their own. The 8-float beam/ring/phosphor vertex layout is untouched._
+
 ## [1.22.0] - 2026-07-24
 
 ### 🧭 Emission-aware panel + true-fullscreen Generative

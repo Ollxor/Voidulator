@@ -15,7 +15,7 @@ Supporting files:
 The entire application state is a single plain object `S`. Sliders, dropdowns, toggles, and animations all read from and write to `S`. Key sub-trees:
 
 - `S.beams` — beam count, width, colors, per-beam rotation speeds/phases
-- `S.pulse` — pulse on/off, shape, amplitude, frequency, speed, duty, quality
+- `S.segments` — beam-length cycle: `on`, global `wavelength`/`speed`, and `items[]` (each `{w, colInherit, col[3], opacity, soft, driftOn, speed, wavelength}`). Replaced the old `S.pulse` in v1.23; old pulse fields migrate via `readSegments()`
 - `S.widthWave` — shape-effect on/off, shape type, density, size, flow, rotation
 - `S.trails` — on/off, length, hue shift
 - `S.emitters[]` — array of emitter positions and per-emitter state
@@ -88,7 +88,7 @@ Matrix routes + beat settings persist in `localStorage['voidulator-mod']` (globa
 
 ```
 requestAnimationFrame
-  → update physics (emitter rotation, pulse phase, audio level)
+  → update physics (emitter rotation, segment scroll, audio level)
   → trace rays (WebGL vertex buffer: one call per bounce layer)
   → composite trails (ping-pong framebuffer)
   → draw overlay (2D canvas: emitter dots, drag handles)
@@ -175,7 +175,7 @@ Hosted at [voidulator.ollebjerkas.se](https://voidulator.ollebjerkas.se) via Git
 - `requestAnimationFrame` IDs are tracked in `rafId`; always cancel before re-requesting to avoid duplicate loops.
 - Audio context must be created on a user gesture; `audioToggle` handles this gate. Same for `requestMIDIAccess` (the Enable MIDI button).
 - The `spread` value (beam fan angle) is in degrees in `S` but converted to radians before the ray-trace loop.
-- Beam shader uniforms are uploaded in exactly ONE place: `uploadBeamUniforms()`. It used to be three copy-pasted blocks, and a partial refactor of one copy black-screened the live site. Never duplicate it again. `drawBeamGeometry()` re-sets `u_pulseOn=0`/`u_edgeIntensity=0` for the phosphor pass so wall glow ignores those.
+- Beam shader uniforms are uploaded in exactly ONE place: `uploadBeamUniforms()`. It used to be three copy-pasted blocks, and a partial refactor of one copy black-screened the live site. Never duplicate it again. `drawBeamGeometry()` re-sets `u_segOn=0`/`u_edgeIntensity=0` for the phosphor pass so wall glow ignores those.
 
 ## Beam material (per-beam) + Wave-field colour (v1.20–1.21)
 
@@ -184,7 +184,7 @@ Hosted at [voidulator.ollebjerkas.se](https://voidulator.ollebjerkas.se) via Git
 - **Wave-field Prism + Fog** (`S.field.colorMode==='prism'`, `S.field.fog`): Prism (mode 3) computes each RGB channel from the displacement at a 120°-offset cosine phase → soft chromatic gradients (the generic per-channel-phase-offset technique, à la Silexars' "Creation"; independently written, RESEARCH.md §22). Fog lifts calm (low-|displacement|) regions with a slow cosine-drifting haze tint instead of black. Both driven by a `u_ptime` (seconds) uniform on `waveColorProg`; `fieldFog` is a `MOD_PARAMS` target.
 - The render loop is `loop()` (try/catch + rAF rescheduling + error badge) wrapping `loopBody()` (the actual frame). A throwing frame must never stop the loop — keep that structure. `Voidulator.step(t)` drives `loopBody` directly for tests (rAF doesn't fire in hidden tabs).
 - `applyModulation()` must run **before** the rotation/phase integration in `loopBody()` (so a modulated `rotationSpeed` actually spins faster) and `restoreModulation()` **after** `drawOverlay()`/`captureRecFrame()`. Don't reorder.
-- `S.pulsePhase` (radians, runtime-only) is the pulse clock: integrated in `loopBody` from `pulseFreqCP100 × pulseSpeed`, uploaded as `u_phaseTime`. Don't reintroduce a raw `time × speed` term in the shader — it drifts in long sessions and jumps when speed is modulated.
+- **Segments (v1.23, replaced Pulse).** The beam fragment shader composites up to `MAXSEG` (8) soft-edged segment bands over the solid beam. Non-drift segments tile one global cycle — phase `fract(v_t·u_invSegWl − u_segScroll − start_i)`, active when `< width_i`; drift segments (`u_segDrift[i]`) scroll on their own `fract(v_t·u_segInvWl[i] − u_segTime·u_segRate[i] − start_i)`. Coverage is a periodic soft band around each segment's centre (softness×width); higher-index segments `mix()` over lower, gaps fall back to the beam colour; `u_segCount<1.5` ⇒ solid (a single segment is never a cycle). Two runtime-only clocks in `loopBody`: `S.segScroll` (global cycle offset, integrated from `speed/wavelength`, wrapped to [0,1) — continuous under modulation, don't replace with raw `time×speed`) and `S.segTime` (bounded seconds, for drift). Segment arrays are built + uploaded once in `uploadBeamUniforms()` via reused `_seg*` `Float32Array` scratch + `segLayout()` (normalised widths/starts). `readSegments()` reads the new shape or migrates old pulse fields; `lerpSegments()` interpolates (per-field when counts match, snap at t=0.5 otherwise). UI: `rebuildSegStrip()`/`syncSegmentsUI()`, `selectedSeg` is UI-only.
 - `buildShape()` floors the room radius at 10px (`safeR`) — a hidden/collapsed stage reports near-zero size and a negative radius makes canvas `arc()` throw. `resize()` floors the canvas backing store at 2px for the same reason.
 - The canvas is sized by `resize()`, called on `window.resize` **and** a `ResizeObserver` on the stage. The observer is essential: it recovers the canvas if the first `resize()` ran before layout settled (otherwise it sticks at the 2px floor → blank stage), and it catches reflow / mobile address-bar changes that don't fire a window resize.
 - Wall bending: `buildShape()` caches unbent corners in `S.baseVertices`; `bendWalls()` re-derives both `S.vertices` (drawing/point-in-room polyline) and `S.wallArcs` (collision). **Collision in bent regular/random rooms is analytic**: `buildWallArcs()` turns each wall into a true circular arc (sagitta = bend × len × 0.3); `firstHitArcs()` solves one quadratic per wall and `computePath` reflects off `arcNormal()` — never reintroduce subdivided-segment collision, it caused both lag (720 segment tests/bounce) and normal-step jitter. The polyline samples the SAME arcs so visuals always match physics. Always change bend through `bendWalls()`, never `buildShape()` (re-randomizes Randomgon). Circle, blob, parabolic, ellipse are exempt (`wallArcs` null → `firstHitPoly`).

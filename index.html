@@ -1675,6 +1675,27 @@
      emission mode (e.g. beam-only rows while Wave field / Generative is on). */
   .mode-hidden { display: none !important; }
 
+  /* Segments editor: clickable strip of proportional segment cells */
+  .seg-strip {
+    display: flex; gap: 3px; height: 30px; margin: 9px 0 7px;
+    background: rgba(0,0,0,0.45); border-radius: 5px; padding: 3px;
+  }
+  .seg-cell {
+    min-width: 9px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--stroke); box-sizing: border-box;
+    transition: box-shadow 120ms ease, border-color 120ms ease;
+  }
+  .seg-cell:hover { border-color: var(--accent-dim); }
+  .seg-cell.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow); }
+  .seg-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .seg-mini { width: 32px; padding: 2px 0; text-align: center; }
+  .seg-count { color: var(--text-dim); font-size: 12px; opacity: 0.75; }
+  .seg-col-row { display: flex; gap: 6px; align-items: center; }
+  .seg-col-row input[type="color"] {
+    width: 36px; height: 24px; padding: 0; border: 1px solid var(--stroke);
+    border-radius: 3px; background: transparent; cursor: pointer;
+  }
+
   /* Per-group reset (sibling of the title, overlaid on its row) */
   .group { position: relative; }
   .group-reset {
@@ -2156,25 +2177,46 @@
     </div>
 
     <div class="group collapsible advanced-only" data-emit="beam">
-      <div class="group-title" data-i18n="pulse">Pulse</div>
+      <div class="group-title" data-i18n="segments">Segments</div>
       <div class="group-content">
       <div class="subgrid">
         <label data-i18n="enable">Enable</label>
-        <button class="btn" id="pulseToggle">Off</button>
-        <label data-i18n="shape">Shape</label>
-        <button class="btn" id="pulseShapeToggle">Sine</button>
-        <label data-i18n="amplitude">Amplitude</label>
-        <input id="pulseAmp" type="range" min="0" max="1" step="0.01" value="1">
-        <label data-i18n="frequency">Frequency</label>
-        <input id="pulseFreq" type="range" min="0" max="1" step="0.001" value="0.5">
+        <button class="btn" id="segToggle">Off</button>
+        <label data-i18n="segLength">Length</label>
+        <input id="segWavelength" type="range" min="20" max="1200" step="1" value="220">
         <label data-i18n="speed">Speed</label>
-        <input id="pulseSpeed" type="range" min="0" max="450" step="1" value="60">
-        <label data-i18n="softness">Softness</label>
-        <input id="pulseQuality" type="range" min="0" max="1" step="0.01" value="0.18">
-        <label data-i18n="dutyCycle">Duty cycle</label>
-        <input id="pulseDuty" type="range" min="0" max="1" step="0.01" value="0.5">
+        <input id="segSpeed" type="range" min="0" max="900" step="1" value="60">
       </div>
-      <div class="hint" data-i18n="hintDuty">Duty: left = mostly dark, right = mostly light.</div>
+      <!-- clickable segment strip + add/remove -->
+      <div id="segStrip" class="seg-strip"></div>
+      <div class="seg-toolbar">
+        <button class="btn seg-mini" id="segAdd" title="Add segment">+</button>
+        <button class="btn seg-mini" id="segRemove" title="Remove selected segment">−</button>
+        <span class="seg-count" id="segCountLabel">1 / 8</span>
+      </div>
+      <!-- selected-segment editor -->
+      <div class="subgrid" id="segEditor">
+        <label data-i18n="segWidth">Width</label>
+        <input id="segWidth" type="range" min="0.05" max="4" step="0.01" value="1">
+        <label data-i18n="opacity">Opacity</label>
+        <input id="segOpacity" type="range" min="0" max="1" step="0.01" value="1">
+        <label data-i18n="colour">Colour</label>
+        <div class="ctrl-row seg-col-row">
+          <button class="btn" id="segColInherit" title="Use the beam's own colour">Beam</button>
+          <input id="segCol" type="color" value="#ff4040">
+        </div>
+        <label data-i18n="softness">Softness</label>
+        <input id="segSoft" type="range" min="0" max="1" step="0.01" value="0.3">
+        <label data-i18n="segDrift">Drift</label>
+        <button class="btn" id="segDrift">Off</button>
+      </div>
+      <div class="subgrid" id="segDriftRow">
+        <label data-i18n="segLength">Length</label>
+        <input id="segItemWavelength" type="range" min="20" max="1200" step="1" value="220">
+        <label data-i18n="speed">Speed</label>
+        <input id="segItemSpeed" type="range" min="0" max="900" step="1" value="60">
+      </div>
+      <div class="hint" data-i18n="hintSegments">1 segment = a solid beam. Add segments to slice the beam into a repeating cycle; click one to edit its colour, opacity, width &amp; softness. A hole is just a segment at 0 opacity. Drift gives a segment its own speed/length so it slides free of the others.</div>
       </div>
     </div>
 
@@ -2724,7 +2766,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.22.0';
+  const APP_VERSION = 'v1.23.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2769,13 +2811,21 @@
   const resetPhasesBtn = _el('resetPhases');
   const beamSpeedsDiv = _el('beamSpeeds');
   const layerModeToggle = _el('layerModeToggle');
-  const pulseToggle = _el('pulseToggle');
-  const pulseShapeToggle = _el('pulseShapeToggle');
-  const pulseAmpEl = _el('pulseAmp');
-  const pulseFreqEl = _el('pulseFreq');
-  const pulseSpeedEl = _el('pulseSpeed');
-  const pulseQualityEl = _el('pulseQuality');
-  const pulseDutyEl = _el('pulseDuty');
+  const segToggle = _el('segToggle');
+  const segWavelengthEl = _el('segWavelength');
+  const segSpeedEl = _el('segSpeed');
+  const segStripEl = _el('segStrip');
+  const segCountLabelEl = _el('segCountLabel');
+  const segWidthEl = _el('segWidth');
+  const segOpacityEl = _el('segOpacity');
+  const segColInheritEl = _el('segColInherit');
+  const segColEl = _el('segCol');
+  const segSoftEl = _el('segSoft');
+  const segDriftEl = _el('segDrift');
+  const segDriftRowEl = _el('segDriftRow');
+  const segItemWavelengthEl = _el('segItemWavelength');
+  const segItemSpeedEl = _el('segItemSpeed');
+  let selectedSeg = 0; // UI selection only, not persisted
   // Trails
   const trailsToggle = _el('trailsToggle');
   const trailsLengthEl = _el('trailsLength');
@@ -2940,13 +2990,20 @@
     perBeamPhase: [],
     speedPattern: 'prime',
     patternBase: 1,
-    pulseOn: false,
-    pulseShape: 'sine',
-    pulseAmp: 1,
-    pulseFreqCP100: 1.2,
-    pulseSpeed: 60,
-    pulseSoft: 0.18,
-    pulseDuty: 0.5, // 0 = mostly dark, 1 = mostly light
+    // Segments: the beam's length is a repeating cycle sliced into segments,
+    // each with its own colour / opacity / width / softness. 1 segment = solid
+    // beam. A global wavelength (cycle length in px) and speed (scroll along
+    // the path) drive every segment together; any segment can flip on `driftOn`
+    // to use its own speed/wavelength and slide free of the cycle. Replaces the
+    // old Pulse effect (amplitude/duty are now just per-segment opacity/width).
+    segments: {
+      on: false,
+      wavelength: 220,   // px per cycle (global)
+      speed: 60,         // scroll speed along the beam path, px/s (global)
+      items: [
+        { w: 1, colInherit: true, col: [1, 0.25, 0.25], opacity: 1, soft: 0.3, driftOn: false, speed: 60, wavelength: 220 },
+      ],
+    },
     // Trails (framebuffer-based for performance)
     trails: {
       enabled: false,
@@ -3076,10 +3133,12 @@
     lfo: { rate1: 0.25, rate2: 0.05, p1: 0, p2: 0, sync1: 'off', sync2: 'off' },
     // Global tempo for BPM-synced LFOs (set numerically or by tap)
     bpm: 120,
-    // Pulse phase accumulator (radians) — runtime only, never persisted.
-    // Advanced each frame from pulseSpeed/pulseFreq so the shader gets a
-    // bounded, continuous phase even when speed changes mid-flight.
-    pulsePhase: 0,
+    // Segment scroll accumulators — runtime only, never persisted. segScroll is
+    // the global cycle offset (advanced from segments.speed/wavelength so it
+    // stays continuous even when they change mid-flight); segTime is a bounded
+    // seconds counter that drives any drifting segments.
+    segScroll: 0,
+    segTime: 0,
     // Beat detection
     beat: {
       enabled: false,
@@ -3145,7 +3204,7 @@
   S.beamScheme = 'custom';
   S.maxBounces = 236;
   S.speedMultiplier = 0.01;
-  S.pulseOn = true;
+  S.segments.on = true;
 
   // Utils
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -3171,32 +3230,6 @@
       // Inverse of exponential: t = log(speed/0.02) / log(100)
       const t = Math.log(speed / 0.02) / Math.log(100);
       return 0.5 + t * 0.5;
-    }
-  }
-  
-  // Pulse frequency: logarithmic slider for fine control at low frequencies
-  // First 62.5% (0-0.625) → 0.05 to 0.5 (linear, fine control - 25% more range)
-  // Last 37.5% (0.625-1) → 0.5 to 6 (exponential, compressed high range)
-  function sliderToPulseFreq(pos) {
-    pos = clamp(pos, 0, 1);
-    if (pos <= 0.625) {
-      // First 62.5%: linear 0.05 to 0.5
-      return 0.05 + pos * 0.72; // 0.05 + 0.625*0.72 = 0.5
-    } else {
-      // Last 37.5%: exponential 0.5 to 6
-      const t = (pos - 0.625) / 0.375; // normalize to 0-1
-      return 0.5 * Math.pow(12, t); // 0.5 * 12^1 = 6
-    }
-  }
-  
-  function pulseFreqToSlider(freq) {
-    freq = clamp(freq, 0.05, 6);
-    if (freq <= 0.5) {
-      return (freq - 0.05) / 0.72;
-    } else {
-      // Inverse of exponential: t = log(freq/0.5) / log(12)
-      const t = Math.log(freq / 0.5) / Math.log(12);
-      return 0.625 + t * 0.375;
     }
   }
   
@@ -3537,14 +3570,8 @@
       perBeamPhase: [...S.perBeamPhase],
       speedPattern: S.speedPattern,
       patternBase: S.patternBase,
-      // Pulse
-      pulseOn: S.pulseOn,
-      pulseShape: S.pulseShape,
-      pulseAmp: S.pulseAmp,
-      pulseFreqCP100: S.pulseFreqCP100,
-      pulseSpeed: S.pulseSpeed,
-      pulseSoft: S.pulseSoft,
-      pulseDuty: S.pulseDuty,
+      // Segments (beam-length cycle)
+      segments: cloneSegments(S.segments),
       trails: {
         enabled: S.trails.enabled,
         length: S.trails.length,
@@ -3598,6 +3625,92 @@
     };
   }
 
+  // ---- Segments (beam-length cycle) helpers ----
+  const MAXSEG = 8; // shader loop cap + UI add limit
+  function defaultSegItem() {
+    return { w: 1, colInherit: true, col: [1, 0.25, 0.25], opacity: 1, soft: 0.3, driftOn: false, speed: 60, wavelength: 220 };
+  }
+  // Build a fresh segments config from a saved object. Prefers the new
+  // `segments` shape; otherwise migrates the old Pulse fields (a preset's
+  // `pulse:{}` object, or a scene's flat pulseOn/pulseAmp/…) so everything
+  // saved before 1.23 still loads. Old amplitude → the dark band's opacity,
+  // duty → the lit/dark width split, frequency → wavelength, shape → softness.
+  function readSegments(src) {
+    const s = src && src.segments;
+    if (s && Array.isArray(s.items) && s.items.length) {
+      return {
+        on: !!s.on,
+        wavelength: clamp(s.wavelength ?? 220, 20, 1200),
+        speed: clamp(s.speed ?? 60, 0, 900),
+        items: s.items.slice(0, MAXSEG).map(it => ({
+          w: Math.max(0.02, it.w ?? 1),
+          colInherit: it.colInherit !== false,
+          col: Array.isArray(it.col) ? it.col.slice(0, 3).map(Number) : [1, 0.25, 0.25],
+          opacity: clamp(it.opacity ?? 1, 0, 1),
+          soft: clamp(it.soft ?? 0.3, 0, 1),
+          driftOn: !!it.driftOn,
+          speed: clamp(it.speed ?? (s.speed ?? 60), 0, 900),
+          wavelength: clamp(it.wavelength ?? (s.wavelength ?? 220), 20, 1200),
+        })),
+      };
+    }
+    const p = (src && src.pulse) ? src.pulse
+      : (src && ('pulseOn' in src) ? { on: src.pulseOn, shape: src.pulseShape, amp: src.pulseAmp,
+          freq: src.pulseFreqCP100, speed: src.pulseSpeed, soft: src.pulseSoft, duty: src.pulseDuty } : null);
+    if (p) {
+      const duty = clamp(p.duty ?? 0.5, 0, 1);
+      const amp = clamp(p.amp ?? 1, 0, 1);
+      const soft = (p.shape === 'square') ? 0.05 : clamp((p.soft ?? 0.18) * 2, 0, 1);
+      const wl = clamp(100 / Math.max(0.05, p.freq ?? 1.2), 20, 1200);
+      const spd = clamp(p.speed ?? 60, 0, 900);
+      return {
+        on: !!p.on, wavelength: wl, speed: spd,
+        items: [
+          { w: Math.max(0.05, duty),     colInherit: true, col: [1, 0.25, 0.25], opacity: 1,       soft, driftOn: false, speed: spd, wavelength: wl },
+          { w: Math.max(0.05, 1 - duty), colInherit: true, col: [0, 0, 0],       opacity: 1 - amp, soft, driftOn: false, speed: spd, wavelength: wl },
+        ],
+      };
+    }
+    return { on: false, wavelength: 220, speed: 60, items: [defaultSegItem()] };
+  }
+  function cloneSegments(sg) { return JSON.parse(JSON.stringify(sg)); }
+  // Interpolate between two saved segment configs for scene transitions. Same
+  // item count → per-field lerp; different counts → snap at the halfway point.
+  function lerpSegments(from, to, t) {
+    const A = readSegments(from), B = readSegments(to);
+    const out = { on: (t < 0.5 ? A : B).on, wavelength: lerp(A.wavelength, B.wavelength, t), speed: lerp(A.speed, B.speed, t), items: [] };
+    if (A.items.length === B.items.length) {
+      for (let i = 0; i < A.items.length; i++) {
+        const a = A.items[i], b = B.items[i];
+        out.items.push({
+          w: lerp(a.w, b.w, t),
+          colInherit: (t < 0.5 ? a : b).colInherit,
+          col: [lerp(a.col[0], b.col[0], t), lerp(a.col[1], b.col[1], t), lerp(a.col[2], b.col[2], t)],
+          opacity: lerp(a.opacity, b.opacity, t),
+          soft: lerp(a.soft, b.soft, t),
+          driftOn: (t < 0.5 ? a : b).driftOn,
+          speed: lerp(a.speed, b.speed, t),
+          wavelength: lerp(a.wavelength, b.wavelength, t),
+        });
+      }
+    } else {
+      out.items = cloneSegments((t < 0.5 ? A : B).items);
+    }
+    return out;
+  }
+  // Normalized widths + cumulative starts, ready for the shader.
+  function segLayout(items) {
+    let sum = 0;
+    for (const it of items) sum += Math.max(0.0001, it.w);
+    const w = [], start = [];
+    let acc = 0;
+    for (const it of items) {
+      const nw = Math.max(0.0001, it.w) / sum;
+      w.push(nw); start.push(acc); acc += nw;
+    }
+    return { w, start };
+  }
+
   function applySceneInstant(scene) {
     // Instant properties (no lerp)
     S.polygonType = scene.polygonType;
@@ -3607,8 +3720,7 @@
     S.beamCount = scene.beamCount;
     S.beamScheme = scene.beamScheme;
     S.speedPattern = scene.speedPattern;
-    S.pulseOn = scene.pulseOn;
-    S.pulseShape = scene.pulseShape;
+    S.segments = readSegments(scene);
     S.speedMax = scene.speedMax;
     
     // Apply all values
@@ -3643,11 +3755,6 @@
     S.perBeamSpeed = [...scene.perBeamSpeed];
     S.perBeamPhase = scene.perBeamPhase ? [...scene.perBeamPhase] : S.perBeamSpeed.map(() => 0);
     S.patternBase = scene.patternBase;
-    S.pulseAmp = scene.pulseAmp;
-    S.pulseFreqCP100 = scene.pulseFreqCP100;
-    S.pulseSpeed = scene.pulseSpeed;
-    S.pulseSoft = scene.pulseSoft;
-    S.pulseDuty = scene.pulseDuty ?? 0.5;
     if (scene.trails) {
       S.trails.enabled = scene.trails.enabled ?? false;
       S.trails.length = scene.trails.length ?? 20;
@@ -3772,13 +3879,7 @@
     speedMultiplierNumEl.textContent = S.speedMultiplier.toFixed(4);
     beamSchemeEl.value = S.beamScheme;
     speedPatternEl.value = S.speedPattern;
-    pulseToggle.textContent = S.pulseOn ? 'On' : 'Off';
-    pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
-    pulseAmpEl.value = S.pulseAmp;
-    pulseFreqEl.value = pulseFreqToSlider(S.pulseFreqCP100);
-    pulseSpeedEl.value = S.pulseSpeed;
-    pulseQualityEl.value = S.pulseSoft;
-    if (pulseDutyEl) pulseDutyEl.value = S.pulseDuty;
+    syncSegmentsUI();
     // Beam edge gradient
     if (edgeWidthEl) edgeWidthEl.value = S.beamEdge.width;
     if (edgeIntensityEl) edgeIntensityEl.value = S.beamEdge.intensity;
@@ -3858,11 +3959,7 @@
     S.rotationSpeed = lerp(from.rotationSpeed, to.rotationSpeed, t);
     S.speedMultiplier = lerp(from.speedMultiplier, to.speedMultiplier, t);
     S.patternBase = lerp(from.patternBase, to.patternBase, t);
-    S.pulseAmp = lerp(from.pulseAmp, to.pulseAmp, t);
-    S.pulseFreqCP100 = lerp(from.pulseFreqCP100, to.pulseFreqCP100, t);
-    S.pulseSpeed = lerp(from.pulseSpeed, to.pulseSpeed, t);
-    S.pulseSoft = lerp(from.pulseSoft, to.pulseSoft, t);
-    S.pulseDuty = lerp(from.pulseDuty ?? 0.5, to.pulseDuty ?? 0.5, t);
+    S.segments = lerpSegments(from, to, t);
     // Handle all emitters in the current array
     for (let i = 0; i < S.emittersNorm.length; i++) {
       const fromPos = from.emittersNorm[i] || { nx: 0.5, ny: 0.5 };
@@ -4042,8 +4139,7 @@
     S.sides = targetScene.sides;
     S.beamScheme = targetScene.beamScheme;
     S.speedPattern = targetScene.speedPattern;
-    S.pulseOn = targetScene.pulseOn;
-    S.pulseShape = targetScene.pulseShape;
+    S.segments = readSegments(targetScene);
     S.speedMax = targetScene.speedMax;
     
     // Rebuild shape
@@ -4972,7 +5068,9 @@
 
   // WebGL
   let gl, prog, buf, a_pos, a_t, a_col, a_alpha, a_edge;
-  let u_res, u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
+  let u_res;
+  let u_segOn, u_segCount, u_invSegWl, u_segScroll, u_segTime;
+  let u_segW, u_segStart, u_segOpacity, u_segSoft, u_segInherit, u_segCol, u_segDrift, u_segInvWl, u_segRate;
   let u_edgeWidth, u_edgeIntensity;
   
   // Framebuffer trails
@@ -5025,9 +5123,16 @@ void main() {
 
     const fs = `#version 300 es
 precision highp float;
+#define MAXSEG ${MAXSEG}
 in float v_t; in vec3 v_col; in float v_alpha; in float v_edge;
-uniform float u_phaseTime, u_freqPx, u_amp, u_shape, u_soft, u_pulseOn, u_duty;
 uniform float u_edgeWidth, u_edgeIntensity;
+// Segments: a repeating cycle along v_t sliced into u_segCount bands, each with
+// its own colour / opacity / width / softness. u_invSegWl = 1/globalWavelength,
+// u_segScroll = global cycle offset, u_segTime = seconds (for drifting segs).
+uniform float u_segOn, u_segCount, u_invSegWl, u_segScroll, u_segTime;
+uniform float u_segW[MAXSEG], u_segStart[MAXSEG], u_segOpacity[MAXSEG], u_segSoft[MAXSEG];
+uniform float u_segInherit[MAXSEG], u_segDrift[MAXSEG], u_segInvWl[MAXSEG], u_segRate[MAXSEG];
+uniform vec3  u_segCol[MAXSEG];
 out vec4 outColor;
 void main() {
   // Beam material (opacity / absorption / per-beam hue drift) is baked into
@@ -5044,39 +5149,33 @@ void main() {
     float falloff = smoothstep(1.0, 1.0 - u_edgeWidth, d);
     a *= mix(1.0, falloff, u_edgeIntensity);
   }
-  if (u_pulseOn > 0.5) {
-    // Explicit check: duty=0 means completely black
-    if (u_duty < 0.01) {
-      a = 0.0;
-    } else {
-      // u_phaseTime is a JS-side accumulator: stays bounded (no float
-      // precision drift in long sessions) and stays continuous when pulse
-      // speed/freq change mid-flight (e.g. via audio modulation)
-      float phase = 6.2831853 * u_freqPx * v_t - u_phaseTime;
-      float s = sin(phase); // -1 to 1
-      
-      // Normalize sine to 0-1
-      float wave = (s + 1.0) * 0.5;
-      
-      // Duty controls the threshold
-      // At duty=0.5: threshold=0.5 (normal 50/50)
-      // At duty=1: threshold=0 or below (always on)
-      float threshold = 1.0 - u_duty;
-      
-      float f;
-      if (u_shape < 0.5) {
-        // Sine mode: softness controls gradient
-        float softWidth = max(0.01, u_soft * 0.4);
-        f = smoothstep(threshold - softWidth, threshold + softWidth, wave);
+  if (u_segOn > 0.5) {
+    // Paint each segment as a soft-edged band over the solid beam. Non-drift
+    // segments tile one global cycle (they share u_invSegWl + u_segScroll and
+    // are offset by their start); a drift segment scrolls on its own
+    // wavelength/rate and slides freely through the rest. Higher-index
+    // segments draw over lower ones; gaps fall back to the beam's own colour.
+    vec3 c = col; float aa = a;
+    for (int i = 0; i < MAXSEG; i++) {
+      if (float(i) >= u_segCount) break;
+      float ph = (u_segDrift[i] > 0.5)
+        ? fract(v_t * u_segInvWl[i] - u_segTime * u_segRate[i] - u_segStart[i])
+        : fract(v_t * u_invSegWl - u_segScroll - u_segStart[i]);
+      float w = u_segW[i];
+      float cov;
+      if (u_segCount < 1.5) {
+        cov = 1.0;                       // one segment = solid beam, no cycle
       } else {
-        // Square mode: hard edges
-        float softWidth = max(0.01, u_soft * 0.1);
-        f = smoothstep(threshold - softWidth, threshold + softWidth, wave);
+        float d = abs(fract(ph - w * 0.5 + 0.5) - 0.5);   // periodic dist from band centre
+        float s = max(0.0015, u_segSoft[i] * w * 0.5);
+        cov = 1.0 - smoothstep(w * 0.5 - s, w * 0.5 + s, d);
       }
-      
-      // Apply amplitude - blend between no pulse (1.0) and full pulse (f)
-      a *= (1.0 - u_amp) + u_amp * f;
+      vec3 segc = (u_segInherit[i] > 0.5) ? col : u_segCol[i];
+      float sega = a * u_segOpacity[i];
+      c = mix(c, segc, cov);
+      aa = mix(aa, sega, cov);
     }
+    col = c; a = aa;
   }
   outColor = vec4(col, a);
 }`;
@@ -5095,13 +5194,20 @@ void main() {
     a_alpha = gl.getAttribLocation(prog, 'a_alpha');
     a_edge = gl.getAttribLocation(prog, 'a_edge');
     u_res = gl.getUniformLocation(prog, 'u_res');
-    u_phaseTime = gl.getUniformLocation(prog, 'u_phaseTime');
-    u_freqPx = gl.getUniformLocation(prog, 'u_freqPx');
-    u_amp = gl.getUniformLocation(prog, 'u_amp');
-    u_shape = gl.getUniformLocation(prog, 'u_shape');
-    u_soft = gl.getUniformLocation(prog, 'u_soft');
-    u_pulseOn = gl.getUniformLocation(prog, 'u_pulseOn');
-    u_duty = gl.getUniformLocation(prog, 'u_duty');
+    u_segOn = gl.getUniformLocation(prog, 'u_segOn');
+    u_segCount = gl.getUniformLocation(prog, 'u_segCount');
+    u_invSegWl = gl.getUniformLocation(prog, 'u_invSegWl');
+    u_segScroll = gl.getUniformLocation(prog, 'u_segScroll');
+    u_segTime = gl.getUniformLocation(prog, 'u_segTime');
+    u_segW = gl.getUniformLocation(prog, 'u_segW');
+    u_segStart = gl.getUniformLocation(prog, 'u_segStart');
+    u_segOpacity = gl.getUniformLocation(prog, 'u_segOpacity');
+    u_segSoft = gl.getUniformLocation(prog, 'u_segSoft');
+    u_segInherit = gl.getUniformLocation(prog, 'u_segInherit');
+    u_segCol = gl.getUniformLocation(prog, 'u_segCol');
+    u_segDrift = gl.getUniformLocation(prog, 'u_segDrift');
+    u_segInvWl = gl.getUniformLocation(prog, 'u_segInvWl');
+    u_segRate = gl.getUniformLocation(prog, 'u_segRate');
     u_edgeWidth = gl.getUniformLocation(prog, 'u_edgeWidth');
     u_edgeIntensity = gl.getUniformLocation(prog, 'u_edgeIntensity');
 
@@ -5661,14 +5767,14 @@ void main() {
     vertCount = i;
   }
 
-  // Draws beams (with pulse/edge effects), then phosphor quads with those
-  // effects disabled so the wall glow never flickers with the pulse
+  // Draws beams (with segment/edge effects), then phosphor quads with those
+  // effects disabled so the wall glow never flickers with the segments
   function drawBeamGeometry() {
     const beamVerts = phosVertStart / 8;
     const phosVerts = (vertCount - phosVertStart) / 8;
     if (beamVerts > 0) gl.drawArrays(gl.TRIANGLES, 0, beamVerts);
     if (phosVerts > 0) {
-      gl.uniform1f(u_pulseOn, 0);
+      gl.uniform1f(u_segOn, 0);
       gl.uniform1f(u_edgeIntensity, 0);
       gl.drawArrays(gl.TRIANGLES, beamVerts, phosVerts);
     }
@@ -6566,16 +6672,49 @@ void main() {
   // THE ONLY place beam-shader uniforms are uploaded. This block used to be
   // copy-pasted in three render paths; a partial refactor of one copy once
   // shipped a ReferenceError that black-screened the live site. Keep it single.
+  // Reused scratch for the segment uniform arrays (no per-frame allocation).
+  const _segW = new Float32Array(MAXSEG), _segStart = new Float32Array(MAXSEG),
+        _segOpacity = new Float32Array(MAXSEG), _segSoft = new Float32Array(MAXSEG),
+        _segInherit = new Float32Array(MAXSEG), _segDrift = new Float32Array(MAXSEG),
+        _segInvWl = new Float32Array(MAXSEG), _segRate = new Float32Array(MAXSEG),
+        _segCol = new Float32Array(MAXSEG * 3);
   function uploadBeamUniforms() {
     gl.useProgram(prog);
     gl.uniform2f(u_res, glCanvas.width / S.dpr, glCanvas.height / S.dpr);
-    gl.uniform1f(u_phaseTime, S.pulsePhase);
-    gl.uniform1f(u_pulseOn, S.pulseOn ? 1 : 0);
-    gl.uniform1f(u_freqPx, S.pulseFreqCP100 / 100);
-    gl.uniform1f(u_amp, S.pulseAmp);
-    gl.uniform1f(u_shape, S.pulseShape === 'square' ? 1 : 0);
-    gl.uniform1f(u_soft, S.pulseSoft);
-    gl.uniform1f(u_duty, S.pulseDuty);
+    const sg = S.segments;
+    const on = !!(sg && sg.on && sg.items && sg.items.length);
+    gl.uniform1f(u_segOn, on ? 1 : 0);
+    if (on) {
+      const items = sg.items.slice(0, MAXSEG);
+      const n = items.length;
+      const lay = segLayout(items);
+      for (let i = 0; i < n; i++) {
+        const it = items[i];
+        _segW[i] = lay.w[i];
+        _segStart[i] = lay.start[i];
+        _segOpacity[i] = clamp(it.opacity, 0, 1);
+        _segSoft[i] = clamp(it.soft, 0, 1);
+        _segInherit[i] = it.colInherit ? 1 : 0;
+        _segDrift[i] = it.driftOn ? 1 : 0;
+        const iwl = 1 / Math.max(1, it.wavelength);
+        _segInvWl[i] = iwl;
+        _segRate[i] = it.speed * iwl; // cycles/sec, for drifting segments
+        _segCol[i * 3] = it.col[0]; _segCol[i * 3 + 1] = it.col[1]; _segCol[i * 3 + 2] = it.col[2];
+      }
+      gl.uniform1f(u_segCount, n);
+      gl.uniform1f(u_invSegWl, 1 / Math.max(1, sg.wavelength));
+      gl.uniform1f(u_segScroll, S.segScroll);
+      gl.uniform1f(u_segTime, S.segTime);
+      gl.uniform1fv(u_segW, _segW);
+      gl.uniform1fv(u_segStart, _segStart);
+      gl.uniform1fv(u_segOpacity, _segOpacity);
+      gl.uniform1fv(u_segSoft, _segSoft);
+      gl.uniform1fv(u_segInherit, _segInherit);
+      gl.uniform1fv(u_segDrift, _segDrift);
+      gl.uniform1fv(u_segInvWl, _segInvWl);
+      gl.uniform1fv(u_segRate, _segRate);
+      gl.uniform3fv(u_segCol, _segCol);
+    }
     gl.uniform1f(u_edgeWidth, S.beamEdge.width);
     gl.uniform1f(u_edgeIntensity, S.beamEdge.intensity);
   }
@@ -7291,28 +7430,101 @@ void main() {
   _on(speedPatternEl, 'change', () => { S.speedPattern = speedPatternEl.value; applySpeedPattern(); });
   _on(resetPhasesBtn, 'click', () => { for (let i = 0; i < S.perBeamPhase.length; i++) S.perBeamPhase[i] = 0; });
 
-  _on(pulseToggle, 'click', () => {
-    S.pulseOn = !S.pulseOn;
-    pulseToggle.textContent = S.pulseOn ? 'On' : 'Off';
-  });
-  _on(pulseShapeToggle, 'click', () => {
-    S.pulseShape = S.pulseShape === 'sine' ? 'square' : 'sine';
-    pulseShapeToggle.textContent = S.pulseShape === 'sine' ? 'Sine' : 'Square';
-  });
-  _on(pulseAmpEl, 'input', () => S.pulseAmp = parseFloat(pulseAmpEl.value) || 0);
-  _on(pulseFreqEl, 'input', () => {
-    const pos = parseFloat(pulseFreqEl.value) || 0;
-    S.pulseFreqCP100 = sliderToPulseFreq(pos);
-  });
-  _on(pulseSpeedEl, 'input', () => S.pulseSpeed = parseFloat(pulseSpeedEl.value) || 0);
-  _on(pulseQualityEl, 'input', () => {
-    const val = parseFloat(pulseQualityEl.value);
-    S.pulseSoft = isNaN(val) ? 0.18 : val;
-  });
-  _on(pulseDutyEl, 'input', () => {
-    const val = parseFloat(pulseDutyEl.value);
-    S.pulseDuty = isNaN(val) ? 0.5 : val;
-  });
+  // ---- Segments editor ----
+  function segRgbToHex(c) {
+    const h = v => ('0' + Math.round(clamp(v, 0, 1) * 255).toString(16)).slice(-2);
+    return '#' + h(c[0]) + h(c[1]) + h(c[2]);
+  }
+  function segHexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16) || 0;
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  }
+  function ensureSegItems() {
+    if (!S.segments || !Array.isArray(S.segments.items) || !S.segments.items.length) S.segments = readSegments(null);
+    selectedSeg = clamp(selectedSeg | 0, 0, S.segments.items.length - 1);
+  }
+  function rebuildSegStrip() {
+    if (!segStripEl) return;
+    ensureSegItems();
+    const items = S.segments.items;
+    const lay = segLayout(items);
+    segStripEl.innerHTML = '';
+    items.forEach((it, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'seg-cell' + (i === selectedSeg ? ' selected' : '');
+      cell.style.flexGrow = String(Math.max(0.02, lay.w[i]));
+      const a = (0.12 + 0.88 * clamp(it.opacity, 0, 1)).toFixed(3);
+      if (it.colInherit) {
+        // Striped neutral fill hints "colour follows the beam"
+        const s = `rgba(200,205,220,${a})`;
+        cell.style.background = `repeating-linear-gradient(90deg, ${s} 0 6px, transparent 6px 9px)`;
+      } else {
+        cell.style.background = `rgba(${Math.round(it.col[0] * 255)},${Math.round(it.col[1] * 255)},${Math.round(it.col[2] * 255)},${a})`;
+      }
+      cell.title = 'Segment ' + (i + 1) + (it.driftOn ? ' (drift)' : '');
+      cell.addEventListener('click', () => { selectedSeg = i; syncSegmentsUI(); });
+      segStripEl.appendChild(cell);
+    });
+  }
+  function syncSegmentsUI() {
+    if (!segToggle) return;
+    ensureSegItems();
+    const sg = S.segments;
+    segToggle.textContent = sg.on ? 'On' : 'Off';
+    segToggle.style.borderColor = sg.on ? 'var(--accent)' : '';
+    segWavelengthEl.value = sg.wavelength;
+    segSpeedEl.value = sg.speed;
+    segCountLabelEl.textContent = sg.items.length + ' / ' + MAXSEG;
+    const it = sg.items[selectedSeg];
+    segWidthEl.value = it.w;
+    segOpacityEl.value = it.opacity;
+    segSoftEl.value = it.soft;
+    segColInheritEl.textContent = it.colInherit ? 'Beam' : 'Custom';
+    segColInheritEl.style.borderColor = it.colInherit ? 'var(--accent)' : '';
+    segColEl.value = segRgbToHex(it.col);
+    segColEl.style.display = it.colInherit ? 'none' : '';
+    segDriftEl.textContent = it.driftOn ? 'On' : 'Off';
+    segDriftEl.style.borderColor = it.driftOn ? 'var(--accent)' : '';
+    segDriftRowEl.style.display = it.driftOn ? '' : 'none';
+    segItemWavelengthEl.value = it.wavelength;
+    segItemSpeedEl.value = it.speed;
+    rebuildSegStrip();
+  }
+  function segEdit(fn) { ensureSegItems(); fn(S.segments.items[selectedSeg]); }
+  function segAddItem() {
+    ensureSegItems();
+    const items = S.segments.items;
+    if (items.length >= MAXSEG) return;
+    const avg = items.reduce((s, it) => s + it.w, 0) / items.length;
+    const src = items[selectedSeg];
+    // New segment defaults to a hole (opacity 0) so adding one is immediately
+    // visible — the classic pulse look at 2 segments — ready to be recoloured.
+    items.push({ w: avg, colInherit: true, col: [1, 0.25, 0.25], opacity: 0, soft: src ? src.soft : 0.3, driftOn: false, speed: S.segments.speed, wavelength: S.segments.wavelength });
+    selectedSeg = items.length - 1;
+    S.segments.on = true;
+    syncSegmentsUI(); requestAutosave();
+  }
+  function segRemoveItem() {
+    ensureSegItems();
+    const items = S.segments.items;
+    if (items.length <= 1) return;
+    items.splice(selectedSeg, 1);
+    selectedSeg = clamp(selectedSeg, 0, items.length - 1);
+    syncSegmentsUI(); requestAutosave();
+  }
+  _on(segToggle, 'click', () => { S.segments.on = !S.segments.on; syncSegmentsUI(); requestAutosave(); });
+  _on(segWavelengthEl, 'input', () => { S.segments.wavelength = clamp(parseFloat(segWavelengthEl.value) || 220, 20, 1200); });
+  _on(segSpeedEl, 'input', () => { S.segments.speed = clamp(parseFloat(segSpeedEl.value) || 0, 0, 900); });
+  _on(_el('segAdd'), 'click', segAddItem);
+  _on(_el('segRemove'), 'click', segRemoveItem);
+  _on(segWidthEl, 'input', () => { segEdit(it => it.w = Math.max(0.05, parseFloat(segWidthEl.value) || 1)); rebuildSegStrip(); });
+  _on(segOpacityEl, 'input', () => { segEdit(it => it.opacity = clamp(parseFloat(segOpacityEl.value), 0, 1)); rebuildSegStrip(); });
+  _on(segSoftEl, 'input', () => { segEdit(it => it.soft = clamp(parseFloat(segSoftEl.value), 0, 1)); });
+  _on(segColInheritEl, 'click', () => { segEdit(it => it.colInherit = !it.colInherit); syncSegmentsUI(); requestAutosave(); });
+  _on(segColEl, 'input', () => { segEdit(it => { it.col = segHexToRgb(segColEl.value); it.colInherit = false; }); syncSegmentsUI(); });
+  _on(segDriftEl, 'click', () => { segEdit(it => it.driftOn = !it.driftOn); syncSegmentsUI(); requestAutosave(); });
+  _on(segItemWavelengthEl, 'input', () => { segEdit(it => it.wavelength = clamp(parseFloat(segItemWavelengthEl.value) || 220, 20, 1200)); });
+  _on(segItemSpeedEl, 'input', () => { segEdit(it => it.speed = clamp(parseFloat(segItemSpeedEl.value) || 0, 0, 900)); });
 
   // Trails handlers
   _on(trailsToggle, 'click', () => {
@@ -7397,7 +7609,7 @@ void main() {
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
-      pulse: { on: S.pulseOn, shape: S.pulseShape, amp: S.pulseAmp, freq: S.pulseFreqCP100, speed: S.pulseSpeed, soft: S.pulseSoft, duty: S.pulseDuty },
+      segments: cloneSegments(S.segments),
       bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
       kaleido: { enabled: S.kaleido.enabled, segments: S.kaleido.segments, rot: S.kaleido.rot, spin: S.kaleido.spin, mirror: S.kaleido.mirror },
       generative: { enabled: S.generative.enabled, style: S.generative.style, speed: S.generative.speed, scale: S.generative.scale, hue: S.generative.hue },
@@ -7440,12 +7652,7 @@ void main() {
     if (P.emitterPalettes) {
       S.emitterPalettes = P.emitterPalettes;
     }
-    if (P.pulse) {
-      S.pulseOn = !!P.pulse.on; S.pulseShape = P.pulse.shape || 'sine';
-      S.pulseAmp = P.pulse.amp ?? 1; S.pulseFreqCP100 = P.pulse.freq ?? 1.2;
-      S.pulseSpeed = P.pulse.speed ?? 240; S.pulseSoft = P.pulse.soft ?? 0.18;
-      S.pulseDuty = P.pulse.duty ?? 0.5;
-    }
+    S.segments = readSegments(P);
     if (P.trails) {
       S.trails.enabled = P.trails.enabled ?? false;
       S.trails.length = P.trails.length ?? 20;
@@ -8349,10 +8556,8 @@ void main() {
     beamWidth:     { label: 'Beam width',     get: () => S.beamWidth,       set: v => S.beamWidth = v,       min: 0.5,  max: () => 8,          range: () => 6 },
     spreadDeg:     { label: 'Spread',         get: () => S.spreadDeg,       set: v => S.spreadDeg = v,       min: 0,    max: () => 180,        range: () => 120 },
     rotationSpeed: { label: 'Global speed',   get: () => S.rotationSpeed,   set: v => S.rotationSpeed = v,   min: 0,    max: () => S.speedMax, range: () => S.speedMax },
-    pulseSpeed:    { label: 'Pulse speed',    get: () => S.pulseSpeed,      set: v => S.pulseSpeed = v,      min: 0,    max: () => 900,        range: () => 400 },
-    pulseFreq:     { label: 'Pulse freq',     get: () => S.pulseFreqCP100,  set: v => S.pulseFreqCP100 = v,  min: 0.05, max: () => 6,          range: () => 3 },
-    pulseAmp:      { label: 'Pulse amp',      get: () => S.pulseAmp,        set: v => S.pulseAmp = v,        min: 0,    max: () => 1,          range: () => 1 },
-    pulseDuty:     { label: 'Pulse duty',     get: () => S.pulseDuty,       set: v => S.pulseDuty = v,       min: 0,    max: () => 1,          range: () => 1 },
+    segSpeed:      { label: 'Segment speed',  get: () => S.segments.speed,      set: v => S.segments.speed = v,      min: 0,  max: () => 900,  range: () => 400 },
+    segWavelength: { label: 'Segment length', get: () => S.segments.wavelength, set: v => S.segments.wavelength = v, min: 20, max: () => 1200, range: () => 600 },
     hue:           { label: 'Hue shift',      get: () => S.hueOffset,       set: v => S.hueOffset = v,       min: 0,    max: () => 360,        range: () => 180, wrap: true },
     saturation:    { label: 'Saturation',     get: () => S.satOffset,       set: v => S.satOffset = v,       min: -100, max: () => 100,        range: () => 80 },
     brightness:    { label: 'Brightness',     get: () => S.lightOffset,     set: v => S.lightOffset = v,     min: -60,  max: () => 60,         range: () => 50 },
@@ -9053,10 +9258,13 @@ void main() {
     for (let i = 0; i < S.perBeamPhase.length; i++) {
       S.perBeamPhase[i] = (S.perBeamPhase[i] + (S.perBeamSpeed[i] || 0) * S.speedMultiplier * dtSec) % 360;
     }
-    // Advance pulse phase using current (possibly modulated) speed/freq —
-    // d(phase) = 2π · freqPx · speed · dt, wrapped to stay float-precise forever
-    if (S.pulseOn) {
-      S.pulsePhase = (S.pulsePhase + Math.PI * 2 * (S.pulseFreqCP100 / 100) * S.pulseSpeed * dtSec) % (Math.PI * 2);
+    // Advance the segment cycle. segScroll counts global cycles (speed/λ per
+    // second) and stays in [0,1); segTime is bounded seconds for drift segs.
+    if (S.segments.on) {
+      const wl = Math.max(1, S.segments.wavelength);
+      S.segScroll = (S.segScroll + (S.segments.speed / wl) * dtSec) % 1;
+      if (S.segScroll < 0) S.segScroll += 1;
+      S.segTime = (S.segTime + dtSec) % 100000;
     }
     // Ring spawning + expansion (uses possibly-modulated ring speed)
     advanceRings(dtSec);
@@ -9552,8 +9760,8 @@ void main() {
     if (ssEl) ssEl.value = 10;
     if (ssNumEl) ssNumEl.value = 10;
     // Turn off advanced effects
-    S.pulseOn = false;
-    if (pulseToggle) pulseToggle.textContent = 'Off';
+    S.segments.on = false;
+    if (segToggle) segToggle.textContent = 'Off';
     S.widthWave.enabled = false;
     if (widthWaveToggle) widthWaveToggle.textContent = 'Off';
     S.trails.enabled = false;
@@ -10050,6 +10258,13 @@ void main() {
       frequency: 'Frequency',
       softness: 'Softness',
       dutyCycle: 'Duty cycle',
+      segments: 'Segments',
+      segLength: 'Length',
+      segWidth: 'Width',
+      segDrift: 'Drift',
+      opacity: 'Opacity',
+      colour: 'Colour',
+      hintSegments: '1 segment = a solid beam. Add segments to slice the beam into a repeating cycle; click one to edit its colour, opacity, width & softness. A hole is just a segment at 0 opacity. Drift gives a segment its own speed/length so it slides free of the others.',
       // Shape
       shapeTitle: 'Beam Shapes',
       roomShape: 'Room shape',
@@ -10276,6 +10491,13 @@ void main() {
       frequency: 'Frecuencia',
       softness: 'Suavidad',
       dutyCycle: 'Ciclo de trabajo',
+      segments: 'Segmentos',
+      segLength: 'Longitud',
+      segWidth: 'Ancho',
+      segDrift: 'Deriva',
+      opacity: 'Opacidad',
+      colour: 'Color',
+      hintSegments: '1 segmento = un haz sólido. Añade segmentos para dividir el haz en un ciclo repetido; haz clic en uno para editar su color, opacidad, ancho y suavidad. Un hueco es un segmento con opacidad 0. La deriva le da al segmento su propia velocidad/longitud para deslizarse libremente.',
       // Shape
       shapeTitle: 'Formas de haz',
       roomShape: 'Forma de sala',
@@ -10501,6 +10723,13 @@ void main() {
       frequency: 'Frequência',
       softness: 'Suavidade',
       dutyCycle: 'Ciclo de trabalho',
+      segments: 'Segmentos',
+      segLength: 'Comprimento',
+      segWidth: 'Largura',
+      segDrift: 'Deriva',
+      opacity: 'Opacidade',
+      colour: 'Cor',
+      hintSegments: '1 segmento = um feixe sólido. Adicione segmentos para dividir o feixe num ciclo repetido; clique num para editar cor, opacidade, largura e suavidade. Um buraco é um segmento com opacidade 0. A deriva dá ao segmento a sua própria velocidade/comprimento para deslizar livremente.',
       // Shape
       shapeTitle: 'Formas de feixe',
       roomShape: 'Forma da sala',
@@ -10726,6 +10955,13 @@ void main() {
       frequency: 'Fréquence',
       softness: 'Douceur',
       dutyCycle: 'Rapport cyclique',
+      segments: 'Segments',
+      segLength: 'Longueur',
+      segWidth: 'Largeur',
+      segDrift: 'Dérive',
+      opacity: 'Opacité',
+      colour: 'Couleur',
+      hintSegments: '1 segment = un faisceau plein. Ajoutez des segments pour découper le faisceau en un cycle répété ; cliquez sur un segment pour modifier sa couleur, son opacité, sa largeur et sa douceur. Un trou est un segment à 0 opacité. La dérive donne au segment sa propre vitesse/longueur pour glisser librement.',
       // Shape
       shapeTitle: 'Formes de faisceau',
       roomShape: 'Forme de salle',
@@ -11070,8 +11306,7 @@ void main() {
       polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, eccentricity: S.eccentricity,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
       beamAlpha: S.beamAlpha, beamAbsorb: S.beamAbsorb, beamHueDrift: S.beamHueDrift,
-      pulseOn: S.pulseOn, pulseShape: S.pulseShape, pulseAmp: S.pulseAmp,
-      pulseFreqCP100: S.pulseFreqCP100, pulseSpeed: S.pulseSpeed, pulseSoft: S.pulseSoft, pulseDuty: S.pulseDuty,
+      segments: S.segments,
       widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, kaleido: S.kaleido, generative: S.generative, phosphor: S.phosphor, rings: S.rings, field: S.field,
       audio: { sensitivity: S.audio.sensitivity, smoothing: S.audio.smoothing },
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep },
@@ -11105,11 +11340,10 @@ void main() {
       applySpeedPattern();
       rebuildBeamSpeedInputs();
     },
-    pulse: () => {
-      const f = FACTORY;
-      S.pulseOn = f.pulseOn; S.pulseShape = f.pulseShape; S.pulseAmp = f.pulseAmp;
-      S.pulseFreqCP100 = f.pulseFreqCP100; S.pulseSpeed = f.pulseSpeed;
-      S.pulseSoft = f.pulseSoft; S.pulseDuty = f.pulseDuty;
+    segments: () => {
+      S.segments = readSegments(FACTORY);
+      selectedSeg = 0;
+      syncSegmentsUI();
     },
     shapeTitle: () => { S.widthWave = F().widthWave; },
     ringsTitle: () => { S.rings = F().rings; syncRingsUI(); },
@@ -11171,7 +11405,7 @@ void main() {
     ['scenes', 'tabScenes', 'Scenes']
   ];
   const TAB_OF_GROUP = {
-    colors: 'beams', perBeamRotation: 'beams', beamMaterial: 'beams', pulse: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams', generativeTitle: 'beams',
+    colors: 'beams', perBeamRotation: 'beams', beamMaterial: 'beams', segments: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams', generativeTitle: 'beams',
     trails: 'fx', glow: 'fx', kaleido: 'fx', phosphorWalls: 'fx',
     roomTitle: 'room', bonus: 'room',
     audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',
@@ -11199,6 +11433,8 @@ void main() {
     beamOpacity: 'Global beam transparency. Pairs beautifully with Additive blend mode — and it\'s a Modulation Matrix target, so audio can breathe it.',
     beamAbsorb: 'Beams fade with distance travelled, like light through haze — each beam gets a brightness gradient along its whole bounce path.',
     beamHueDrift: 'Rotates the hue along the beam\'s path (°/1000px) — a colour gradient that runs continuously through every bounce.',
+    segments: 'Slices each beam\'s length into a repeating cycle of coloured/transparent segments. 1 segment = a solid beam. Length sets the cycle size, Speed scrolls it. Click a segment in the strip to edit it.',
+    segDrift: 'Detaches this segment from the shared cycle so it scrolls on its own Speed/Length — it drifts freely through the others for organic motion.',
     fieldFog: 'Lifts the calm regions of the field into a soft, slowly-drifting haze instead of black — waves glow through mist. Try it with the Prism colour mode.',
     threshold: 'How bright a pixel must be before it starts to glow.',
     trails: 'Persistent afterglow — previous frames fade out instead of clearing.',
@@ -11416,6 +11652,7 @@ void main() {
     applySpeedPattern();
     ensurePerBeamMaterial(S.beamCount);
     rebuildPerBeamEditor();
+    syncSegmentsUI();
     loadScenes();
     
     // Initialize wander seeds with random phases
@@ -11485,6 +11722,8 @@ void main() {
       S, MOD_PARAMS, triggerBeatActions, startRecording, stopRecording,
       renderModRoutes, syncBeatUI, onMidiMessage, renderMidiBindings,
       activateRings, syncRingsUI,
+      // Segments / persistence surface for headless tests
+      currentPreset, applyPreset, readSegments, syncSegmentsUI, captureScene, startTransition,
       // Manually advance one frame — testing/headless use (rAF doesn't fire
       // in hidden tabs, but WebGL still renders when driven directly)
       step: (t) => loopBody(t !== undefined ? t : performance.now())
