@@ -2,6 +2,13 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.22.0] - 2026-07-24
+
+### 🧭 Emission-aware panel + true-fullscreen Generative
+- **The panel now shows only the controls that apply to the active emission mode.** Switch to **Wave field** or **Generative** and the beam-only controls (Reflectivity, Max bounces, Beam width, Edge softness/intensity, Layer/Blend mode, Beam count, and the Colors / Per-beam Rotation / Beam Material / Pulse / Beam Shapes groups) fold away; the Rings, Wave Field and Generative groups likewise appear only for their own mode. This clears up the old confusion where, say, *Edge softness* or *Blend mode* were on screen in Wave-field mode but only ever affected beams. (Rows/groups declare their mode-family via a `data-emit` attribute; a single `updateEmissionVisibility()` keeps it in sync.)
+  - _For the record: Edge softness only bites once **Edge intensity** is above 0 (intensity is the master, softness is its reach) — that gate is unchanged; the control is just no longer shown where it does nothing._
+- **Generative now fills the whole window**, edge-to-edge behind the panel, instead of being boxed into the square stage — it's the one mode with no room, so it can go full-bleed. The three shaders gained aspect-ratio correction (`u_aspect`), so tunnels and orbs stay perfectly round on the now-wide canvas instead of stretching into ellipses. Every other mode still uses the square stage.
+
 ## [1.21.0] - 2026-07-23
 
 ### 🎛️ Per-beam material
