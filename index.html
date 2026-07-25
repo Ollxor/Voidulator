@@ -2429,6 +2429,10 @@
           <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
           <label data-i18n="hueShift">Hue shift</label>
           <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
+          <label data-i18n="trailZoom">Feedback zoom</label>
+          <input id="trailsFbZoom" type="range" min="-0.05" max="0.05" step="0.001" value="0">
+          <label data-i18n="trailSpin">Feedback spin</label>
+          <input id="trailsFbSpin" type="range" min="-3" max="3" step="0.05" value="0">
           <label data-i18n="trailFilter">Filtering</label>
           <button class="btn" id="trailsFilter">Smooth</button>
           <label data-i18n="trailCutoff">Cutoff</label>
@@ -2766,7 +2770,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.23.0';
+  const APP_VERSION = 'v1.24.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2830,6 +2834,8 @@
   const trailsToggle = _el('trailsToggle');
   const trailsLengthEl = _el('trailsLength');
   const trailsHueShiftEl = _el('trailsHueShift');
+  const trailsFbZoomEl = _el('trailsFbZoom');
+  const trailsFbSpinEl = _el('trailsFbSpin');
   const trailsFilterBtn = _el('trailsFilter');
   const trailsCutoffEl = _el('trailsCutoff'), trailsCutoffNumEl = _el('trailsCutoffNum');
   // Thickness pulse
@@ -3012,7 +3018,11 @@
       hueShift: 0,     // degrees of hue shift (0=none, 180=complement)
       // The two "moiré dials": how the trail buffer re-samples itself each frame.
       filter: 'smooth', // smooth (LINEAR, sub-pixel blur feeds interference) | crisp (NEAREST, pixel-exact)
-      cutoff: 0.015     // brightness floor before a trail pixel cuts to black — lower = faint layers persist longer
+      cutoff: 0.015,    // brightness floor before a trail pixel cuts to black — lower = faint layers persist longer
+      // Feedback: each frame the trail buffer is re-sampled slightly scaled +
+      // rotated, so trails spiral into tunnels/vortexes. 0/0 = plain trails.
+      fbZoom: 0,        // per-frame scale: + expands outward, − pulls inward (~±0.05)
+      fbSpin: 0         // per-frame rotation in degrees: spirals the trail (~±3)
     },
     // Bloom post-process (real laser glow)
     bloom: {
@@ -3578,7 +3588,9 @@
         opacity: S.trails.opacity,
         hueShift: S.trails.hueShift,
         filter: S.trails.filter,
-        cutoff: S.trails.cutoff
+        cutoff: S.trails.cutoff,
+        fbZoom: S.trails.fbZoom,
+        fbSpin: S.trails.fbSpin
       },
       bloom: {
         enabled: S.bloom.enabled,
@@ -3762,6 +3774,8 @@
       S.trails.hueShift = scene.trails.hueShift ?? 0;
       S.trails.filter = scene.trails.filter ?? 'smooth';
       S.trails.cutoff = scene.trails.cutoff ?? 0.015;
+      S.trails.fbZoom = scene.trails.fbZoom ?? 0;
+      S.trails.fbSpin = scene.trails.fbSpin ?? 0;
     }
     if (scene.bloom) {
       S.bloom.enabled = scene.bloom.enabled ?? true;
@@ -3898,6 +3912,8 @@
     if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
     if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
     if (trailsHueShiftEl) trailsHueShiftEl.value = S.trails.hueShift;
+    if (trailsFbZoomEl) trailsFbZoomEl.value = S.trails.fbZoom ?? 0;
+    if (trailsFbSpinEl) trailsFbSpinEl.value = S.trails.fbSpin ?? 0;
     if (trailsFilterBtn) trailsFilterBtn.textContent = S.trails.filter === 'crisp' ? 'Crisp' : 'Smooth';
     if (trailsCutoffEl) trailsCutoffEl.value = trailsCutoffNumEl.value = S.trails.cutoff;
     // Shape (widthWave)
@@ -4033,6 +4049,8 @@
     S.trails.hueShift = lerp(fromTrails.hueShift, toTrails.hueShift, t);
     S.trails.filter = t > 0.5 ? (toTrails.filter ?? 'smooth') : (fromTrails.filter ?? 'smooth');
     S.trails.cutoff = lerp(fromTrails.cutoff ?? 0.015, toTrails.cutoff ?? 0.015, t);
+    S.trails.fbZoom = lerp(fromTrails.fbZoom ?? 0, toTrails.fbZoom ?? 0, t);
+    S.trails.fbSpin = lerp(fromTrails.fbSpin ?? 0, toTrails.fbSpin ?? 0, t);
     
     // Lerp widthWave (Shape)
     const fromWave = from.widthWave || { enabled: false, shape: 'circle', freq: 0.5, speed: 0, duty: 0.5, rotation: 0 };
@@ -5228,6 +5246,8 @@ uniform sampler2D u_tex;
 uniform float u_fade;
 uniform float u_hueShift;
 uniform float u_threshold;
+uniform float u_fbScale; // feedback: sample-region scale (1 = none)
+uniform float u_fbAngle; // feedback: sample-region rotation, radians
 out vec4 outColor;
 
 // rgb2hsv / hsv2rgb: the well-known branchless versions by Sam Hocevar,
@@ -5248,7 +5268,18 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
-  vec4 col = texture(u_tex, v_uv);
+  // Feedback: re-sample the previous frame slightly scaled + rotated about the
+  // centre, so the trail spirals outward/inward into a tunnel/vortex over time.
+  vec2 uv = v_uv;
+  if (u_fbScale != 1.0 || u_fbAngle != 0.0) {
+    vec2 p = v_uv - 0.5;
+    float c = cos(u_fbAngle), s = sin(u_fbAngle);
+    p = mat2(c, -s, s, c) * p * u_fbScale;
+    uv = p + 0.5;
+    // Outside the frame → fresh black (content scrolls off / new space opens up)
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { outColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  }
+  vec4 col = texture(u_tex, uv);
   // Fade RGB multiplicatively
   col.rgb *= u_fade;
   // Also subtract a tiny amount to ensure eventual fadeout
@@ -6928,11 +6959,14 @@ void main() {
       const writeFBO = pp === 0 ? trailFBO2 : trailFBO;
       const writeTex = pp === 0 ? trailTex2 : trailTex;
       
-      // Length (1-180): controls fade rate / trail duration
-      // Map length to fade rate: len=1 → 0.75, len=180 → 0.995
+      // Length (1-180): controls fade rate / trail duration.
+      // len=1 → 0 (previous frame fully cleared, identical to trails Off);
+      // ramps smoothly to ~0.995 (very long) at len=180. The low slider range
+      // now spans subtle → short trails instead of jumping straight to a long
+      // smear (the old floor was 0.75 — visible even at minimum).
       const len = Math.max(1, S.trails.length);
       const t = (len - 1) / 179; // 0 to 1
-      const fadeRate = 0.75 + 0.245 * Math.pow(t, 0.6);
+      const fadeRate = 0.995 * Math.pow(t, 0.5);
       
       // Hue shift: shift toward complementary color (180 = opposite on color wheel)
       const hueShiftPerFrame = S.trails.hueShift / Math.max(1, len * 2);
@@ -6941,7 +6975,12 @@ void main() {
       // lower keeps faint interference layers alive far longer, higher
       // scrubs the buffer clean sooner.
       const threshold = clamp(S.trails.cutoff ?? 0.015, 0, 0.06);
-      
+
+      // Feedback transform: + zoom expands the trail outward (sample a smaller
+      // region), − zoom pulls it inward; spin rotates it each frame → spirals.
+      const fbScale = 1 - clamp(S.trails.fbZoom ?? 0, -0.5, 0.5);
+      const fbAngle = (S.trails.fbSpin ?? 0) * Math.PI / 180;
+
       // Step 1: Render to write FBO (faded previous + new beams)
       gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO);
       gl.viewport(0, 0, w, h);
@@ -6961,6 +7000,8 @@ void main() {
       gl.uniform1f(gl.getUniformLocation(trailProg, 'u_fade'), fadeRate);
       gl.uniform1f(gl.getUniformLocation(trailProg, 'u_hueShift'), hueShiftPerFrame / 360);
       gl.uniform1f(gl.getUniformLocation(trailProg, 'u_threshold'), threshold);
+      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_fbScale'), fbScale);
+      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_fbAngle'), fbAngle);
       
       gl.disable(gl.BLEND);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -7543,7 +7584,9 @@ void main() {
   _on(trailsHueShiftEl, 'input', () => {
     S.trails.hueShift = parseInt(trailsHueShiftEl.value) || 0;
   });
-  
+  _on(trailsFbZoomEl, 'input', () => { S.trails.fbZoom = parseFloat(trailsFbZoomEl.value) || 0; });
+  _on(trailsFbSpinEl, 'input', () => { S.trails.fbSpin = parseFloat(trailsFbSpinEl.value) || 0; });
+
   // Blend mode handler
   _on(blendModeEl, 'change', () => {
     S.blendMode = blendModeEl.value;
@@ -7605,7 +7648,7 @@ void main() {
       beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
       perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
-      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff },
+      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin },
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
@@ -7660,6 +7703,8 @@ void main() {
       S.trails.hueShift = P.trails.hueShift ?? 0;
       S.trails.filter = P.trails.filter ?? 'smooth';
       S.trails.cutoff = P.trails.cutoff ?? 0.015;
+      S.trails.fbZoom = P.trails.fbZoom ?? 0;
+      S.trails.fbSpin = P.trails.fbSpin ?? 0;
     }
     if (P.widthWave) {
       S.widthWave.enabled = P.widthWave.enabled ?? false;
@@ -8565,6 +8610,8 @@ void main() {
     speedMult:     { label: 'Beam anim speed', get: () => S.speedMultiplier, set: v => S.speedMultiplier = v, min: 0,   max: () => 2,          range: () => 0.2 },
     trailsLength:  { label: 'Trail length',   get: () => S.trails.length,   set: v => S.trails.length = v,   min: 1,    max: () => 180,        range: () => 80 },
     trailsCutoff:  { label: 'Trail cutoff',   get: () => S.trails.cutoff,   set: v => S.trails.cutoff = v,   min: 0,    max: () => 0.06,       range: () => 0.03 },
+    trailZoom:     { label: 'Trail zoom',     get: () => S.trails.fbZoom,   set: v => S.trails.fbZoom = v,   min: -0.05, max: () => 0.05,      range: () => 0.05 },
+    trailSpin:     { label: 'Trail spin',     get: () => S.trails.fbSpin,   set: v => S.trails.fbSpin = v,   min: -3,   max: () => 3,          range: () => 3 },
     beamAlpha:     { label: 'Beam opacity',   get: () => S.beamAlpha,       set: v => S.beamAlpha = v,       min: 0.05, max: () => 1,          range: () => 0.5 },
     beamAbsorb:    { label: 'Absorption',     get: () => S.beamAbsorb,      set: v => S.beamAbsorb = v,      min: 0,    max: () => 1,          range: () => 0.5 },
     beamHueDrift:  { label: 'Beam hue drift', get: () => S.beamHueDrift,    set: v => S.beamHueDrift = v,    min: -360, max: () => 360,        range: () => 180 },
@@ -10236,6 +10283,8 @@ void main() {
       hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
       trailFilter: 'Filtering',
       trailCutoff: 'Cutoff',
+      trailZoom: 'Feedback zoom',
+      trailSpin: 'Feedback spin',
       beamMaterial: 'Beam Material',
       perBeam: 'Per-beam trim',
       hintBeamMaster: 'Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path (°/1000px).',
@@ -10469,6 +10518,8 @@ void main() {
       hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
       trailFilter: 'Filtrado',
       trailCutoff: 'Corte',
+      trailZoom: 'Zoom de eco',
+      trailSpin: 'Giro de eco',
       beamMaterial: 'Material del haz',
       perBeam: 'Ajuste por haz',
       hintBeamMaster: 'Maestro para todos los haces. Opacidad = transparencia; Absorción = desvanecimiento por niebla a lo largo del trayecto; Deriva de tono = gradiente de color a lo largo del trayecto (°/1000px).',
@@ -10701,6 +10752,8 @@ void main() {
       hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
       trailFilter: 'Filtragem',
       trailCutoff: 'Corte',
+      trailZoom: 'Zoom de eco',
+      trailSpin: 'Giro de eco',
       beamMaterial: 'Material do feixe',
       perBeam: 'Ajuste por feixe',
       hintBeamMaster: 'Mestre para todos os feixes. Opacidade = transparência; Absorção = desvanecimento por névoa ao longo do trajeto; Deriva de tom = gradiente de cor ao longo do trajeto (°/1000px).',
@@ -10933,6 +10986,8 @@ void main() {
       hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
       trailFilter: 'Filtrage',
       trailCutoff: 'Seuil',
+      trailZoom: 'Zoom rétroaction',
+      trailSpin: 'Rotation rétroaction',
       beamMaterial: 'Matériau du faisceau',
       perBeam: 'Réglage par faisceau',
       hintBeamMaster: 'Maître pour tous les faisceaux. Opacité = transparence ; Absorption = fondu de brume le long du trajet ; Dérive de teinte = dégradé de couleur le long du trajet (°/1000px).',
@@ -11437,7 +11492,9 @@ void main() {
     segDrift: 'Detaches this segment from the shared cycle so it scrolls on its own Speed/Length — it drifts freely through the others for organic motion.',
     fieldFog: 'Lifts the calm regions of the field into a soft, slowly-drifting haze instead of black — waves glow through mist. Try it with the Prism colour mode.',
     threshold: 'How bright a pixel must be before it starts to glow.',
-    trails: 'Persistent afterglow — previous frames fade out instead of clearing.',
+    trails: 'Persistent afterglow — previous frames fade out instead of clearing. Length now starts at 0 (invisible) and rises to very long.',
+    trailZoom: 'Feedback: each frame the fading trail is re-drawn slightly bigger (+) or smaller (−), so trails tunnel outward or spiral inward. 0 = plain trails. Needs Trails on and some Length.',
+    trailSpin: 'Feedback: rotates the fading trail a little each frame, curling it into a spiral/vortex. Pairs with Feedback zoom for tunnels. Needs Trails on and some Length.',
     phosphorWalls: 'Beams paint decaying glow onto the walls where they strike.',
     ringsTitle: 'Expanding circular wavefronts from their own emitters that fold and reflect off the walls.',
     autoSpawn: 'Off = rings appear only when you press Activate. On = a randomized scheduler keeps spawning them.',

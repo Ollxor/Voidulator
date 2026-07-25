@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.24.0] - 2026-07-25
+
+### 🌀 Trails: minimum is finally invisible + Feedback tunnels
+- **Fixed: Trail Length at minimum now means _no_ trail.** The length→fade curve had a floor of 0.75 — so even at the bottom of the slider, every frame kept 75% of the previous one (a ~10–15 frame smear). It now maps len=1 → fade 0 (previous frame fully cleared, identical to Trails Off) and ramps smoothly to very-long at the top, so the low end of the slider is a genuine range of subtle → short trails instead of jumping straight to a heavy smear. _(Existing scenes' trails may read a touch shorter than before, since the whole curve was recalibrated — nudge Length up if you want the old length back.)_
+- **New: Feedback (zoom + spin)** — two sliders in the Trails group that re-sample the fading trail buffer slightly scaled and rotated each frame, so the trails curl into **tunnels, vortexes and spirals**:
+  - **Feedback zoom** — `+` pushes the trail outward (expanding tunnel), `−` pulls it inward (falling into a black hole).
+  - **Feedback spin** — rotates the trail a little each frame; combine with zoom for a spiral.
+  - Both are new **Modulation Matrix** targets — route audio/LFO to Feedback zoom for a tunnel that breathes with the music. Saved in scenes/presets and interpolated through transitions.
+
 ## [1.23.0] - 2026-07-24
 
 ### 🧩 Segments — Pulse, reimagined

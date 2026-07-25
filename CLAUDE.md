@@ -100,7 +100,10 @@ The WebGL canvas (`#gl`) and the 2D overlay canvas (`#overlay`) are stacked abso
 Beam geometry writes into a persistent, growable `Float32Array` (`vertBuf`) rather than allocating per frame. When the required size exceeds the allocated size, the buffer doubles.
 
 ### Trail ping-pong
-Two framebuffers (`fbA`, `fbB`) alternate each frame. The previous frame is blended back at `reflectivity` opacity, creating motion blur/persistence. Additive and normal blend modes are both supported.
+Two framebuffers alternate each frame. The previous frame is re-drawn faded (`trailFs`), then the new beams draw on top. Key details:
+- **Length → fade** (in the trail render block): `fadeRate = 0.995 * pow((len-1)/179, 0.5)`, so **len=1 → fade 0** (previous frame fully cleared = identical to trails Off) up to ~0.995 at len=180. Do NOT reintroduce a non-zero floor — that's exactly the "minimum still smears" bug fixed in v1.24.
+- **Feedback (v1.24):** `S.trails.fbZoom`/`fbSpin` re-sample the previous frame scaled (`u_fbScale = 1 - fbZoom`) + rotated (`u_fbAngle`, radians) about the centre before fading, turning trails into tunnels/spirals. The transform is skipped when both are 0 (`u_fbScale==1 && u_fbAngle==0`) so plain trails are byte-identical to before; out-of-frame samples return black. `trailZoom`/`trailSpin` are `MOD_PARAMS` targets. Trails only run in beam/ring/field modes (square stage), so no aspect correction is needed.
+- `S.trails.opacity` exists in state + persistence but is currently unused by the render (dead field; safe to wire up later).
 
 ## Scene / preset / localStorage system
 

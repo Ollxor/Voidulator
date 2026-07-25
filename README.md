@@ -23,7 +23,7 @@
 ### Visual Effects
 - **Segments** — Slice each beam's length into a repeating, scrolling cycle of segments, each with its own colour, opacity, width and softness. 1 segment = a solid beam; add more to build travelling colour/hole patterns. A "hole" is just a segment at 0 opacity, and any segment can be given its own speed/length (Drift) to slide free of the cycle. (Replaces the old Pulse effect, which migrates automatically.)
 - **Shape effects** — Animated circles/ellipses flowing along beams
-- **Trails** — Persistent afterglow with hue shifting, plus Filtering (Smooth/Crisp) and Cutoff controls that tune the emergent interference patterns thin slow beams create
+- **Trails** — Persistent afterglow with hue shifting, Filtering (Smooth/Crisp) and Cutoff controls that tune the emergent interference patterns thin slow beams create, and **Feedback** (zoom + spin) that re-samples the trail buffer each frame to curl the trails into tunnels, vortexes and spirals (both Feedback dials are audio-routable)
 - **Glow (bloom)** — Bright beams bleed light like real lasers in haze, with strength and threshold controls
 - **Kaleidoscope** — N-fold radial mirror of the whole frame (2–16 segments, rotation/spin, mirror or rotational repeat), stacking on every emission mode
 - **Blend modes** — Normal or additive blending
