@@ -2,6 +2,16 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.27.0] - 2026-07-27
+
+### 🩹 Readable panel in every language, new Trail brightness, faster render loop
+- **Panel labels no longer run underneath their own sliders.** The label columns were fixed-width with `white-space: nowrap`, so anything past ~10 characters was clipped — 13 labels in English and **26 in French** (which needs up to 223px in an 85px column). Labels now wrap instead of clipping and the columns are a little wider; measured 0 clipped labels in all four languages, with sliders still ≥110px. The four Trails feedback controls are now simply **Zoom / Spin / Drift X / Drift Y** — inside the TRAILS group the "Feedback" prefix was redundant, and the short names fit on one line in every language.
+- **~20 panel labels were never translated at all** (Global speed, Reflectivity, Beam count, Blend mode, Mirror, Emitters, Speed range…) — they had no `data-i18n`, so they stayed English no matter the language. Most already had translations sitting unused in all four tables; the rest were written. 
+- **New: Trails → Brightness.** Dims the accumulated trail *independently of how long it lasts*, so you can keep beams crisp and bright while their smear sits back quietly. (Length still controls the fade rate — this is a genuinely separate axis, not a second decay knob.) It's a Modulation Matrix target too. This value was already being saved in every scene and preset since long ago but was silently ignored by the renderer; existing scenes now honour it.
+- **Faster render loop:** the post-process passes were re-resolving ~30 shader uniform locations *by string, every frame* (~1800 lookups/sec at 60fps). They're now cached per program. Verified pixel-identical on deterministic scenes.
+- Fixes: the emitter **Geometric** toggle showed the word "Geometric" instead of On/Off after any language change; the mic button reverted to "Start listening" while still listening; the ▶️ on the Tutorial button was dropped when translating; two hint texts had drifted out of sync with their translations (one contradicted the tooltip about what ring lifetime counts). Removed dead state (`emitterSymmetry`/`symRadius`/`symAngle`) and a lookup for an element id that doesn't exist.
+- **New CI check — `tests/i18n-audit.mjs`**, running ahead of the smoke test (pure text analysis, no browser, sub-second). Fails on HTML↔English drift, keys missing from any language, panel labels with no `data-i18n`, state-toggle buttons carrying `data-i18n`, dead panel-registry entries, and — after a stray apostrophe in a French string blanked the whole app mid-change — any inline `<script>` that doesn't parse.
+
 ## [1.26.0] - 2026-07-26
 
 ### 🎨 Three new Blend modes + Segment speed recalibrated

@@ -2442,6 +2442,8 @@
           <button class="btn" id="trailsToggle">Off</button>
           <label data-i18n="length">Length</label>
           <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
+          <label data-i18n="trailBrightness">Brightness</label>
+          <input id="trailsOpacity" type="range" min="0" max="1" step="0.01" value="1">
           <label data-i18n="hueShift">Hue shift</label>
           <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
           <label data-i18n="trailZoom">Zoom</label>
@@ -2794,7 +2796,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.26.0';
+  const APP_VERSION = 'v1.27.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2856,6 +2858,7 @@
   // Trails
   const trailsToggle = _el('trailsToggle');
   const trailsLengthEl = _el('trailsLength');
+  const trailsOpacityEl = _el('trailsOpacity');
   const trailsHueShiftEl = _el('trailsHueShift');
   const trailsFbZoomEl = _el('trailsFbZoom');
   const trailsFbSpinEl = _el('trailsFbSpin');
@@ -3948,6 +3951,7 @@
     // Trails
     if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
     if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
+    if (trailsOpacityEl) trailsOpacityEl.value = S.trails.opacity ?? 1;
     if (trailsHueShiftEl) trailsHueShiftEl.value = S.trails.hueShift;
     if (trailsFbZoomEl) trailsFbZoomEl.value = S.trails.fbZoom ?? 0;
     if (trailsFbSpinEl) trailsFbSpinEl.value = S.trails.fbSpin ?? 0;
@@ -7109,8 +7113,45 @@ void main() {
       gl.disable(gl.BLEND);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.enable(gl.BLEND);
-      
+
+      // --- Trail brightness ---------------------------------------------
+      // Dims the accumulated trail WITHOUT changing how fast it decays.
+      // Multiplying the feedback itself would just be a second decay knob
+      // (mathematically identical to lowering Length), so instead, when
+      // Brightness < 1, the displayed frame is built separately: the faded
+      // history at `trailOpacity`, then the fresh beams at full strength on
+      // top. The history buffer still accumulates unweighted, so trail
+      // length is untouched. At Brightness == 1 nothing below runs and the
+      // original single-draw path is used unchanged.
+      // Cost when active: one extra fullscreen blit + one extra beam draw.
+      const trailOpacity = clamp(S.trails.opacity ?? 1, 0, 1);
+      const dimTrails = trailOpacity < 0.999;
+      let displayTex = writeTex;
+      if (dimTrails) {
+        ensureBloomTargets(); // allocates sceneFBO / sceneTex at canvas size
+        gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(blitProg);
+        gl.activeTexture(gl.TEXTURE0);
+        // writeTex currently holds ONLY the faded history — the beams for
+        // this frame have not been drawn into it yet, which is exactly why
+        // this blit has to happen here and not after.
+        gl.bindTexture(gl.TEXTURE_2D, writeTex);
+        gl.uniform1i(uloc(blitProg, 'u_tex'), 0);
+        gl.uniform1f(uloc(blitProg, 'u_mult'), trailOpacity);
+        uploadKscopeUniforms(blitProg);
+        gl.uniform1f(uloc(blitProg, 'u_kOn'), 0); // fold once, at final display
+        gl.disable(gl.BLEND);
+        drawPostQuad(blitProg);
+        gl.enable(gl.BLEND);
+        displayTex = sceneTex;
+      }
+
       // Draw current beams on top (to write FBO)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO);
+      gl.viewport(0, 0, w, h);
       uploadBeamUniforms();
 
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -7123,11 +7164,23 @@ void main() {
       setBlendMode(S.blendMode);
       drawBeamGeometry();
 
+      if (dimTrails) {
+        // Same beams again, full strength, over the dimmed history.
+        // uploadBeamUniforms() must be repeated: drawBeamGeometry() zeroes
+        // u_segOn/u_edgeIntensity for its phosphor pass and never restores
+        // them, so a second draw without it would lose segments and edges.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
+        gl.viewport(0, 0, w, h);
+        uploadBeamUniforms();
+        setBlendMode(S.blendMode);
+        drawBeamGeometry();
+      }
+
       // Step 2: composite to screen — with glow when bloom is on
       if (S.bloom.enabled && S.bloom.strength > 0.001) {
         ensureBloomTargets();
-        runBloom(writeTex);
-        compositeWithBloom(writeTex);
+        runBloom(displayTex);
+        compositeWithBloom(displayTex);
       } else {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, w, h);
@@ -7136,7 +7189,7 @@ void main() {
 
         gl.useProgram(copyProg);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, writeTex);
+        gl.bindTexture(gl.TEXTURE_2D, displayTex);
         gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
         uploadKscopeUniforms(copyProg);
 
@@ -7687,6 +7740,7 @@ void main() {
   _on(trailsHueShiftEl, 'input', () => {
     S.trails.hueShift = parseInt(trailsHueShiftEl.value) || 0;
   });
+  _on(trailsOpacityEl, 'input', () => { S.trails.opacity = clamp(parseFloat(trailsOpacityEl.value), 0, 1); });
   _on(trailsFbZoomEl, 'input', () => { S.trails.fbZoom = parseFloat(trailsFbZoomEl.value) || 0; });
   _on(trailsFbSpinEl, 'input', () => { S.trails.fbSpin = parseFloat(trailsFbSpinEl.value) || 0; });
   _on(trailsFbDriftXEl, 'input', () => { S.trails.fbDriftX = parseFloat(trailsFbDriftXEl.value) || 0; });
@@ -8719,6 +8773,7 @@ void main() {
     speedMult:     { label: 'Beam anim speed', get: () => S.speedMultiplier, set: v => S.speedMultiplier = v, min: 0,   max: () => 2,          range: () => 0.2 },
     trailsLength:  { label: 'Trail length',   get: () => S.trails.length,   set: v => S.trails.length = v,   min: 1,    max: () => 180,        range: () => 80 },
     trailsCutoff:  { label: 'Trail cutoff',   get: () => S.trails.cutoff,   set: v => S.trails.cutoff = v,   min: 0,    max: () => 0.06,       range: () => 0.03 },
+    trailsOpacity: { label: 'Trail brightness', get: () => S.trails.opacity, set: v => S.trails.opacity = v, min: 0,   max: () => 1,          range: () => 1 },
     trailZoom:     { label: 'Trail zoom',     get: () => S.trails.fbZoom,   set: v => S.trails.fbZoom = v,   min: -0.05, max: () => 0.05,      range: () => 0.05 },
     trailSpin:     { label: 'Trail spin',     get: () => S.trails.fbSpin,   set: v => S.trails.fbSpin = v,   min: -3,   max: () => 3,          range: () => 3 },
     trailDriftX:   { label: 'Trail drift X',  get: () => S.trails.fbDriftX, set: v => S.trails.fbDriftX = v, min: -0.02, max: () => 0.02,     range: () => 0.02 },
@@ -10400,6 +10455,7 @@ void main() {
       trailDriftX: 'Drift X',
       trailDriftY: 'Drift Y',
       trailBeatEcho: 'Beat echo',
+      trailBrightness: 'Brightness',
       mirrorLabel: 'Mirror',
       emittersLabel: 'Emitters',
       moveSpeed: 'Move speed',
@@ -10645,6 +10701,7 @@ void main() {
       trailDriftX: 'Deriva X',
       trailDriftY: 'Deriva Y',
       trailBeatEcho: 'Eco de ritmo',
+      trailBrightness: 'Brillo',
       mirrorLabel: 'Espejo',
       emittersLabel: 'Emisores',
       moveSpeed: 'Vel. movimiento',
@@ -10889,6 +10946,7 @@ void main() {
       trailDriftX: 'Deriva X',
       trailDriftY: 'Deriva Y',
       trailBeatEcho: 'Eco de batida',
+      trailBrightness: 'Brilho',
       mirrorLabel: 'Espelho',
       emittersLabel: 'Emissores',
       moveSpeed: 'Vel. movimento',
@@ -11133,6 +11191,7 @@ void main() {
       trailDriftX: 'Dérive X',
       trailDriftY: 'Dérive Y',
       trailBeatEcho: 'Écho de battement',
+      trailBrightness: 'Luminosité',
       mirrorLabel: 'Miroir',
       emittersLabel: 'Émetteurs',
       moveSpeed: 'Vit. déplacement',
@@ -11650,6 +11709,7 @@ void main() {
     fieldFog: 'Lifts the calm regions of the field into a soft, slowly-drifting haze instead of black — waves glow through mist. Try it with the Prism colour mode.',
     threshold: 'How bright a pixel must be before it starts to glow.',
     trails: 'Persistent afterglow — previous frames fade out instead of clearing. Length now starts at 0 (invisible) and rises to very long.',
+    trailBrightness: 'How bright the accumulated trail is, independent of how long it lasts. Lower it to keep the beams sharp while their smear sits back. Length still controls how fast it fades.',
     trailZoom: 'Feedback: each frame the fading trail is re-drawn slightly bigger (+) or smaller (−), so trails tunnel outward or spiral inward. 0 = plain trails. Needs Trails on and some Length.',
     trailSpin: 'Feedback: rotates the fading trail a little each frame, curling it into a spiral/vortex. Pairs with Feedback zoom for tunnels. Needs Trails on and some Length.',
     trailDriftX: 'Feedback: shifts the fading trail sideways a little each frame — a "wind" pushing the whole trail left (−) or right (+). Needs Trails on and some Length.',
