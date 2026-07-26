@@ -14,6 +14,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+      # Pure text analysis, no browser — runs first so a string/registry
+      # regression fails in seconds instead of after the Playwright install.
+      - name: i18n + panel registry audit
+        run: node tests/i18n-audit.mjs
       - name: Install Playwright
         run: |
           npm init -y > /dev/null

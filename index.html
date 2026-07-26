@@ -2301,7 +2301,7 @@
           <label data-i18n="ringSpacing">Spacing (s)</label>
           <div class="dual-range-slot" id="ringSpacingSlot"></div>
         </div>
-        <div class="hint" data-i18n="hintRings">Expanding rings from their own emitters (teal dots). Lifetime in bounces: 1 = reach the wall, 2 = back through center. Range sliders pick a random value between the two markers.</div>
+        <div class="hint" data-i18n="hintRings">Expanding rings from their own emitters (teal dots). Lifetime counts wall bounces: 1 = first wall hit, 2 = second. Range sliders pick a random value between the two markers.</div>
       </div>
     </div>
 
@@ -2497,7 +2497,7 @@
           <label>Mirror</label>
           <button class="btn" id="kaleidoMirror">On</button>
         </div>
-        <div class="hint" data-i18n="hintKaleido">N-fold radial mirror of the whole frame &mdash; stacks with beams, rings, and the wave field. Mirror off = a plain rotational repeat instead of a reflected fold.</div>
+        <div class="hint" data-i18n="hintKaleido">N-fold radial mirror of the whole frame &mdash; stacks with beams, rings, and the wave field. Mirror off swaps the reflected fold for a plain rotational repeat.</div>
       </div>
     </div>
 
@@ -2723,7 +2723,10 @@
           <label data-i18n="alignLabel">Align</label>
           <div class="btn-row">
             <button class="btn" id="emitterAlignBtn" data-i18n="alignNow">Align</button>
-            <button class="btn" id="emitterGeoToggle" data-i18n="geometric">On</button>
+            <!-- No data-i18n: this button's text is state (On/Off), which
+                 applyTranslations() would otherwise overwrite with the static
+                 "Geometric" label on every language change. -->
+            <button class="btn" id="emitterGeoToggle">On</button>
           </div>
 
           <label data-i18n="clusterRotation">Rotation (°)</label>
@@ -2808,7 +2811,6 @@
   const emCountUpBtn = _el('emCountUp');
   const emCountDownBtn = _el('emCountDown');
   const emCountValEl = _el('emCountVal');
-  const emitterSymmetryEl = _el('emitterSymmetry');
   const spreadEl = _el('spread');
   const spreadNumEl = _el('spreadNum');
   const angleEl = _el('angle');
@@ -2992,9 +2994,6 @@
     emitters: [{ x: 0, y: 0 }],
     draggingIdx: -1,
     fieldDraggingIdx: -1,
-    emitterSymmetry: true,
-    symRadius: 0.15, // normalized radius for symmetric positioning
-    symAngle: 0,     // angle of first emitter in formation
     // Emitter cluster: arrange the beam emitters as a regular polygon
     // (2 = line, 3 = triangle, 4 = square…) with manual rotation + auto spin
     emitterGeo: true,        // geometric alignment / drag-follow on
@@ -11356,13 +11355,18 @@ void main() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
       if (t[key]) {
-        // Preserve emojis at the start of text
+        // Preserve emojis at the start of text. The ranges cover pictographic
+        // emoji plus Geometric Shapes (U+25A0\u2013U+25FF) for markers like \u25B6.
         const text = el.textContent || '';
-        const emojiMatch = text.match(/^([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}][\uFE00-\uFE0F]?\s*)/u);
+        const emojiMatch = text.match(/^([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{25A0}-\u{25FF}][\uFE00-\uFE0F]?\s*)/u);
         const emoji = emojiMatch ? emojiMatch[1] : '';
         el.textContent = emoji + t[key];
       }
     });
+    // Buttons whose caption is *state*, not a static label, must be restored
+    // after the sweep above \u2014 their data-i18n holds only the resting-state
+    // text, so translating mid-state would lie about what the button does.
+    if (audioToggleBtn && S.audio.active) audioToggleBtn.textContent = getTranslation('stopListening');
   }
   
   function loadLanguage() {
