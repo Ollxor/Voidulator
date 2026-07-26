@@ -5641,7 +5641,21 @@ void main() {
     }
     return p;
   }
-  
+
+  // Memoized gl.getUniformLocation. A uniform's location is fixed for the life
+  // of a linked program, but the post-process passes (trail, bloom, blit,
+  // generative, wave) were re-resolving ~30 of them by string EVERY frame.
+  // The cache hangs off the program object itself, so a re-created program
+  // (context loss, re-init) starts empty rather than serving stale locations.
+  // Note a uniform optimised out by the driver resolves to null — cache it as
+  // null too, don't retry: gl.uniform*(null, …) is a documented no-op.
+  function uloc(prog, name) {
+    let cache = prog._uloc;
+    if (!cache) cache = prog._uloc = new Map();
+    if (!cache.has(name)) cache.set(name, gl.getUniformLocation(prog, name));
+    return cache.get(name);
+  }
+
   function setBlendMode(mode) {
     switch (mode) {
       case 'additive':
@@ -6264,10 +6278,10 @@ void main() {
   // is a no-op (u_kOn=0) when the effect is disabled.
   function uploadKscopeUniforms(prog) {
     const K = S.kaleido;
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_kOn'), K.enabled ? 1 : 0);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_kSegs'), Math.max(2, K.segments));
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_kAngle'), K.rot * Math.PI / 180);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_kMirror'), K.mirror ? 1 : 0);
+    gl.uniform1f(uloc(prog, 'u_kOn'), K.enabled ? 1 : 0);
+    gl.uniform1f(uloc(prog, 'u_kSegs'), Math.max(2, K.segments));
+    gl.uniform1f(uloc(prog, 'u_kAngle'), K.rot * Math.PI / 180);
+    gl.uniform1f(uloc(prog, 'u_kMirror'), K.mirror ? 1 : 0);
   }
 
   // Bright-pass srcTex into bloomA, then blur A→B→A. Leaves result in bloomTexA.
@@ -6280,21 +6294,21 @@ void main() {
     gl.viewport(0, 0, bw, bh);
     gl.useProgram(brightProg);
     gl.bindTexture(gl.TEXTURE_2D, srcTex);
-    gl.uniform1i(gl.getUniformLocation(brightProg, 'u_tex'), 0);
-    gl.uniform1f(gl.getUniformLocation(brightProg, 'u_threshold'), S.bloom.threshold);
+    gl.uniform1i(uloc(brightProg, 'u_tex'), 0);
+    gl.uniform1f(uloc(brightProg, 'u_threshold'), S.bloom.threshold);
     drawPostQuad(brightProg);
 
     gl.useProgram(blurProg);
-    gl.uniform1i(gl.getUniformLocation(blurProg, 'u_tex'), 0);
+    gl.uniform1i(uloc(blurProg, 'u_tex'), 0);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, bloomFBOB);
     gl.bindTexture(gl.TEXTURE_2D, bloomTexA);
-    gl.uniform2f(gl.getUniformLocation(blurProg, 'u_dir'), 1 / bw, 0);
+    gl.uniform2f(uloc(blurProg, 'u_dir'), 1 / bw, 0);
     drawPostQuad(blurProg);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, bloomFBOA);
     gl.bindTexture(gl.TEXTURE_2D, bloomTexB);
-    gl.uniform2f(gl.getUniformLocation(blurProg, 'u_dir'), 0, 1 / bh);
+    gl.uniform2f(uloc(blurProg, 'u_dir'), 0, 1 / bh);
     drawPostQuad(blurProg);
 
     gl.enable(gl.BLEND);
@@ -6309,13 +6323,13 @@ void main() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.useProgram(blitProg);
-    gl.uniform1i(gl.getUniformLocation(blitProg, 'u_tex'), 0);
+    gl.uniform1i(uloc(blitProg, 'u_tex'), 0);
     uploadKscopeUniforms(blitProg); // same fold for the scene AND the bloom layer, so glow stays aligned
     gl.activeTexture(gl.TEXTURE0);
 
     gl.disable(gl.BLEND);
     gl.bindTexture(gl.TEXTURE_2D, srcTex);
-    gl.uniform1f(gl.getUniformLocation(blitProg, 'u_mult'), 1);
+    gl.uniform1f(uloc(blitProg, 'u_mult'), 1);
     drawPostQuad(blitProg);
 
     gl.enable(gl.BLEND);
@@ -6325,7 +6339,7 @@ void main() {
     gl.blendEquation(gl.FUNC_ADD);
     gl.blendFunc(gl.ONE, gl.ONE);
     gl.bindTexture(gl.TEXTURE_2D, bloomTexA);
-    gl.uniform1f(gl.getUniformLocation(blitProg, 'u_mult'), S.bloom.strength);
+    gl.uniform1f(uloc(blitProg, 'u_mult'), S.bloom.strength);
     drawPostQuad(blitProg);
 
     setBlendMode(S.blendMode); // restore the blend state beams expect
@@ -6472,7 +6486,7 @@ void main() {
     gl.disable(gl.BLEND);
     gl.useProgram(waveProg);
     gl.viewport(0, 0, res, res);
-    const uL = n => gl.getUniformLocation(waveProg, n);
+    const uL = n => uloc(waveProg, n);
     gl.uniform1i(uL('u_state'), 0);
     gl.uniform1i(uL('u_mask'), 1);
     gl.uniform2f(uL('u_texel'), 1 / res, 1 / res);
@@ -6534,7 +6548,7 @@ void main() {
     const vx = Math.round((fieldMaskMap ? fieldMaskMap.ox : 0) * S.dpr);
     const vy = glCanvas.height - Math.round((fieldMaskMap ? fieldMaskMap.oy : 0) * S.dpr) - sq;
     gl.viewport(vx, vy, sq, sq);
-    const cL = n => gl.getUniformLocation(waveColorProg, n);
+    const cL = n => uloc(waveColorProg, n);
     gl.uniform1i(cL('u_state'), 0);
     gl.uniform1i(cL('u_mask'), 1);
     gl.uniform3f(cL('u_colA'), rgbA[0], rgbA[1], rgbA[2]);
@@ -6561,7 +6575,7 @@ void main() {
       gl.useProgram(copyProg);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, sceneTex);
-      gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+      gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
       uploadKscopeUniforms(copyProg);
       gl.disable(gl.BLEND);
       drawPostQuad(copyProg);
@@ -6594,11 +6608,11 @@ void main() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
     gl.viewport(0, 0, glCanvas.width, glCanvas.height);
     gl.useProgram(prog);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_time'), timeSec);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_speed'), S.generative.speed);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_scale'), S.generative.scale);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_hue'), S.generative.hue);
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_aspect'), glCanvas.height > 0 ? glCanvas.width / glCanvas.height : 1);
+    gl.uniform1f(uloc(prog, 'u_time'), timeSec);
+    gl.uniform1f(uloc(prog, 'u_speed'), S.generative.speed);
+    gl.uniform1f(uloc(prog, 'u_scale'), S.generative.scale);
+    gl.uniform1f(uloc(prog, 'u_hue'), S.generative.hue);
+    gl.uniform1f(uloc(prog, 'u_aspect'), glCanvas.height > 0 ? glCanvas.width / glCanvas.height : 1);
     drawPostQuad(prog);
     gl.enable(gl.BLEND);
 
@@ -6613,7 +6627,7 @@ void main() {
       gl.useProgram(copyProg);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, sceneTex);
-      gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+      gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
       uploadKscopeUniforms(copyProg);
       gl.disable(gl.BLEND);
       drawPostQuad(copyProg);
@@ -7084,13 +7098,13 @@ void main() {
       
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, readTex);
-      gl.uniform1i(gl.getUniformLocation(trailProg, 'u_tex'), 0);
-      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_fade'), effectiveFade);
-      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_hueShift'), hueShiftPerFrame / 360);
-      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_threshold'), threshold);
-      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_fbScale'), fbScale);
-      gl.uniform1f(gl.getUniformLocation(trailProg, 'u_fbAngle'), fbAngle);
-      gl.uniform2f(gl.getUniformLocation(trailProg, 'u_fbDrift'), fbDriftX, fbDriftY);
+      gl.uniform1i(uloc(trailProg, 'u_tex'), 0);
+      gl.uniform1f(uloc(trailProg, 'u_fade'), effectiveFade);
+      gl.uniform1f(uloc(trailProg, 'u_hueShift'), hueShiftPerFrame / 360);
+      gl.uniform1f(uloc(trailProg, 'u_threshold'), threshold);
+      gl.uniform1f(uloc(trailProg, 'u_fbScale'), fbScale);
+      gl.uniform1f(uloc(trailProg, 'u_fbAngle'), fbAngle);
+      gl.uniform2f(uloc(trailProg, 'u_fbDrift'), fbDriftX, fbDriftY);
       
       gl.disable(gl.BLEND);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -7123,7 +7137,7 @@ void main() {
         gl.useProgram(copyProg);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, writeTex);
-        gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+        gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
         uploadKscopeUniforms(copyProg);
 
         gl.disable(gl.BLEND);
@@ -7168,7 +7182,7 @@ void main() {
         gl.useProgram(copyProg);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, sceneTex);
-        gl.uniform1i(gl.getUniformLocation(copyProg, 'u_tex'), 0);
+        gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
         uploadKscopeUniforms(copyProg);
         gl.disable(gl.BLEND);
         drawPostQuad(copyProg);
