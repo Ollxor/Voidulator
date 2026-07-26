@@ -2185,7 +2185,7 @@
         <label data-i18n="segLength">Length</label>
         <input id="segWavelength" type="range" min="20" max="1200" step="1" value="220">
         <label data-i18n="speed">Speed</label>
-        <input id="segSpeed" type="range" min="0" max="900" step="1" value="60">
+        <input id="segSpeed" type="range" min="0" max="225" step="1" value="60">
       </div>
       <!-- clickable segment strip + add/remove -->
       <div id="segStrip" class="seg-strip"></div>
@@ -2214,7 +2214,7 @@
         <label data-i18n="segLength">Length</label>
         <input id="segItemWavelength" type="range" min="20" max="1200" step="1" value="220">
         <label data-i18n="speed">Speed</label>
-        <input id="segItemSpeed" type="range" min="0" max="900" step="1" value="60">
+        <input id="segItemSpeed" type="range" min="0" max="225" step="1" value="60">
       </div>
       <div class="hint" data-i18n="hintSegments">1 segment = a solid beam. Add segments to slice the beam into a repeating cycle; click one to edit its colour, opacity, width &amp; softness. A hole is just a segment at 0 opacity. Drift gives a segment its own speed/length so it slides free of the others.</div>
       </div>
@@ -3673,7 +3673,7 @@
       return {
         on: !!s.on,
         wavelength: clamp(s.wavelength ?? 220, 20, 1200),
-        speed: clamp(s.speed ?? 60, 0, 900),
+        speed: clamp(s.speed ?? 60, 0, 225),
         items: s.items.slice(0, MAXSEG).map(it => ({
           w: Math.max(0.02, it.w ?? 1),
           colInherit: it.colInherit !== false,
@@ -3681,7 +3681,7 @@
           opacity: clamp(it.opacity ?? 1, 0, 1),
           soft: clamp(it.soft ?? 0.3, 0, 1),
           driftOn: !!it.driftOn,
-          speed: clamp(it.speed ?? (s.speed ?? 60), 0, 900),
+          speed: clamp(it.speed ?? (s.speed ?? 60), 0, 225),
           wavelength: clamp(it.wavelength ?? (s.wavelength ?? 220), 20, 1200),
         })),
       };
@@ -3694,7 +3694,7 @@
       const amp = clamp(p.amp ?? 1, 0, 1);
       const soft = (p.shape === 'square') ? 0.05 : clamp((p.soft ?? 0.18) * 2, 0, 1);
       const wl = clamp(100 / Math.max(0.05, p.freq ?? 1.2), 20, 1200);
-      const spd = clamp(p.speed ?? 60, 0, 900);
+      const spd = clamp(p.speed ?? 60, 0, 225);
       return {
         on: !!p.on, wavelength: wl, speed: spd,
         items: [
@@ -7600,7 +7600,7 @@ void main() {
   }
   _on(segToggle, 'click', () => { S.segments.on = !S.segments.on; syncSegmentsUI(); requestAutosave(); });
   _on(segWavelengthEl, 'input', () => { S.segments.wavelength = clamp(parseFloat(segWavelengthEl.value) || 220, 20, 1200); });
-  _on(segSpeedEl, 'input', () => { S.segments.speed = clamp(parseFloat(segSpeedEl.value) || 0, 0, 900); });
+  _on(segSpeedEl, 'input', () => { S.segments.speed = clamp(parseFloat(segSpeedEl.value) || 0, 0, 225); });
   _on(_el('segAdd'), 'click', segAddItem);
   _on(_el('segRemove'), 'click', segRemoveItem);
   _on(segWidthEl, 'input', () => { segEdit(it => it.w = Math.max(0.05, parseFloat(segWidthEl.value) || 1)); rebuildSegStrip(); });
@@ -7610,7 +7610,7 @@ void main() {
   _on(segColEl, 'input', () => { segEdit(it => { it.col = segHexToRgb(segColEl.value); it.colInherit = false; }); syncSegmentsUI(); });
   _on(segDriftEl, 'click', () => { segEdit(it => it.driftOn = !it.driftOn); syncSegmentsUI(); requestAutosave(); });
   _on(segItemWavelengthEl, 'input', () => { segEdit(it => it.wavelength = clamp(parseFloat(segItemWavelengthEl.value) || 220, 20, 1200)); });
-  _on(segItemSpeedEl, 'input', () => { segEdit(it => it.speed = clamp(parseFloat(segItemSpeedEl.value) || 0, 0, 900)); });
+  _on(segItemSpeedEl, 'input', () => { segEdit(it => it.speed = clamp(parseFloat(segItemSpeedEl.value) || 0, 0, 225)); });
 
   // Trails handlers
   _on(trailsToggle, 'click', () => {
@@ -8652,7 +8652,7 @@ void main() {
     beamWidth:     { label: 'Beam width',     get: () => S.beamWidth,       set: v => S.beamWidth = v,       min: 0.5,  max: () => 8,          range: () => 6 },
     spreadDeg:     { label: 'Spread',         get: () => S.spreadDeg,       set: v => S.spreadDeg = v,       min: 0,    max: () => 180,        range: () => 120 },
     rotationSpeed: { label: 'Global speed',   get: () => S.rotationSpeed,   set: v => S.rotationSpeed = v,   min: 0,    max: () => S.speedMax, range: () => S.speedMax },
-    segSpeed:      { label: 'Segment speed',  get: () => S.segments.speed,      set: v => S.segments.speed = v,      min: 0,  max: () => 900,  range: () => 400 },
+    segSpeed:      { label: 'Segment speed',  get: () => S.segments.speed,      set: v => S.segments.speed = v,      min: 0,  max: () => 225,  range: () => 150 },
     segWavelength: { label: 'Segment length', get: () => S.segments.wavelength, set: v => S.segments.wavelength = v, min: 20, max: () => 1200, range: () => 600 },
     hue:           { label: 'Hue shift',      get: () => S.hueOffset,       set: v => S.hueOffset = v,       min: 0,    max: () => 360,        range: () => 180, wrap: true },
     saturation:    { label: 'Saturation',     get: () => S.satOffset,       set: v => S.satOffset = v,       min: -100, max: () => 100,        range: () => 80 },
