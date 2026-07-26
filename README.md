@@ -26,7 +26,7 @@
 - **Trails** — Persistent afterglow with hue shifting, Filtering (Smooth/Crisp) and Cutoff controls that tune the emergent interference patterns thin slow beams create, and **Feedback** (zoom, spin, drift X/Y) that re-samples the trail buffer each frame to curl the trails into tunnels, vortexes, spirals and wind-blown streaks — plus **Beat echo**, which stamps a rhythmic freeze-frame ghost on every detected beat. All Feedback dials and Beat echo are audio/Modulation-Matrix-routable
 - **Glow (bloom)** — Bright beams bleed light like real lasers in haze, with strength and threshold controls
 - **Kaleidoscope** — N-fold radial mirror of the whole frame (2–16 segments, rotation/spin, mirror or rotational repeat), stacking on every emission mode
-- **Blend modes** — Normal or additive blending
+- **Blend modes** — Normal, Additive, Screen (a softer brighten), Lighten (overlaps show whichever beam is brighter, staying colorful instead of washing to white), and Difference (an experimental, fast-decaying mode where beams carve into existing trails/glow)
 
 ### Color & Style
 - **30+ color schemes** — From rainbow and neon to nature-inspired palettes (Aurora Borealis, Coral Reef, Northern Lights, etc.)

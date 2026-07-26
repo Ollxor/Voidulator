@@ -61,7 +61,7 @@ Matrix routes + beat settings persist in `localStorage['voidulator-mod']` (globa
 - **No-trails path**: beams render into `sceneFBO` (full res) instead of the screen, then `runBloom(sceneTex)` → `compositeWithBloom(sceneTex)`.
 - **Trails path**: the existing trail composite texture (`writeTex`) is the bloom source; the final screen copy is replaced by `compositeWithBloom(writeTex)`.
 - `runBloom`: bright-pass (smooth knee above `threshold`) into a **quarter-res** target, then separable 9-tap gaussian (H then V, taps 1.5 texels apart). Result lands in `bloomTexA`.
-- `compositeWithBloom`: blit scene (blend off), then additive blit (`gl.ONE, gl.ONE`) of `bloomTexA × strength`, then `setBlendMode(S.blendMode)` to restore the state beams expect.
+- `compositeWithBloom`: blit scene (blend off), then additive blit of `bloomTexA × strength` — **must explicitly set `gl.blendEquation(gl.FUNC_ADD)` before `gl.blendFunc(gl.ONE, gl.ONE)`** (not just the func), since `S.blendMode` can leave `MAX`/`FUNC_REVERSE_SUBTRACT` active (Lighten/Difference — see Blend modes below); the glow layer must always be plain additive regardless. Then `setBlendMode(S.blendMode)` to restore the state beams expect.
 - `drawPostQuad` **disables the beam vertex attribs first** — leaving them enabled while pointing into a smaller/empty vertex buffer makes the fullscreen draw `INVALID_OPERATION`.
 - All render targets resize lazily by checking `tex._w/_h` against the canvas (same pattern as trails), so recording's resolution switch just works.
 
@@ -181,6 +181,19 @@ Hosted at [voidulator.ollebjerkas.se](https://voidulator.ollebjerkas.se) via Git
 - Audio context must be created on a user gesture; `audioToggle` handles this gate. Same for `requestMIDIAccess` (the Enable MIDI button).
 - The `spread` value (beam fan angle) is in degrees in `S` but converted to radians before the ray-trace loop.
 - Beam shader uniforms are uploaded in exactly ONE place: `uploadBeamUniforms()`. It used to be three copy-pasted blocks, and a partial refactor of one copy black-screened the live site. Never duplicate it again. `drawBeamGeometry()` re-sets `u_segOn=0`/`u_edgeIntensity=0` for the phosphor pass so wall glow ignores those.
+
+## Blend modes (v1.26)
+
+`setBlendMode(mode)` is the ONE place `gl.blendFunc`/`gl.blendEquation` get set for beam-adjacent drawing (mirrors the `uploadBeamUniforms()` single-source-of-truth rule above — don't duplicate it). Five modes, all just GL state (no shader changes):
+- **normal**: `FUNC_ADD`, `(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)`.
+- **additive**: `FUNC_ADD`, `(SRC_ALPHA, ONE)`.
+- **screen**: `FUNC_ADD`, `(ONE_MINUS_DST_COLOR, ONE)` — computes `src + dst − src·dst`.
+- **lighten**: `gl.blendEquation(gl.MAX)` — per spec, MIN/MAX **ignore** the blendFunc factors entirely, so the `blendFunc(ONE,ONE)` call alongside it is cosmetic only.
+- **difference**: `gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT)`, `(ONE, ONE)` → `dst − src`, clamped ≥0. GL has no true `|a−b|` blend op, so this is a one-directional approximation, not literal Photoshop Difference.
+
+**Difference is genuinely self-extinguishing — this is expected, not a bug.** It can only ever *subtract* brightness, never add it, so: (a) on a fresh scene with no trails it renders solid black forever (every frame clears to black, then `dst−src` on a black dst is always ≤0); (b) even switched on mid-session against bright built-up trails, it erodes back to black within a handful of frames (measured: an avg-brightness-82 scene dropped to 0 in ~6 frames) and then stays there, since there's no mechanism to ever push it back above 0 once every source drawn while it's active goes through the same subtractive blend. It's a brief live flourish (flip to it momentarily to carve into existing glow), never a steady look — don't try to make it one without adding a genuinely different mechanism (e.g. periodically drawing something in a different mode to replenish brightness).
+
+**Any pass that must stay additive regardless of `S.blendMode` must explicitly reset BOTH `blendEquation` and `blendFunc`, not just one.** `compositeWithBloom`'s glow layer is exactly this case (see above) — it was originally written back when every mode used `FUNC_ADD`, so only resetting `blendFunc` was safe; that assumption broke the moment Lighten/Difference introduced other equations. If you add a mode with yet another `blendEquation`, audit every raw `gl.blendFunc(...)` call that isn't inside `setBlendMode` for the same gap (currently there is exactly one: the bloom glow blit).
 
 ## Beam material (per-beam) + Wave-field colour (v1.20–1.21)
 

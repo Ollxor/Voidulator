@@ -2,6 +2,16 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.26.0] - 2026-07-26
+
+### 🎨 Three new Blend modes + Segment speed recalibrated
+- **Blend mode** now offers **Screen**, **Lighten** and **Difference** alongside the existing Normal/Additive:
+  - **Screen** — a softer brighten than Additive: eases toward white instead of overshooting past it.
+  - **Lighten** — overlapping beams show whichever is brighter instead of summing, so dense or kaleidoscoped scenes stay colorful instead of washing out to flat white the way Additive can.
+  - **Difference** — new beams erode/carve into whatever's already drawn (trails, glow) rather than adding to it. This one is genuinely experimental and worth knowing going in: it only shows anything once there's existing brightness to carve into (a fresh scene with no trails stays black), and it **self-extinguishes fast** — a few frames of Difference against built-up trails and the screen settles to black and stays there, since it can only ever subtract, never add. Best used as a brief live flourish (build up glow under Normal/Additive, then flip to Difference for a moment) rather than a steady look.
+  - _Under the hood: `gl.blendEquation` now also uses `MAX` (Lighten) and `FUNC_REVERSE_SUBTRACT` (Difference) alongside the existing `FUNC_ADD`. Fixed a latent bug this surfaced: the bloom glow-layer composite only reset `blendFunc` between draws, silently inheriting whatever equation the beam blend mode had left active — harmless while every mode used `FUNC_ADD`, but would have broken bloom under Lighten/Difference. Now resets both explicitly._
+- **Segment speed** (both the global Speed slider and the per-segment Drift speed) was only visually useful in roughly its bottom quarter — capped the range at 225 (was 900) so the whole slider now covers the useful range.
+
 ## [1.25.0] - 2026-07-25
 
 ### 🌬️ Trails: Feedback drift + Beat echo
