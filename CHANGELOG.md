@@ -2,6 +2,16 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.25.0] - 2026-07-25
+
+### 🌬️ Trails: Feedback drift + Beat echo
+Completes the Feedback trio from v1.24 (zoom, spin) and adds a rhythmic option:
+
+- **Feedback drift X/Y** — shifts the fading trail sideways a little each frame, like wind pushing it in a direction. Combine X and Y for a diagonal drift; pair with zoom/spin for a tunnel that also blows sideways.
+- **Beat echo** — on each detected beat, the trail briefly holds near-frozen instead of continuously fading, so a rhythmic ghost "stamps" and decays before the next beat. Rides the existing beat-detection envelope (needs **Beat Detection** on + audio active), and its decay pace follows Beat Detection's own **Decay** control — no separate pacing to learn. 0 = off, unaffected.
+- All three are new **Modulation Matrix** targets (`Trail drift X/Y`, `Trail beat echo`), saved in scenes/presets, interpolated through transitions, i18n (en/es/pt/fr) + tooltips.
+- Also fixed: the Trails panel hint (`hintTrails`) had gone stale in all four languages since before v1.24's Feedback zoom/spin shipped — switching language (or re-selecting English) silently reverted the hint text and hid the newest controls' explanation. All four are now current and verified to round-trip correctly across every language switch.
+
 ## [1.24.0] - 2026-07-25
 
 ### 🌀 Trails: minimum is finally invisible + Feedback tunnels
