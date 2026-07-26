@@ -90,6 +90,20 @@ for (const m of src.matchAll(/<button\b[^>]*\bid="([^"]+)"[^>]*data-i18n="([^"]+
   }
 }
 
+// ---- 3b. Every panel <label> must be translatable ---------------------------
+// A label with no data-i18n at all is invisible to the checks above and simply
+// stays English in every language (this is how "Global speed" and ~19 others
+// went untranslated). Labels holding dynamic runtime content are exempt.
+const panelStart = src.indexOf('<div class="panel">');
+const panelHtml = src.slice(panelStart, src.indexOf('\n  </div>\n\n  <!--', panelStart) + 1 || undefined);
+for (const m of panelHtml.matchAll(/<label(?![^>]*data-i18n)[^>]*>([\s\S]*?)<\/label>/g)) {
+  const text = decode(m[1].replace(/<[^>]+>/g, ''));
+  // Empty (colour swatch) and pure-numeric (per-beam speed) labels are
+  // template placeholders filled in at runtime — nothing to translate.
+  if (!text || /^\d+$/.test(text)) continue;
+  problems.push(`panel <label>${text}</label> has no data-i18n — it will stay English in every language`);
+}
+
 // ---- 4. Panel registry maps must point at real groups -----------------------
 const groupTitles = new Set([...src.matchAll(/<div class="group-title" data-i18n="([^"]+)"/g)].map(m => m[1]));
 function mapKeys(name) {
@@ -106,6 +120,18 @@ for (const [name, keys] of [['TAB_OF_GROUP', mapKeys('TAB_OF_GROUP')]]) {
 }
 for (const g of groupTitles) {
   if (!mapKeys('TAB_OF_GROUP').has(g)) problems.push(`group "${g}" has no TAB_OF_GROUP entry — it will only appear under the "All" tab`);
+}
+
+// ---- 5. Every inline <script> must parse ------------------------------------
+// A single unescaped apostrophe in a translation string (e.g. French
+// "d'entraînement") terminates the literal early and takes the whole app down
+// with a blank page. That is cheap to catch here and catastrophic to ship.
+for (const [i, m] of [...src.matchAll(/<script>([\s\S]*?)<\/script>/g)].entries()) {
+  try {
+    new Function(m[1]);
+  } catch (e) {
+    problems.push(`inline <script> #${i} has a syntax error (app would not boot): ${e.message}`);
+  }
 }
 
 // ---- Report -----------------------------------------------------------------

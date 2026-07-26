@@ -150,7 +150,8 @@
   /* Grid layout */
   .grid {
     display: grid;
-    grid-template-columns: 115px 1fr;
+    /* Same reasoning as .subgrid: fixed label column + wrapping labels. */
+    grid-template-columns: 125px minmax(0, 1fr);
     gap: 8px 12px;
     align-items: center;
   }
@@ -158,7 +159,14 @@
   label {
     color: var(--text-dim);
     font-size: 14px;
-    white-space: nowrap;
+    /* Labels WRAP rather than clip. The label columns are fixed-width, but
+       translated text is far longer than English (French "Sur le temps : saut
+       de teinte" needs 223px in an 85px column), so nowrap silently ran labels
+       underneath their own control. Wrapping keeps every language readable
+       without stealing width from the sliders. */
+    white-space: normal;
+    overflow-wrap: break-word;
+    line-height: 1.25;
     text-shadow: 0 1px 3px rgba(0,0,0,0.7);
   }
 
@@ -330,7 +338,11 @@
   /* Subgrid for groups */
   .subgrid {
     display: grid;
-    grid-template-columns: 85px 1fr;
+    /* 105px comfortably fits the common English labels on one line; anything
+       longer (or any translation) wraps instead of overflowing — see the
+       `label` rule. minmax(0,1fr) lets the control column shrink properly
+       rather than forcing overflow when a slider has a min-content width. */
+    grid-template-columns: 105px minmax(0, 1fr);
     gap: 4px 8px;
     align-items: center;
   }
@@ -1973,15 +1985,15 @@
         </select>
       </div>
 
-      <div class="row" data-emit="beamring"><label>Reflectivity</label>
+      <div class="row" data-emit="beamring"><label data-i18n="reflectivity">Reflectivity</label>
         <input id="reflect" type="range" min="0" max="1" step="0.001" value="0.80">
       </div>
 
-      <div class="row" data-emit="beamring"><label>Max bounces</label>
+      <div class="row" data-emit="beamring"><label data-i18n="maxBounces">Max bounces</label>
         <input id="bounces" type="range" min="1" max="375" step="1" value="234">
       </div>
 
-      <div class="row" data-emit="beamring"><label>Beam width</label>
+      <div class="row" data-emit="beamring"><label data-i18n="beamWidth">Beam width</label>
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
@@ -1993,11 +2005,11 @@
         <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
       </div>
 
-      <div class="row advanced-only" data-emit="beam"><label>Layer mode</label>
+      <div class="row advanced-only" data-emit="beam"><label data-i18n="layerMode">Layer mode</label>
         <button class="btn" id="layerModeToggle">Depth</button>
       </div>
 
-      <div class="row advanced-only" data-emit="beamring"><label>Blend mode</label>
+      <div class="row advanced-only" data-emit="beamring"><label data-i18n="blendMode">Blend mode</label>
         <select id="blendMode">
           <option value="normal" selected="">Normal</option>
           <option value="additive">Additive</option>
@@ -2007,7 +2019,7 @@
         </select>
       </div>
 
-      <div class="row" data-emit="beam"><label>Beam count</label>
+      <div class="row" data-emit="beam"><label data-i18n="beamCount">Beam count</label>
         <div class="stepper">
           <button class="btn step-btn" id="beamCountDown">▼</button>
           <span class="step-val" id="beamCountVal">1</span>
@@ -2015,7 +2027,7 @@
         </div>
       </div>
 
-      <div class="row"><label>Emitter dot</label>
+      <div class="row"><label data-i18n="emitterDot">Emitter dot</label>
         <button class="btn" id="showEmitterToggle">Hide</button>
       </div>
 
@@ -2025,7 +2037,7 @@
 
       <div class="speed-control">
         <div class="speed-header">
-          <label>Speed</label>
+          <label data-i18n="speed">Speed</label>
           <span id="speedMultiplierNum" class="speed-value">0.1000</span>
         </div>
         <input id="speedMultiplier" type="range" min="0" max="1" step="0.0005" value="0.675">
@@ -2069,7 +2081,7 @@
       <div class="group-title" data-i18n="colors">Colors</div>
       <div class="group-content">
       <div class="subgrid">
-        <label>Scheme</label>
+        <label data-i18n="scheme">Scheme</label>
         <select id="beamScheme">
           <option value="custom">Custom</option>
           <option value="grayscale">Greyscale</option>
@@ -2432,13 +2444,13 @@
           <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
           <label data-i18n="hueShift">Hue shift</label>
           <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
-          <label data-i18n="trailZoom">Feedback zoom</label>
+          <label data-i18n="trailZoom">Zoom</label>
           <input id="trailsFbZoom" type="range" min="-0.05" max="0.05" step="0.001" value="0">
-          <label data-i18n="trailSpin">Feedback spin</label>
+          <label data-i18n="trailSpin">Spin</label>
           <input id="trailsFbSpin" type="range" min="-3" max="3" step="0.05" value="0">
-          <label data-i18n="trailDriftX">Feedback drift X</label>
+          <label data-i18n="trailDriftX">Drift X</label>
           <input id="trailsFbDriftX" type="range" min="-0.02" max="0.02" step="0.0005" value="0">
-          <label data-i18n="trailDriftY">Feedback drift Y</label>
+          <label data-i18n="trailDriftY">Drift Y</label>
           <input id="trailsFbDriftY" type="range" min="-0.02" max="0.02" step="0.0005" value="0">
           <label data-i18n="trailBeatEcho">Beat echo</label>
           <input id="trailsBeatEcho" type="range" min="0" max="1" step="0.01" value="0">
@@ -2458,9 +2470,9 @@
       <div class="group-title" data-i18n="glow">Glow</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Enable</label>
+          <label data-i18n="enable">Enable</label>
           <button class="btn" id="bloomToggle">On</button>
-          <label>Strength</label>
+          <label data-i18n="strength">Strength</label>
           <div class="ctrl-row">
             <input id="bloomStrength" type="range" min="0" max="3" step="0.05" value="0.85">
             <input id="bloomStrengthNum" type="number" min="0" max="3" step="0.05" value="0.85">
@@ -2476,9 +2488,9 @@
       <div class="group-title" data-i18n="kaleido">Kaleidoscope</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Enable</label>
+          <label data-i18n="enable">Enable</label>
           <button class="btn" id="kaleidoToggle">Off</button>
-          <label>Segments</label>
+          <label data-i18n="segments">Segments</label>
           <div class="stepper">
             <button class="btn step-btn" id="kaleidoSegDown">&#9660;</button>
             <span class="step-val" id="kaleidoSegVal">6</span>
@@ -2494,7 +2506,7 @@
             <input id="kaleidoSpin" type="range" min="-180" max="180" step="1" value="0">
             <input id="kaleidoSpinNum" type="number" min="-180" max="180" step="1" value="0">
           </div>
-          <label>Mirror</label>
+          <label data-i18n="mirrorLabel">Mirror</label>
           <button class="btn" id="kaleidoMirror">On</button>
         </div>
         <div class="hint" data-i18n="hintKaleido">N-fold radial mirror of the whole frame &mdash; stacks with beams, rings, and the wave field. Mirror off swaps the reflected fold for a plain rotational repeat.</div>
@@ -2505,7 +2517,7 @@
       <div class="group-title" data-i18n="phosphorWalls">Phosphor Walls</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Enable</label>
+          <label data-i18n="enable">Enable</label>
           <button class="btn" id="phosToggle">Off</button>
           <label data-i18n="persistenceS">Persistence (s)</label>
           <div class="ctrl-row">
@@ -2649,7 +2661,7 @@
             <button class="btn" id="beatToggle">Off</button>
             <span id="beatDot" class="beat-dot"></span>
           </div>
-          <label>Sensitivity</label>
+          <label data-i18n="sensitivity">Sensitivity</label>
           <div class="ctrl-row">
             <input id="beatSens" type="range" min="1.05" max="2.5" step="0.05" value="1.4">
             <input id="beatSensNum" type="number" min="1.05" max="2.5" step="0.05" value="1.4">
@@ -2713,7 +2725,7 @@
       <div class="group-title" data-i18n="bonus">Bonus</div>
       <div class="group-content">
         <div class="subgrid">
-          <label>Emitters</label>
+          <label data-i18n="emittersLabel">Emitters</label>
           <div class="stepper">
             <button class="btn step-btn" id="emCountDown">▼</button>
             <span class="step-val" id="emCountVal">1</span>
@@ -2741,28 +2753,28 @@
             <input id="emitterSpinNum" type="number" min="-180" max="180" step="1" value="0">
           </div>
 
-          <label>Move speed</label>
+          <label data-i18n="moveSpeed">Move speed</label>
           <div class="ctrl-row">
             <input id="emitterSpeed" type="range" min="50" max="500" step="10" value="150">
             <input id="emitterSpeedNum" type="number" min="50" max="500" value="150">
           </div>
 
-          <label>Spread (°)</label>
+          <label data-i18n="spreadLabel">Spread (°)</label>
           <div class="ctrl-row">
             <input id="spread" type="range" min="0" max="180" step="0.1" value="0">
             <input id="spreadNum" type="number" min="0" max="180" value="0">
           </div>
 
-          <label>Angle (°)</label>
+          <label data-i18n="angleLabel">Angle (°)</label>
           <input id="angle" type="range" min="0" max="360" step="0.1" value="0">
 
-          <label>Global speed</label>
+          <label data-i18n="globalSpeed">Global speed</label>
           <div class="ctrl-row">
             <input id="rotSpeed" type="range" min="0" max="5" step="0.01" value="0">
             <input id="rotSpeedNum" type="number" min="0" max="5" step="0.01" value="0">
           </div>
 
-          <label>Speed range</label>
+          <label data-i18n="speedRange">Speed range</label>
           <select id="speedRange">
             <option value="5" selected="">Ultra slow</option>
             <option value="30">Slow</option>
@@ -10369,11 +10381,18 @@ void main() {
       hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
       trailFilter: 'Filtering',
       trailCutoff: 'Cutoff',
-      trailZoom: 'Feedback zoom',
-      trailSpin: 'Feedback spin',
-      trailDriftX: 'Feedback drift X',
-      trailDriftY: 'Feedback drift Y',
+      trailZoom: 'Zoom',
+      trailSpin: 'Spin',
+      trailDriftX: 'Drift X',
+      trailDriftY: 'Drift Y',
       trailBeatEcho: 'Beat echo',
+      mirrorLabel: 'Mirror',
+      emittersLabel: 'Emitters',
+      moveSpeed: 'Move speed',
+      spreadLabel: 'Spread (°)',
+      angleLabel: 'Angle (°)',
+      globalSpeed: 'Global speed',
+      speedRange: 'Speed range',
       beamMaterial: 'Beam Material',
       perBeam: 'Per-beam trim',
       hintBeamMaster: 'Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path (°/1000px).',
@@ -10607,11 +10626,18 @@ void main() {
       hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Zoom/giro/deriva de eco remuestrean la estela cada cuadro para crear túneles, espirales y estelas arrastradas por el viento. Eco de ritmo (necesita Detección de ritmo activada) congela brevemente la estela en cada golpe para un fantasma rítmico. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
       trailFilter: 'Filtrado',
       trailCutoff: 'Corte',
-      trailZoom: 'Zoom de eco',
-      trailSpin: 'Giro de eco',
-      trailDriftX: 'Deriva de eco X',
-      trailDriftY: 'Deriva de eco Y',
+      trailZoom: 'Zoom',
+      trailSpin: 'Giro',
+      trailDriftX: 'Deriva X',
+      trailDriftY: 'Deriva Y',
       trailBeatEcho: 'Eco de ritmo',
+      mirrorLabel: 'Espejo',
+      emittersLabel: 'Emisores',
+      moveSpeed: 'Vel. movimiento',
+      spreadLabel: 'Apertura (°)',
+      angleLabel: 'Ángulo (°)',
+      globalSpeed: 'Velocidad global',
+      speedRange: 'Rango de velocidad',
       beamMaterial: 'Material del haz',
       perBeam: 'Ajuste por haz',
       hintBeamMaster: 'Maestro para todos los haces. Opacidad = transparencia; Absorción = desvanecimiento por niebla a lo largo del trayecto; Deriva de tono = gradiente de color a lo largo del trayecto (°/1000px).',
@@ -10844,11 +10870,18 @@ void main() {
       hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Zoom/giro/deriva de eco reamostram o rastro a cada quadro para criar túneis, espirais e rastros arrastados pelo vento. Eco de batida (precisa da Deteção de batida ativada) congela brevemente o rastro a cada batida, para um fantasma rítmico. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
       trailFilter: 'Filtragem',
       trailCutoff: 'Corte',
-      trailZoom: 'Zoom de eco',
-      trailSpin: 'Giro de eco',
-      trailDriftX: 'Deriva de eco X',
-      trailDriftY: 'Deriva de eco Y',
+      trailZoom: 'Zoom',
+      trailSpin: 'Giro',
+      trailDriftX: 'Deriva X',
+      trailDriftY: 'Deriva Y',
       trailBeatEcho: 'Eco de batida',
+      mirrorLabel: 'Espelho',
+      emittersLabel: 'Emissores',
+      moveSpeed: 'Vel. movimento',
+      spreadLabel: 'Abertura (°)',
+      angleLabel: 'Ângulo (°)',
+      globalSpeed: 'Velocidade global',
+      speedRange: 'Intervalo de velocidade',
       beamMaterial: 'Material do feixe',
       perBeam: 'Ajuste por feixe',
       hintBeamMaster: 'Mestre para todos os feixes. Opacidade = transparência; Absorção = desvanecimento por névoa ao longo do trajeto; Deriva de tom = gradiente de cor ao longo do trajeto (°/1000px).',
@@ -11081,11 +11114,18 @@ void main() {
       hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Zoom/rotation/dérive rétroaction ré-échantillonnent la traînée à chaque image pour créer tunnels, spirales et filaments emportés par le vent. Écho de battement (nécessite la Détection de battement activée) gèle brièvement la traînée à chaque battement, pour un fantôme rythmique. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
       trailFilter: 'Filtrage',
       trailCutoff: 'Seuil',
-      trailZoom: 'Zoom rétroaction',
-      trailSpin: 'Rotation rétroaction',
-      trailDriftX: 'Dérive rétroaction X',
-      trailDriftY: 'Dérive rétroaction Y',
+      trailZoom: 'Zoom',
+      trailSpin: 'Rotation',
+      trailDriftX: 'Dérive X',
+      trailDriftY: 'Dérive Y',
       trailBeatEcho: 'Écho de battement',
+      mirrorLabel: 'Miroir',
+      emittersLabel: 'Émetteurs',
+      moveSpeed: 'Vit. déplacement',
+      spreadLabel: 'Écartement (°)',
+      angleLabel: 'Angle (°)',
+      globalSpeed: 'Vitesse globale',
+      speedRange: 'Plage de vitesse',
       beamMaterial: 'Matériau du faisceau',
       perBeam: 'Réglage par faisceau',
       hintBeamMaster: 'Maître pour tous les faisceaux. Opacité = transparence ; Absorption = fondu de brume le long du trajet ; Dérive de teinte = dégradé de couleur le long du trajet (°/1000px).',
