@@ -2796,7 +2796,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.27.0';
+  const APP_VERSION = 'v1.28.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -7256,24 +7256,23 @@ void main() {
     // Skip boundary and emitters in fullscreen or hide-ui mode for clean look
     if (document.fullscreenElement || document.body.classList.contains('fullscreen-mode') || document.body.classList.contains('hide-ui')) return;
 
-    // Boundary — normally invisible (black on black for a clean look), but
-    // briefly highlighted while room parameters change so you can see the
-    // shape you're editing. roomOutlineUntil is set on shape/ecc/bend change.
+    // Boundary — ONLY drawn as a brief amber flash while room parameters
+    // change, so you can see the shape you're editing. roomOutlineUntil is
+    // set on shape/ecc/bend change. There is deliberately no "resting" stroke
+    // at all (not even black): the room outline is static in room-space
+    // while the kaleidoscope fold / trail rotation sweeps the rendered
+    // pattern underneath it, so any resting stroke color periodically lands
+    // on bright pattern content and reads as a stray line slicing across the
+    // animation, worst with Kaleidoscope + Wave field. A truly invisible
+    // "black on black" line doesn't exist once the pattern itself gets
+    // bright near the edge, so the only robust fix is to not draw it at all
+    // outside the edit flash.
     const now = performance.now();
     const flashLeft = roomOutlineUntil - now;
-    // The wave field fills the room with bright colour, so a black boundary
-    // stroke shows up as an ugly black rim over it — skip it in field mode
-    // unless we're actively flashing the outline (amber) after an edit.
-    const drawBoundary = flashLeft > 0 || !(S.field.enabled || S.generative.enabled);
-    if (drawBoundary) {
-      if (flashLeft > 0) {
-        const k = Math.min(1, flashLeft / 600); // fade over the last 0.6s
-        octx.strokeStyle = 'rgba(255, 159, 28, ' + (0.85 * k).toFixed(3) + ')';
-        octx.lineWidth = 2;
-      } else {
-        octx.strokeStyle = '#000';
-        octx.lineWidth = 1;
-      }
+    if (flashLeft > 0) {
+      const k = Math.min(1, flashLeft / 600); // fade over the last 0.6s
+      octx.strokeStyle = 'rgba(255, 159, 28, ' + (0.85 * k).toFixed(3) + ')';
+      octx.lineWidth = 2;
       octx.beginPath();
       if (S.isCircle) {
         octx.arc(S.circle.cx, S.circle.cy, S.circle.R, 0, Math.PI * 2);

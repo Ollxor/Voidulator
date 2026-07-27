@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.28.0] - 2026-07-27
+
+### 🩹 Removed the room boundary line for good
+The room boundary was drawn permanently, always, in every emission mode except Wave field/Generative — a thin black stroke traced around the room shape at rest. Because it's static in room-space while the beam/kaleidoscope pattern rotates underneath it, bright pattern content periodically swept across that fixed black line, reading as a stray line cutting across the animation that appeared to pulse in and out of sync with the rotation — worst with Kaleidoscope and Wave field, where the room is densely filled with bright content right up to the wall. This is a long-standing complaint (previously attempted, not resolved).
+
+Fixed by removing the resting stroke entirely — the boundary is now drawn **only** as the brief amber flash that already existed for visual feedback while editing room shape/eccentricity/wall-bend, and nothing at rest, in every emission mode (previously Wave field/Generative had a special-case skip; now all modes are consistent, and it's the *right* behavior, not a mode-specific patch).
+
+Verified, not assumed: measured pixel brightness precisely along the traced room boundary vs. just inside it, at points where the pattern is actually bright. Manually re-injecting the old stroke showed the boundary point averaging **95.9 units darker** than 6–14px inward at bright spots (some forced to literal pure black, `rgb(0,0,0)`, immediately next to clearly-lit content) — the exact signature of a black line cutting across the animation. With the fix, that dip drops to **14.5** (an 85% reduction, consistent with ordinary pattern variation, no forced-black pixels). Also confirmed no rotation is ever applied to the boundary itself, and no collateral breakage across all 10 room shapes in both Beams+Kaleidoscope and Wave-field+Kaleidoscope.
+
 ## [1.27.0] - 2026-07-27
 
 ### 🩹 Readable panel in every language, new Trail brightness, faster render loop
