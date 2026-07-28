@@ -2,6 +2,19 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.30.0] - 2026-07-27
+
+### ✨ Beam glow — a proper menu for edge softness, plus new effects
+Edge softness/intensity were two loose sliders in the main panel; they now have their own **Beam glow** group, alongside three new controls:
+
+- **Shape** — the edge fade now follows a chosen curve: **Soft** (the original ease, byte-identical default), **Linear** (constant-rate fade), or **Gaussian** (stays bright longer, then tapers into a glowy tail).
+- **Tint** — the fading edge can shift toward a chosen colour instead of just dimming, for a coloured halo around the beam's own colour (toggle + colour picker + amount).
+- **Hot core** — an independent bright, whitened centreline down the middle of the beam (width + intensity) — the classic real-laser look of a searing core inside a softer glow. Off by default; existing beams look unchanged until it's turned on.
+
+Tint amount, core width and core intensity are new Modulation Matrix targets. Fully persisted in scenes/presets, interpolated through transitions, translated in all four languages.
+
+Caught and fixed during development: the hot core initially rendered with zero visible effect. Root cause was `smoothstep(coreWidth, 0.0, d)` — reversed-order arguments (edge0 > edge1), which the GLSL spec explicitly leaves undefined, and this driver evidently just returns 0 for it. Rewritten with correctly-ordered arguments (`1.0 - smoothstep(0.0, coreWidth, d)`), same result, well-defined. Verified after the fix with a saturated (non-white) test beam — an all-white test beam had also been masking the effect, since "mix toward white" is a no-op when the color is already white (the same false-negative class documented from earlier hue-drift testing).
+
 ## [1.29.0] - 2026-07-27
 
 ### 🩹 Fixed jittery beams in Vesica Piscis

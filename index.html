@@ -1997,14 +1997,6 @@
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
-      <div class="row advanced-only" data-emit="beamring"><label data-i18n="edgeSoftness">Edge softness</label>
-        <input id="edgeWidth" type="range" min="0" max="1" step="0.01" value="0.6">
-      </div>
-
-      <div class="row advanced-only" data-emit="beamring"><label data-i18n="edgeIntensity">Edge intensity</label>
-        <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
-      </div>
-
       <div class="row advanced-only" data-emit="beam"><label data-i18n="layerMode">Layer mode</label>
         <button class="btn" id="layerModeToggle">Depth</button>
       </div>
@@ -2188,6 +2180,37 @@
           <input id="pbHueDrift" type="range" min="-360" max="360" step="5" value="0">
         </div>
         <div class="hint" data-i18n="hintBeamPerBeam">Pick a beam above, then trim its Opacity (×), Absorption (×) and Hue drift (+, added to master). New beams start neutral.</div>
+      </div>
+    </div>
+
+    <div class="group collapsible advanced-only" data-emit="beam">
+      <div class="group-title" data-i18n="beamGlow">Beam glow</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label data-i18n="edgeSoftness">Edge softness</label>
+          <input id="edgeWidth" type="range" min="0" max="1" step="0.01" value="0.6">
+          <label data-i18n="edgeIntensity">Edge intensity</label>
+          <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
+          <label data-i18n="edgeShape">Shape</label>
+          <select id="edgeShapeSel">
+            <option value="soft" selected="">Soft</option>
+            <option value="linear">Linear</option>
+            <option value="gaussian">Gaussian</option>
+          </select>
+          <label data-i18n="edgeTint">Tint</label>
+          <div class="ctrl-row seg-col-row">
+            <!-- No data-i18n: this button's text is state (On/Off) -->
+            <button class="btn" id="edgeTintToggle">Off</button>
+            <input id="edgeTintColor" type="color" value="#ff9933">
+          </div>
+          <label data-i18n="edgeTintAmount">Tint amount</label>
+          <input id="edgeTintAmount" type="range" min="0" max="1" step="0.01" value="0.6">
+          <label data-i18n="coreWidth">Core width</label>
+          <input id="beamCoreWidth" type="range" min="0" max="1" step="0.01" value="0.25">
+          <label data-i18n="coreIntensity">Core intensity</label>
+          <input id="beamCoreIntensity" type="range" min="0" max="1" step="0.01" value="0">
+        </div>
+        <div class="hint" data-i18n="hintBeamGlow">Edge softness/intensity/shape shape the fade at the beam's sides; Tint colours that fade instead of just dimming it. Core width/intensity add an independent bright whitened centreline — a laser's hot core inside a softer glow.</div>
       </div>
     </div>
 
@@ -2796,7 +2819,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.29.0';
+  const APP_VERSION = 'v1.30.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2921,6 +2944,12 @@
   // Beam edge gradient
   const edgeWidthEl = _el('edgeWidth');
   const edgeIntensityEl = _el('edgeIntensity');
+  const edgeShapeSelEl = _el('edgeShapeSel');
+  const edgeTintToggleEl = _el('edgeTintToggle');
+  const edgeTintColorEl = _el('edgeTintColor');
+  const edgeTintAmountEl = _el('edgeTintAmount');
+  const beamCoreWidthEl = _el('beamCoreWidth');
+  const beamCoreIntensityEl = _el('beamCoreIntensity');
   // Bloom
   const bloomToggleBtn = _el('bloomToggle');
   const bloomStrengthEl = _el('bloomStrength');
@@ -2972,8 +3001,13 @@
     perBeamOpacity: [],   // per-beam opacity multiplier (default 1)
     perBeamAbsorb: [],    // per-beam absorption multiplier (default 1)
     perBeamHueDrift: [],  // per-beam hue-drift offset, deg/1000px (default 0)
-    // Edge gradient: soft alpha falloff across the beam width
-    beamEdge: { width: 0.6, intensity: 0 },
+    // Beam glow: edge gradient (soft alpha falloff across the beam width,
+    // with a choice of falloff curve and an optional colour tint) and hot
+    // core (an independent whitened centreline). Both default off/neutral —
+    // shape:'soft' + tintOn:false render byte-identical to the pre-v1.30
+    // edge effect; coreIntensity:0 means no core effect at all.
+    beamEdge: { width: 0.6, intensity: 0, shape: 'soft', tintOn: false, tint: [1, 0.6, 0.2], tintAmount: 0.6 },
+    beamCore: { width: 0.25, intensity: 0 },
     // Rings: an independent emission system — expanding circular wavefronts
     // from their own emitters that fold and reflect off the walls. Coexists
     // with beams (set beam count 0 for rings only).
@@ -3648,7 +3682,8 @@
         scale: S.generative.scale,
         hue: S.generative.hue
       },
-      beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
+      beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity, shape: S.beamEdge.shape, tintOn: S.beamEdge.tintOn, tint: [...S.beamEdge.tint], tintAmount: S.beamEdge.tintAmount },
+      beamCore: { width: S.beamCore.width, intensity: S.beamCore.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
       showBeams: S.showBeams,
@@ -3839,6 +3874,14 @@
     if (scene.beamEdge) {
       S.beamEdge.width = scene.beamEdge.width ?? 0.6;
       S.beamEdge.intensity = scene.beamEdge.intensity ?? 0;
+      S.beamEdge.shape = scene.beamEdge.shape ?? 'soft';
+      S.beamEdge.tintOn = scene.beamEdge.tintOn ?? false;
+      S.beamEdge.tint = Array.isArray(scene.beamEdge.tint) ? [...scene.beamEdge.tint] : [1, 0.6, 0.2];
+      S.beamEdge.tintAmount = scene.beamEdge.tintAmount ?? 0.6;
+    }
+    if (scene.beamCore) {
+      S.beamCore.width = scene.beamCore.width ?? 0.25;
+      S.beamCore.intensity = scene.beamCore.intensity ?? 0;
     }
     if (scene.phosphor) {
       S.phosphor.enabled = scene.phosphor.enabled ?? false;
@@ -3934,9 +3977,18 @@
     beamSchemeEl.value = S.beamScheme;
     speedPatternEl.value = S.speedPattern;
     syncSegmentsUI();
-    // Beam edge gradient
+    // Beam glow: edge gradient + hot core
     if (edgeWidthEl) edgeWidthEl.value = S.beamEdge.width;
     if (edgeIntensityEl) edgeIntensityEl.value = S.beamEdge.intensity;
+    if (edgeShapeSelEl) edgeShapeSelEl.value = S.beamEdge.shape ?? 'soft';
+    if (edgeTintToggleEl) {
+      edgeTintToggleEl.textContent = S.beamEdge.tintOn ? 'On' : 'Off';
+      edgeTintToggleEl.style.borderColor = S.beamEdge.tintOn ? 'var(--accent)' : '';
+    }
+    if (edgeTintColorEl) edgeTintColorEl.value = segRgbToHex(S.beamEdge.tint ?? [1, 0.6, 0.2]);
+    if (edgeTintAmountEl) edgeTintAmountEl.value = S.beamEdge.tintAmount ?? 0.6;
+    if (beamCoreWidthEl) beamCoreWidthEl.value = S.beamCore.width;
+    if (beamCoreIntensityEl) beamCoreIntensityEl.value = S.beamCore.intensity;
     // Rings
     syncRingsUI();
     // Wave field
@@ -4117,11 +4169,20 @@
     }
 
     // Lerp beam edge gradient (older scenes keep current settings)
-    const edgeNow = { width: S.beamEdge.width, intensity: S.beamEdge.intensity };
+    const edgeNow = { width: S.beamEdge.width, intensity: S.beamEdge.intensity, shape: S.beamEdge.shape, tintOn: S.beamEdge.tintOn, tint: S.beamEdge.tint, tintAmount: S.beamEdge.tintAmount };
     const fromEdge = from.beamEdge || edgeNow;
     const toEdge = to.beamEdge || edgeNow;
     S.beamEdge.width = lerp(fromEdge.width ?? 0.6, toEdge.width ?? 0.6, t);
     S.beamEdge.intensity = lerp(fromEdge.intensity ?? 0, toEdge.intensity ?? 0, t);
+    S.beamEdge.shape = t > 0.5 ? (toEdge.shape ?? 'soft') : (fromEdge.shape ?? 'soft');
+    S.beamEdge.tintOn = t > 0.5 ? (toEdge.tintOn ?? false) : (fromEdge.tintOn ?? false);
+    const fromTint = fromEdge.tint ?? [1, 0.6, 0.2], toTint = toEdge.tint ?? [1, 0.6, 0.2];
+    S.beamEdge.tint = [lerp(fromTint[0], toTint[0], t), lerp(fromTint[1], toTint[1], t), lerp(fromTint[2], toTint[2], t)];
+    S.beamEdge.tintAmount = lerp(fromEdge.tintAmount ?? 0.6, toEdge.tintAmount ?? 0.6, t);
+    const coreNow = { width: S.beamCore.width, intensity: S.beamCore.intensity };
+    const fromCore = from.beamCore || coreNow, toCore = to.beamCore || coreNow;
+    S.beamCore.width = lerp(fromCore.width ?? 0.25, toCore.width ?? 0.25, t);
+    S.beamCore.intensity = lerp(fromCore.intensity ?? 0, toCore.intensity ?? 0, t);
 
     // Lerp bloom (older scenes without bloom keep the current settings)
     const bloomNow = { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold };
@@ -5155,8 +5216,10 @@
   let u_res;
   let u_segOn, u_segCount, u_invSegWl, u_segScroll, u_segTime;
   let u_segW, u_segStart, u_segOpacity, u_segSoft, u_segInherit, u_segCol, u_segDrift, u_segInvWl, u_segRate;
-  let u_edgeWidth, u_edgeIntensity;
-  
+  let u_edgeWidth, u_edgeIntensity, u_edgeShape;
+  let u_edgeTintOn, u_edgeTintAmount, u_edgeTintCol;
+  let u_coreWidth, u_coreIntensity;
+
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
   let trailFBO2, trailTex2, trailPingPong = 0;
@@ -5209,7 +5272,12 @@ void main() {
 precision highp float;
 #define MAXSEG ${MAXSEG}
 in float v_t; in vec3 v_col; in float v_alpha; in float v_edge;
-uniform float u_edgeWidth, u_edgeIntensity;
+// Beam glow: edge softness/intensity/shape/tint (outer rim) + hot core (inner
+// whitened centreline) — two independent effects sharing the same |v_edge|
+// cross-beam coordinate (0 = core, 1 = side).
+uniform float u_edgeWidth, u_edgeIntensity, u_edgeShape;
+uniform float u_edgeTintOn, u_edgeTintAmount; uniform vec3 u_edgeTintCol;
+uniform float u_coreWidth, u_coreIntensity;
 // Segments: a repeating cycle along v_t sliced into u_segCount bands, each with
 // its own colour / opacity / width / softness. u_invSegWl = 1/globalWavelength,
 // u_segScroll = global cycle offset, u_segTime = seconds (for drifting segs).
@@ -5225,13 +5293,42 @@ void main() {
   // makes every property per-beam without new attributes.
   float a = v_alpha;
   vec3 col = v_col;
-  // Edge gradient: soft falloff across the beam width.
-  // |v_edge| runs 0 (core) → 1 (side); u_edgeWidth sets how far the gradient
-  // reaches inward, u_edgeIntensity how strongly the sides fade out.
+  // |v_edge| runs 0 (core) → 1 (side) across the beam's width.
+  float d = abs(v_edge);
+  // Edge gradient: soft falloff across the beam width. u_edgeWidth sets how
+  // far the gradient reaches inward from the side, u_edgeIntensity how
+  // strongly it fades, u_edgeShape which curve it fades along.
   if (u_edgeIntensity > 0.001 && u_edgeWidth > 0.001) {
-    float d = abs(v_edge);
-    float falloff = smoothstep(1.0, 1.0 - u_edgeWidth, d);
+    float edgeStart = 1.0 - u_edgeWidth;
+    // t: 0 at edgeStart (gradient's inner reach) → 1 at the true side (d=1).
+    float t = clamp((d - edgeStart) / max(0.0001, 1.0 - edgeStart), 0.0, 1.0);
+    float falloff;
+    if (u_edgeShape < 0.5) {
+      falloff = 1.0 - t * t * (3.0 - 2.0 * t); // Soft — smoothstep ease, the original curve
+    } else if (u_edgeShape < 1.5) {
+      falloff = 1.0 - t;                       // Linear — constant-rate fade
+    } else {
+      falloff = exp(-3.0 * t * t);             // Gaussian — bright longer, glowier tail
+    }
     a *= mix(1.0, falloff, u_edgeIntensity);
+    if (u_edgeTintOn > 0.5) {
+      // Shift toward the tint colour in proportion to how faded-out this
+      // pixel already is, so the tint reads as the edge's own colour, not a
+      // flat wash over the whole beam.
+      float tintMix = clamp((1.0 - falloff) * u_edgeIntensity * u_edgeTintAmount, 0.0, 1.0);
+      col = mix(col, u_edgeTintCol, tintMix);
+    }
+  }
+  // Hot core: an extra-bright whitened centreline independent of the edge
+  // effect above (real-laser look — a searing core inside a softer glow).
+  if (u_coreIntensity > 0.001 && u_coreWidth > 0.001) {
+    // smoothstep(edge0,edge1,x) is undefined per spec when edge0>=edge1, so
+    // this deliberately keeps edge0(0.0) < edge1(u_coreWidth) and inverts the
+    // result, rather than swapping the arguments to get a "1 at d=0" curve
+    // directly — a reversed-argument smoothstep is exactly what silently
+    // produced zero everywhere on first implementation.
+    float core = 1.0 - smoothstep(0.0, u_coreWidth, d); // 1 at d=0, 0 beyond u_coreWidth
+    col = mix(col, vec3(1.0), core * u_coreIntensity);
   }
   if (u_segOn > 0.5) {
     // Paint each segment as a soft-edged band over the solid beam. Non-drift
@@ -5294,6 +5391,12 @@ void main() {
     u_segRate = gl.getUniformLocation(prog, 'u_segRate');
     u_edgeWidth = gl.getUniformLocation(prog, 'u_edgeWidth');
     u_edgeIntensity = gl.getUniformLocation(prog, 'u_edgeIntensity');
+    u_edgeShape = gl.getUniformLocation(prog, 'u_edgeShape');
+    u_edgeTintOn = gl.getUniformLocation(prog, 'u_edgeTintOn');
+    u_edgeTintAmount = gl.getUniformLocation(prog, 'u_edgeTintAmount');
+    u_edgeTintCol = gl.getUniformLocation(prog, 'u_edgeTintCol');
+    u_coreWidth = gl.getUniformLocation(prog, 'u_coreWidth');
+    u_coreIntensity = gl.getUniformLocation(prog, 'u_coreIntensity');
 
     buf = gl.createBuffer();
     
@@ -5907,8 +6010,9 @@ void main() {
     vertCount = i;
   }
 
-  // Draws beams (with segment/edge effects), then phosphor quads with those
-  // effects disabled so the wall glow never flickers with the segments
+  // Draws beams (with segment/edge/core effects), then phosphor quads with
+  // those effects disabled so the wall glow stays a smooth decay and never
+  // flickers with the segments or shows a hot-core streak down its middle
   function drawBeamGeometry() {
     const beamVerts = phosVertStart / 8;
     const phosVerts = (vertCount - phosVertStart) / 8;
@@ -5916,6 +6020,7 @@ void main() {
     if (phosVerts > 0) {
       gl.uniform1f(u_segOn, 0);
       gl.uniform1f(u_edgeIntensity, 0);
+      gl.uniform1f(u_coreIntensity, 0);
       gl.drawArrays(gl.TRIANGLES, beamVerts, phosVerts);
     }
   }
@@ -6861,6 +6966,12 @@ void main() {
     }
     gl.uniform1f(u_edgeWidth, S.beamEdge.width);
     gl.uniform1f(u_edgeIntensity, S.beamEdge.intensity);
+    gl.uniform1f(u_edgeShape, S.beamEdge.shape === 'linear' ? 1 : S.beamEdge.shape === 'gaussian' ? 2 : 0);
+    gl.uniform1f(u_edgeTintOn, S.beamEdge.tintOn ? 1 : 0);
+    gl.uniform1f(u_edgeTintAmount, S.beamEdge.tintAmount);
+    gl.uniform3f(u_edgeTintCol, S.beamEdge.tint[0], S.beamEdge.tint[1], S.beamEdge.tint[2]);
+    gl.uniform1f(u_coreWidth, S.beamCore.width);
+    gl.uniform1f(u_coreIntensity, S.beamCore.intensity);
   }
 
   function renderBeamsGL(timeSec) {
@@ -7834,7 +7945,8 @@ void main() {
       bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
       kaleido: { enabled: S.kaleido.enabled, segments: S.kaleido.segments, rot: S.kaleido.rot, spin: S.kaleido.spin, mirror: S.kaleido.mirror },
       generative: { enabled: S.generative.enabled, style: S.generative.style, speed: S.generative.speed, scale: S.generative.scale, hue: S.generative.hue },
-      beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity },
+      beamEdge: { width: S.beamEdge.width, intensity: S.beamEdge.intensity, shape: S.beamEdge.shape, tintOn: S.beamEdge.tintOn, tint: [...S.beamEdge.tint], tintAmount: S.beamEdge.tintAmount },
+      beamCore: { width: S.beamCore.width, intensity: S.beamCore.intensity },
       phosphor: { enabled: S.phosphor.enabled, persistence: S.phosphor.persistence, intensity: S.phosphor.intensity, width: S.phosphor.width },
       rings: JSON.parse(JSON.stringify(S.rings)),
       showBeams: S.showBeams,
@@ -7924,6 +8036,14 @@ void main() {
     if (P.beamEdge) {
       S.beamEdge.width = P.beamEdge.width ?? 0.6;
       S.beamEdge.intensity = P.beamEdge.intensity ?? 0;
+      S.beamEdge.shape = P.beamEdge.shape ?? 'soft';
+      S.beamEdge.tintOn = P.beamEdge.tintOn ?? false;
+      S.beamEdge.tint = Array.isArray(P.beamEdge.tint) ? [...P.beamEdge.tint] : [1, 0.6, 0.2];
+      S.beamEdge.tintAmount = P.beamEdge.tintAmount ?? 0.6;
+    }
+    if (P.beamCore) {
+      S.beamCore.width = P.beamCore.width ?? 0.25;
+      S.beamCore.intensity = P.beamCore.intensity ?? 0;
     }
     if (P.phosphor) {
       S.phosphor.enabled = P.phosphor.enabled ?? false;
@@ -8063,6 +8183,16 @@ void main() {
   // Beam edge gradient UI bindings
   _on(edgeWidthEl, 'input', () => { S.beamEdge.width = parseFloat(edgeWidthEl.value) || 0; });
   _on(edgeIntensityEl, 'input', () => { S.beamEdge.intensity = parseFloat(edgeIntensityEl.value) || 0; });
+  _on(edgeShapeSelEl, 'change', () => { S.beamEdge.shape = edgeShapeSelEl.value; });
+  _on(edgeTintToggleEl, 'click', () => {
+    S.beamEdge.tintOn = !S.beamEdge.tintOn;
+    edgeTintToggleEl.textContent = S.beamEdge.tintOn ? 'On' : 'Off';
+    edgeTintToggleEl.style.borderColor = S.beamEdge.tintOn ? 'var(--accent)' : '';
+  });
+  _on(edgeTintColorEl, 'input', () => { S.beamEdge.tint = segHexToRgb(edgeTintColorEl.value); });
+  _on(edgeTintAmountEl, 'input', () => { S.beamEdge.tintAmount = clamp(parseFloat(edgeTintAmountEl.value), 0, 1); });
+  _on(beamCoreWidthEl, 'input', () => { S.beamCore.width = clamp(parseFloat(beamCoreWidthEl.value) || 0, 0, 1); });
+  _on(beamCoreIntensityEl, 'input', () => { S.beamCore.intensity = clamp(parseFloat(beamCoreIntensityEl.value) || 0, 0, 1); });
 
   // ---- Dual-handle range slider component ----
   // Two overlaid <input type=range>; getRange/setRange work on a [min,max]
@@ -8811,6 +8941,9 @@ void main() {
     genHue:        { label: 'Generative colour',  get: () => S.generative.hue,   set: v => S.generative.hue = v,   min: 0, max: () => 1, range: () => 0.5, wrap: true },
     edgeWidth:     { label: 'Edge softness',   get: () => S.beamEdge.width,  set: v => S.beamEdge.width = v,  min: 0,    max: () => 1,          range: () => 1 },
     edgeIntensity: { label: 'Edge intensity',  get: () => S.beamEdge.intensity, set: v => S.beamEdge.intensity = v, min: 0, max: () => 1,       range: () => 1 },
+    edgeTintAmount:{ label: 'Edge tint amount',get: () => S.beamEdge.tintAmount, set: v => S.beamEdge.tintAmount = v, min: 0, max: () => 1,      range: () => 1 },
+    coreWidth:     { label: 'Core width',      get: () => S.beamCore.width,  set: v => S.beamCore.width = v,  min: 0,    max: () => 1,          range: () => 1 },
+    coreIntensity: { label: 'Core intensity',  get: () => S.beamCore.intensity, set: v => S.beamCore.intensity = v, min: 0, max: () => 1,       range: () => 1 },
     wallBend:      { label: 'Wall bend',       get: () => S.wallBend,        set: v => { S.wallBend = v; bendWalls(); }, min: -0.8, max: () => 1, range: () => 0.6 },
     eccentricity:  { label: 'Eccentricity',    get: () => S.eccentricity,    set: v => { S.eccentricity = v; if (S.polygonType === 'ellipse') buildShape(); }, min: 0, max: () => 0.95, range: () => 0.5 },
     phosphor:      { label: 'Phosphor intensity', get: () => S.phosphor.intensity, set: v => S.phosphor.intensity = v, min: 0, max: () => 2, range: () => 1.5 },
@@ -10654,6 +10787,13 @@ void main() {
       threshold: 'Threshold',
       edgeSoftness: 'Edge softness',
       edgeIntensity: 'Edge intensity',
+      beamGlow: 'Beam glow',
+      edgeShape: 'Shape',
+      edgeTint: 'Tint',
+      edgeTintAmount: 'Tint amount',
+      coreWidth: 'Core width',
+      coreIntensity: 'Core intensity',
+      hintBeamGlow: 'Edge softness/intensity/shape shape the fade at the beam\'s sides; Tint colours that fade instead of just dimming it. Core width/intensity add an independent bright whitened centreline — a laser\'s hot core inside a softer glow.',
       wallBend: 'Wall bend',
       eccentricityL: 'Eccentricity',
       persistenceS: 'Persistence (s)',
@@ -10899,6 +11039,13 @@ void main() {
       threshold: 'Umbral',
       edgeSoftness: 'Suavidad de borde',
       edgeIntensity: 'Intensidad de borde',
+      beamGlow: 'Brillo del haz',
+      edgeShape: 'Forma',
+      edgeTint: 'Tinte',
+      edgeTintAmount: 'Cantidad de tinte',
+      coreWidth: 'Ancho del núcleo',
+      coreIntensity: 'Intensidad del núcleo',
+      hintBeamGlow: 'Suavidad/intensidad/forma de borde dan forma al desvanecido en los lados del haz; Tinte lo colorea en vez de solo atenuarlo. Ancho/intensidad de núcleo añaden una línea central blanca independiente — el núcleo ardiente de un láser dentro de un resplandor más suave.',
       wallBend: 'Curvatura de paredes',
       eccentricityL: 'Excentricidad',
       persistenceS: 'Persistencia (s)',
@@ -11144,6 +11291,13 @@ void main() {
       threshold: 'Limiar',
       edgeSoftness: 'Suavidade da borda',
       edgeIntensity: 'Intensidade da borda',
+      beamGlow: 'Brilho do feixe',
+      edgeShape: 'Forma',
+      edgeTint: 'Matiz',
+      edgeTintAmount: 'Quantidade de matiz',
+      coreWidth: 'Largura do núcleo',
+      coreIntensity: 'Intensidade do núcleo',
+      hintBeamGlow: 'Suavidade/intensidade/forma da borda moldam o desvanecimento nas laterais do feixe; Matiz colore esse desvanecimento em vez de apenas escurecê-lo. Largura/intensidade do núcleo adicionam uma linha central branca independente — o núcleo ardente de um laser dentro de um brilho mais suave.',
       wallBend: 'Curvatura das paredes',
       eccentricityL: 'Excentricidade',
       persistenceS: 'Persistência (s)',
@@ -11389,6 +11543,13 @@ void main() {
       threshold: 'Seuil',
       edgeSoftness: 'Douceur du bord',
       edgeIntensity: 'Intensité du bord',
+      beamGlow: 'Lueur du faisceau',
+      edgeShape: 'Forme',
+      edgeTint: 'Teinte',
+      edgeTintAmount: 'Quantité de teinte',
+      coreWidth: 'Largeur du noyau',
+      coreIntensity: 'Intensité du noyau',
+      hintBeamGlow: 'Douceur/intensité/forme du bord façonnent le fondu sur les côtés du faisceau ; Teinte colore ce fondu au lieu de simplement l\'assombrir. Largeur/intensité du noyau ajoutent une ligne centrale blanche indépendante — le noyau ardent d\'un laser dans une lueur plus douce.',
       wallBend: 'Courbure des murs',
       eccentricityL: 'Excentricité',
       persistenceS: 'Persistance (s)',
@@ -11595,6 +11756,7 @@ void main() {
       polygonType: S.polygonType, sides: S.sides, wallBend: S.wallBend, eccentricity: S.eccentricity,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
       beamAlpha: S.beamAlpha, beamAbsorb: S.beamAbsorb, beamHueDrift: S.beamHueDrift,
+      beamEdge: S.beamEdge, beamCore: S.beamCore,
       segments: S.segments,
       widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, kaleido: S.kaleido, generative: S.generative, phosphor: S.phosphor, rings: S.rings, field: S.field,
       audio: { sensitivity: S.audio.sensitivity, smoothing: S.audio.smoothing },
@@ -11623,6 +11785,7 @@ void main() {
       S.perBeamAbsorb = new Array(n).fill(1);
       S.perBeamHueDrift = new Array(n).fill(0);
     },
+    beamGlow: () => { S.beamEdge = F().beamEdge; S.beamCore = F().beamCore; },
     perBeamRotation: () => {
       S.speedPattern = FACTORY.speedPattern;
       S.patternBase = FACTORY.patternBase;
@@ -11694,7 +11857,7 @@ void main() {
     ['scenes', 'tabScenes', 'Scenes']
   ];
   const TAB_OF_GROUP = {
-    colors: 'beams', perBeamRotation: 'beams', beamMaterial: 'beams', segments: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams', generativeTitle: 'beams',
+    colors: 'beams', perBeamRotation: 'beams', beamMaterial: 'beams', beamGlow: 'beams', segments: 'beams', shapeTitle: 'beams', ringsTitle: 'beams', fieldTitle: 'beams', generativeTitle: 'beams',
     trails: 'fx', glow: 'fx', kaleido: 'fx', phosphorWalls: 'fx',
     roomTitle: 'room', bonus: 'room',
     audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',
@@ -11714,6 +11877,11 @@ void main() {
     emission: 'What the emitters produce: Beams (rotating lines), Rings (expanding circles), Both, or Wave field (real wave simulation).',
     edgeSoftness: 'How far the soft fade reaches in from the beam edge toward its core.',
     edgeIntensity: 'How strongly the beam sides fade out (0 = hard edge, 1 = gaussian glow).',
+    beamGlow: 'Shapes the beam\'s cross-section: how its sides fade out (Edge) and an optional bright hot core down the middle.',
+    edgeShape: 'The curve the edge fade follows: Soft eases in and out, Linear fades at a constant rate, Gaussian stays bright longer then tapers into a glowy tail.',
+    edgeTint: 'Shifts the fading edge toward a chosen colour instead of just dimming it — a coloured halo around the beam\'s own colour.',
+    coreWidth: 'How far the hot core reaches out from the beam\'s centre line.',
+    coreIntensity: 'How strongly the core whitens toward the centre — 0 = off, 1 = burns to pure white.',
     layerMode: 'Depth sorts beams by direction for a 3D feel; Static keeps a fixed draw order.',
     blendMode: 'Normal = standard transparency. Additive = overlaps brighten (good for glow, but dense overlaps wash to white). Screen = a softer brighten that eases toward white instead of overshooting. Lighten = overlaps show whichever is brighter, so they stay colorful instead of washing out. Difference = new beams carve/erode into existing trails and glow — experimental.',
     glow: 'Bloom: bright beams bleed light like real lasers in haze.',
