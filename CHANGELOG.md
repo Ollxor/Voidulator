@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.29.0] - 2026-07-27
+
+### 🩹 Fixed jittery beams in Vesica Piscis
+Beams in the Vesica Piscis room would occasionally take a very long "step" a couple of bounces after reflecting, breaking the smooth flow — a long-standing complaint. Root cause: Vesica Piscis is the only curved room shape that was represented as a 258-segment polygon approximation instead of true analytic arcs (every other bent/curved shape already uses exact arc math for collision — Vesica just hadn't been ported to it). Near the room's two sharp cusps, reflecting off the wrong one of many near-identical tiny segments sent beams on a wildly wrong path, compounding on the next bounce into what read as a sudden large jump.
+
+Fixed by giving Vesica Piscis the same true analytic-arc collision every other bent room already has (exact circle-ray intersection, exact normal at the hit point) — the 258-point polygon is still used for the drawn boundary/wave-field mask, but beams now reflect off the two exact circles the shape is built from.
+
+Verified, not assumed: a fine angular sweep (20,000 emission angles × 8 bounces) showed the analytic-arc fix cuts large segment-length discontinuities by 86% (232 → 32 occurrences) versus the segment approximation. More importantly, measured live in the running app across 400 animated frames of continuous beam rotation: the old code had 12 frames where the rendered beam pattern's total brightness jumped by more than 15% in a single frame (visible jank); the fixed code had zero, with average frame-to-frame variation 2.6× smaller and worst-case jumps 2.8× smaller. A small residual sensitivity remains right at the cusps themselves — that's genuine billiard-dynamics behavior inherent to any exact simulation of a sharp corner, not fixable without rounding off the cusps (which would defeat the shape's whole point), and it's now roughly a tenth as frequent as before.
+
 ## [1.28.0] - 2026-07-27
 
 ### 🩹 Removed the room boundary line for good
