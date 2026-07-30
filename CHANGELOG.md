@@ -2,6 +2,17 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.32.0] - 2026-07-30
+
+### ✨ Trails — Contain in room
+With Kaleidoscope on and long trails using the Zoom/Spin/Drift feedback controls, trail content could escape past the room's walls into the square canvas's corners — the feedback transform re-samples the trail buffer each frame with a pure UV scale/rotate/shift that has no idea where the walls are, so a strong zoom keeps pulling content out to ever-larger radii. Because the kaleidoscope fold preserves radius-from-centre and only folds the angle, whatever escaped out there got folded straight back into the visible pattern — a leak, not a rendering bug in the fold itself.
+
+New **Contain in room** toggle (off by default) in the Trails group clips the trail buffer to the actual room shape (circle or polygon, whatever's active) — any pixel outside the room reads as black every frame, so escaped content can never accumulate there regardless of how aggressive the zoom/spin/drift settings are. Reuses the same rasterize-shape-to-a-texture technique already proven for the wave-field's boundary mask, with simpler framing (the trail buffer's own square-canvas UV space, no padding/centroid math needed).
+
+This clips rather than reflects — an earlier "make trails bounce off the walls like beams" idea was scoped and set aside: it would need a new per-pixel wall-normal field to approximate, real bounce direction isn't recoverable from a pixel's position alone, and it'd still only be an approximation, especially near corners. Clipping was the cheaper, exact fix for the actual complaint (trails escaping the room), so that's what shipped.
+
+Verified, not assumed: reproduced the leak first (circle room, Kaleidoscope on, Zoom 0.35, 150 frames → all four canvas corners fully saturated, 255/255), then confirmed the toggle both cleans up an already-escaped buffer immediately (3 frames after enabling → corners back to 0) and prevents the leak entirely when on from the start (150 frames, same aggressive zoom → corners stay 0 throughout). A separate large-region sample confirmed the room's interior renders fully unaffected (100% coverage, avg brightness 254/255) — the toggle bounds the effect without dulling it.
+
 ## [1.31.0] - 2026-07-30
 
 ### 🩹 Fixed stretched image on Android fullscreen
