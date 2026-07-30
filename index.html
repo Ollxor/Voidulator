@@ -2542,8 +2542,12 @@
           <input id="trailsFbDriftY" type="range" min="-0.02" max="0.02" step="0.0005" value="0">
           <label class="clickable" data-reset="trailsBeatEcho" data-i18n="trailBeatEcho">Beat echo</label>
           <input id="trailsBeatEcho" type="range" min="0" max="1" step="0.01" value="0">
-          <label data-i18n="trailContain">Contain in room</label>
-          <button class="btn" id="trailsContainWalls">Off</button>
+          <label data-i18n="trailWallMode">Walls</label>
+          <select id="trailsWallMode">
+            <option value="off" data-i18n="trailWallOff">Off</option>
+            <option value="clip" data-i18n="trailWallClip">Clip</option>
+            <option value="reflect" data-i18n="trailWallReflect">Reflect</option>
+          </select>
           <label data-i18n="trailFilter">Filtering</label>
           <button class="btn" id="trailsFilter">Smooth</button>
           <label class="clickable" data-reset="trailsCutoff" data-i18n="trailCutoff">Cutoff</label>
@@ -2552,7 +2556,7 @@
             <input id="trailsCutoffNum" type="number" min="0" max="0.06" step="0.001" value="0.015">
           </div>
         </div>
-        <div class="hint" data-i18n="hintTrails">Length: trail duration. Hue shift: 0=same color, 180=complementary. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Contain in room: stops zoom/spin/drift from smearing trails past the walls (most visible with Kaleidoscope). Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.</div>
+        <div class="hint" data-i18n="hintTrails">Length: trail duration. Hue shift: 0=same color, 180=complementary. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Walls: Off lets zoom/spin/drift smear trails past the walls (most visible with Kaleidoscope); Clip stops it dead at the wall; Reflect bounces it back like beams do. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.</div>
       </div>
     </div>
 
@@ -2884,7 +2888,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.33.0';
+  const APP_VERSION = 'v1.34.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2953,7 +2957,7 @@
   const trailsFbDriftXEl = _el('trailsFbDriftX');
   const trailsFbDriftYEl = _el('trailsFbDriftY');
   const trailsBeatEchoEl = _el('trailsBeatEcho');
-  const trailsContainWallsBtn = _el('trailsContainWalls');
+  const trailsWallModeEl = _el('trailsWallMode');
   const trailsFilterBtn = _el('trailsFilter');
   const trailsCutoffEl = _el('trailsCutoff'), trailsCutoffNumEl = _el('trailsCutoffNum');
   // Thickness pulse
@@ -3151,11 +3155,15 @@
       fbSpin: 0,        // per-frame rotation in degrees: spirals the trail (~±3)
       fbDriftX: 0,      // per-frame horizontal shift, UV/frame — "wind" pushing trails sideways (~±0.02)
       fbDriftY: 0,      // per-frame vertical shift, UV/frame (~±0.02)
-      // Contain in room: clips the trail buffer to the room-shape mask, so
-      // zoom/spin/drift feedback can't smear content past the walls into
-      // the square canvas's corners (visible once Kaleidoscope folds it
-      // back into the pattern, since kfold() preserves radius-from-centre).
-      containWalls: false,
+      // Wall handling: stops zoom/spin/drift feedback from smearing trail
+      // content past the walls into the square canvas's corners (visible
+      // once Kaleidoscope folds it back into the pattern, since kfold()
+      // preserves radius-from-centre). 'off' = today's behaviour, content
+      // can escape. 'clip' = outside-the-room content simply goes black.
+      // 'reflect' = the escaping sample bounces off the nearest wall, like
+      // beams and the wave field already do (approximate — see
+      // buildTrailWallField()).
+      wallMode: 'off', // 'off' | 'clip' | 'reflect'
       // Beat echo: on each detected beat, briefly hold the trail near-frozen
       // instead of continuously fading, so a rhythmic ghost "stamps" and then
       // decays before the next beat. 0 = off. Rides S.beat.env (needs Beat
@@ -3733,7 +3741,7 @@
         fbDriftX: S.trails.fbDriftX,
         fbDriftY: S.trails.fbDriftY,
         beatEcho: S.trails.beatEcho,
-        containWalls: S.trails.containWalls
+        wallMode: S.trails.wallMode
       },
       bloom: {
         enabled: S.bloom.enabled,
@@ -3830,6 +3838,15 @@
     return { on: false, wavelength: 220, speed: 60, items: [defaultSegItem()] };
   }
   function cloneSegments(sg) { return JSON.parse(JSON.stringify(sg)); }
+  // v1.32 shipped S.trails.containWalls as a boolean (true = 'clip'); v1.34
+  // replaced it with the 3-way wallMode enum. Old saved scenes/presets only
+  // have the boolean, so migrate it the same way readSegments() migrates
+  // the old S.pulse shape.
+  function readTrailWallMode(trailsSrc) {
+    if (!trailsSrc) return 'off';
+    if (trailsSrc.wallMode === 'off' || trailsSrc.wallMode === 'clip' || trailsSrc.wallMode === 'reflect') return trailsSrc.wallMode;
+    return trailsSrc.containWalls ? 'clip' : 'off';
+  }
   // Interpolate between two saved segment configs for scene transitions. Same
   // item count → per-field lerp; different counts → snap at the halfway point.
   function lerpSegments(from, to, t) {
@@ -3923,7 +3940,7 @@
       S.trails.fbDriftX = scene.trails.fbDriftX ?? 0;
       S.trails.fbDriftY = scene.trails.fbDriftY ?? 0;
       S.trails.beatEcho = scene.trails.beatEcho ?? 0;
-      S.trails.containWalls = scene.trails.containWalls ?? false;
+      S.trails.wallMode = readTrailWallMode(scene.trails);
     }
     if (scene.bloom) {
       S.bloom.enabled = scene.bloom.enabled ?? true;
@@ -4083,7 +4100,7 @@
     if (trailsFbDriftXEl) trailsFbDriftXEl.value = S.trails.fbDriftX ?? 0;
     if (trailsFbDriftYEl) trailsFbDriftYEl.value = S.trails.fbDriftY ?? 0;
     if (trailsBeatEchoEl) trailsBeatEchoEl.value = S.trails.beatEcho ?? 0;
-    if (trailsContainWallsBtn) trailsContainWallsBtn.textContent = S.trails.containWalls ? 'On' : 'Off';
+    if (trailsWallModeEl) trailsWallModeEl.value = S.trails.wallMode ?? 'off';
     if (trailsFilterBtn) trailsFilterBtn.textContent = S.trails.filter === 'crisp' ? 'Crisp' : 'Smooth';
     if (trailsCutoffEl) trailsCutoffEl.value = trailsCutoffNumEl.value = S.trails.cutoff;
     // Shape (widthWave)
@@ -4224,7 +4241,7 @@
     S.trails.fbDriftX = lerp(fromTrails.fbDriftX ?? 0, toTrails.fbDriftX ?? 0, t);
     S.trails.fbDriftY = lerp(fromTrails.fbDriftY ?? 0, toTrails.fbDriftY ?? 0, t);
     S.trails.beatEcho = lerp(fromTrails.beatEcho ?? 0, toTrails.beatEcho ?? 0, t);
-    S.trails.containWalls = t > 0.5 ? (toTrails.containWalls ?? false) : (fromTrails.containWalls ?? false);
+    S.trails.wallMode = readTrailWallMode(t > 0.5 ? toTrails : fromTrails);
 
     // Lerp widthWave (Shape)
     const fromWave = from.widthWave || { enabled: false, shape: 'circle', freq: 0.5, speed: 0, duty: 0.5, rotation: 0 };
@@ -5493,8 +5510,9 @@ uniform float u_threshold;
 uniform float u_fbScale; // feedback: sample-region scale (1 = none)
 uniform float u_fbAngle; // feedback: sample-region rotation, radians
 uniform vec2 u_fbDrift;  // feedback: per-frame sample-region shift, UV units
-uniform float u_containWalls; // 1 = clip trail to the room-shape mask
-uniform sampler2D u_wallMask;
+uniform float u_wallMode; // 0 = off, 1 = clip, 2 = reflect
+uniform sampler2D u_wallMask;  // r >= 0.5 inside the room
+uniform sampler2D u_wallField; // rg = nearest boundary point (uv), ba = wall normal*0.5+0.5
 out vec4 outColor;
 
 // rgb2hsv / hsv2rgb: the well-known branchless versions by Sam Hocevar,
@@ -5515,16 +5533,18 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
-  // Wall containment: blank OUTPUT pixels outside the room shape,
-  // unconditionally, every frame — not just when the sample would come
-  // from outside. This is what actually stops zoom/spin/drift feedback
-  // from smearing content past the walls: those transforms pull content
-  // that started inside the room out to larger radii each frame, and
-  // since kfold() (final blit) preserves radius and only folds angle,
-  // anything that escapes here shows up directly in the kaleidoscope
-  // pattern out at the square's corners. Gated behind the toggle so it
-  // costs nothing (not even the texture read) when off.
-  if (u_containWalls > 0.5 && texture(u_wallMask, v_uv).r < 0.5) {
+  // Wall handling: blank OUTPUT pixels outside the room shape, unconditionally,
+  // every frame, whenever walls are on (clip or reflect) — the wall is opaque
+  // either way, so nothing beyond it is ever visible. This alone is what stops
+  // zoom/spin/drift feedback from smearing content past the walls: those
+  // transforms pull content that started inside the room out to larger radii
+  // each frame, and since kfold() (final blit) preserves radius and only folds
+  // angle, anything that escapes here shows up directly in the kaleidoscope
+  // pattern out at the square's corners. Gated behind the mode so it costs
+  // nothing (not even the texture read) when off.
+  bool wallsOn = u_wallMode > 0.5;
+  bool reflectMode = u_wallMode > 1.5;
+  if (wallsOn && texture(u_wallMask, v_uv).r < 0.5) {
     outColor = vec4(0.0, 0.0, 0.0, 1.0);
     return;
   }
@@ -5538,8 +5558,28 @@ void main() {
     float c = cos(u_fbAngle), s = sin(u_fbAngle);
     p = mat2(c, -s, s, c) * p * u_fbScale;
     uv = p + 0.5 - u_fbDrift;
-    // Outside the frame → fresh black (content scrolls off / new space opens up)
-    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { outColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+    if (reflectMode) {
+      // The transform pulled this sample from outside the room — bounce the
+      // SAMPLE POSITION off the nearest wall instead of clipping it or (the
+      // pre-v1.32 bug) reading whatever escaped content sits out there. Up to
+      // two passes: a single reflection can undershoot near concave walls
+      // (only the nearest wall's tangent is known, not a true multi-bounce
+      // raycast), so try once more before giving up. This is an approximation,
+      // most accurate on simple/convex rooms — see buildTrailWallField().
+      for (int pass = 0; pass < 2; pass++) {
+        bool inSquare = uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0;
+        if (inSquare && texture(u_wallMask, uv).r >= 0.5) break;
+        vec4 field = texture(u_wallField, clamp(uv, 0.0, 1.0));
+        vec2 b = field.rg;
+        vec2 n = field.ba * 2.0 - 1.0;
+        uv = uv - 2.0 * dot(uv - b, n) * n;
+      }
+      bool stillOutside = uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || texture(u_wallMask, uv).r < 0.5;
+      if (stillOutside) { outColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+    } else if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+      // Outside the frame → fresh black (content scrolls off / new space opens up)
+      outColor = vec4(0.0, 0.0, 0.0, 1.0); return;
+    }
   }
   vec4 col = texture(u_tex, uv);
   // Fade RGB multiplicatively
@@ -6670,21 +6710,43 @@ void main() {
     return { u: (x - fieldMaskMap.ox) / fieldMaskMap.span, v: (y - fieldMaskMap.oy) / fieldMaskMap.span };
   }
 
-  // Room-shape mask for trail wall containment (S.trails.containWalls),
-  // same rasterize-to-texture technique as buildFieldMask() above but with
+  // Room-shape mask for trail wall handling (S.trails.wallMode), same
+  // rasterize-to-texture technique as buildFieldMask() above but with
   // simpler framing: buildShape() always centres the room at (W/2,H/2)
   // inside the square stage with a fixed margin, and the trail buffer's
   // own UV space IS that same square canvas — so unlike the field mask
   // (which frames a differently-sized/padded simulation grid and needs
   // fieldMaskMap to translate), this needs no offset/centroid math, just
   // a flat px→UV scale by canvas width.
+  //
+  // Both this and buildTrailWallField() below always ensure their texture
+  // OBJECT exists (a cheap 1x1 dummy the first time) even when wallMode is
+  // 'off' or doesn't need them, and only do the real (comparatively
+  // expensive) rebuild when the mode actually requires it. This means the
+  // per-frame draw call can unconditionally bind both textures and set both
+  // sampler uniforms without ever risking an unbound/stale texture unit —
+  // simpler and safer than threading "is this texture valid yet" checks
+  // through the draw call, at the cost of one cheap key-string compare per
+  // frame even when walls are off.
   let trailMaskTex = null, trailMaskKey = null;
   function buildTrailMask() {
+    if (!trailMaskTex) {
+      trailMaskTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, trailMaskTex);
+      // White = "inside" — the harmless default (no clipping) if this is
+      // ever somehow sampled before a real mask is built.
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    if (S.trails.wallMode === 'off') return;
     const res = 256;
     const key = res + '|' + (S.isCircle
       ? 'c' + S.circle.cx.toFixed(0) + ',' + S.circle.cy.toFixed(0) + ',' + S.circle.R.toFixed(0)
       : (S.vertices.length + ':' + (S.vertices[0] ? S.vertices[0].x.toFixed(0) + ',' + S.vertices[0].y.toFixed(0) : '')));
-    if (trailMaskTex && trailMaskKey === key) return;
+    if (trailMaskKey === key) return;
     trailMaskKey = key;
     const W = glCanvas.width / S.dpr; // stage is always square while trails can render
     const cv = document.createElement('canvas');
@@ -6706,13 +6768,98 @@ void main() {
       cx2.closePath();
     }
     cx2.fill();
-    if (!trailMaskTex) trailMaskTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, trailMaskTex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+
+  // Boundary-point + outward-normal field for 'reflect' wall mode. Unlike
+  // the binary mask above, this can't be rasterized with canvas fillPath —
+  // it's computed numerically per-texel in JS and uploaded as raw pixel
+  // data: RG = nearest room-boundary point (this texel's UV space), BA =
+  // the wall normal there (*0.5+0.5 to fit an unsigned byte channel). The
+  // shader reflects a sample position across this: uv - 2*dot(uv-B,N)*N —
+  // sign-independent (same identity beam reflection already relies on, see
+  // computePath's arcNormal/findNearestEdge use), so it doesn't matter
+  // which of the two perpendicular directions ends up stored as "outward".
+  //
+  // Circle rooms get an exact analytic point+normal, no search needed. All
+  // other shapes reuse the same nearest-point-on-polyline approach as
+  // findNearestEdge() (beams' own fallback collision for unbent rooms),
+  // just also returning the closest point, not only the edge. Dense traces
+  // (blob: 720 points, vesica: ~258) are strided down to a bounded number
+  // of segments — a coarser boundary approximation here is imperceptible
+  // for this stylized bounce, and O(res² × segments) is the expensive part.
+  let trailWallFieldTex = null, trailWallFieldKey = null;
+  function buildTrailWallField() {
+    if (!trailWallFieldTex) {
+      trailWallFieldTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, trailWallFieldTex);
+      // Mid-grey normal (0,0) + origin boundary point: reflecting against
+      // this is a no-op (uv - 2*dot(uv,0)*0 = uv), harmless if ever sampled
+      // before a real field is built.
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([128, 128, 128, 128]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    if (S.trails.wallMode !== 'reflect') return;
+    const res = 96;
+    const key = res + '|' + (S.isCircle
+      ? 'c' + S.circle.cx.toFixed(0) + ',' + S.circle.cy.toFixed(0) + ',' + S.circle.R.toFixed(0)
+      : (S.vertices.length + ':' + (S.vertices[0] ? S.vertices[0].x.toFixed(0) + ',' + S.vertices[0].y.toFixed(0) : '')));
+    if (trailWallFieldKey === key) return;
+    trailWallFieldKey = key;
+    const W = glCanvas.width / S.dpr;
+    const verts = S.vertices;
+    const maxSegs = 64;
+    const stride = S.isCircle ? 1 : Math.max(1, Math.floor(verts.length / maxSegs));
+    const data = new Uint8Array(res * res * 4);
+    for (let gy = 0; gy < res; gy++) {
+      const py = (gy + 0.5) / res * W;
+      for (let gx = 0; gx < res; gx++) {
+        const px = (gx + 0.5) / res * W;
+        let bx, by, nx, ny;
+        if (S.isCircle) {
+          const dx = px - S.circle.cx, dy = py - S.circle.cy;
+          const d = Math.hypot(dx, dy) || 1;
+          nx = dx / d; ny = dy / d;
+          bx = S.circle.cx + nx * S.circle.R;
+          by = S.circle.cy + ny * S.circle.R;
+        } else {
+          let bestDist = Infinity;
+          bx = px; by = py; nx = 1; ny = 0;
+          for (let i = 0; i < verts.length; i += stride) {
+            const a = verts[i], b = verts[(i + stride) % verts.length];
+            const ex = b.x - a.x, ey = b.y - a.y;
+            const len2 = ex * ex + ey * ey;
+            if (len2 < 1e-6) continue;
+            let t = ((px - a.x) * ex + (py - a.y) * ey) / len2;
+            t = Math.max(0, Math.min(1, t));
+            const cx2 = a.x + t * ex, cy2 = a.y + t * ey;
+            const dx2 = px - cx2, dy2 = py - cy2;
+            const dist = dx2 * dx2 + dy2 * dy2;
+            if (dist < bestDist) {
+              bestDist = dist;
+              bx = cx2; by = cy2;
+              const L = Math.hypot(ex, ey) || 1;
+              nx = -ey / L; ny = ex / L;
+            }
+          }
+        }
+        const idx = (gy * res + gx) * 4;
+        data[idx] = clamp(bx / W * 255, 0, 255) | 0;
+        data[idx + 1] = clamp(by / W * 255, 0, 255) | 0;
+        data[idx + 2] = clamp((nx * 0.5 + 0.5) * 255, 0, 255) | 0;
+        data[idx + 3] = clamp((ny * 0.5 + 0.5) * 255, 0, 255) | 0;
+      }
+    }
+    gl.bindTexture(gl.TEXTURE_2D, trailWallFieldTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, res, res, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
   }
 
   // Advance the simulation `substeps` times and colorize the result into
@@ -7310,7 +7457,8 @@ void main() {
       // Framebuffer-based trails with ping-pong
       ensureTrailFBO();
       applyTrailFilter();
-      if (S.trails.containWalls) buildTrailMask();
+      buildTrailMask();
+      buildTrailWallField();
       const w = glCanvas.width, h = glCanvas.height;
       
       // Determine read/write textures and FBOs
@@ -7375,12 +7523,14 @@ void main() {
       gl.uniform1f(uloc(trailProg, 'u_fbScale'), fbScale);
       gl.uniform1f(uloc(trailProg, 'u_fbAngle'), fbAngle);
       gl.uniform2f(uloc(trailProg, 'u_fbDrift'), fbDriftX, fbDriftY);
-      gl.uniform1f(uloc(trailProg, 'u_containWalls'), S.trails.containWalls ? 1 : 0);
-      if (S.trails.containWalls) {
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, trailMaskTex);
-        gl.uniform1i(uloc(trailProg, 'u_wallMask'), 1);
-      }
+      const wallModeNum = S.trails.wallMode === 'reflect' ? 2 : S.trails.wallMode === 'clip' ? 1 : 0;
+      gl.uniform1f(uloc(trailProg, 'u_wallMode'), wallModeNum);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, trailMaskTex);
+      gl.uniform1i(uloc(trailProg, 'u_wallMask'), 1);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, trailWallFieldTex);
+      gl.uniform1i(uloc(trailProg, 'u_wallField'), 2);
 
       gl.disable(gl.BLEND);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -8017,10 +8167,7 @@ void main() {
   _on(trailsFbDriftXEl, 'input', () => { S.trails.fbDriftX = parseFloat(trailsFbDriftXEl.value) || 0; });
   _on(trailsFbDriftYEl, 'input', () => { S.trails.fbDriftY = parseFloat(trailsFbDriftYEl.value) || 0; });
   _on(trailsBeatEchoEl, 'input', () => { S.trails.beatEcho = clamp(parseFloat(trailsBeatEchoEl.value) || 0, 0, 1); });
-  _on(trailsContainWallsBtn, 'click', () => {
-    S.trails.containWalls = !S.trails.containWalls;
-    trailsContainWallsBtn.textContent = S.trails.containWalls ? 'On' : 'Off';
-  });
+  _on(trailsWallModeEl, 'change', () => { S.trails.wallMode = trailsWallModeEl.value; });
 
   // Blend mode handler
   _on(blendModeEl, 'change', () => {
@@ -8083,7 +8230,7 @@ void main() {
       beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
       perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
-      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, containWalls: S.trails.containWalls },
+      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, wallMode: S.trails.wallMode },
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
@@ -8144,7 +8291,7 @@ void main() {
       S.trails.fbDriftX = P.trails.fbDriftX ?? 0;
       S.trails.fbDriftY = P.trails.fbDriftY ?? 0;
       S.trails.beatEcho = P.trails.beatEcho ?? 0;
-      S.trails.containWalls = P.trails.containWalls ?? false;
+      S.trails.wallMode = readTrailWallMode(P.trails);
     }
     if (P.widthWave) {
       S.widthWave.enabled = P.widthWave.enabled ?? false;
@@ -10745,7 +10892,7 @@ void main() {
       hintDragSwatches: 'Drag swatches to reorder layers.',
       hintDuty: 'Duty: left = mostly dark, right = mostly light.',
       hintShape: 'Click labels to reset. Flow: left=in, right=out.',
-      hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Contain in room: stops zoom/spin/drift from smearing trails past the walls (most visible with Kaleidoscope). Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
+      hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Walls: Off lets zoom/spin/drift smear trails past the walls (most visible with Kaleidoscope); Clip stops it dead at the wall; Reflect bounces it back like beams do. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
       trailFilter: 'Filtering',
       trailCutoff: 'Cutoff',
       trailZoom: 'Zoom',
@@ -10753,7 +10900,10 @@ void main() {
       trailDriftX: 'Drift X',
       trailDriftY: 'Drift Y',
       trailBeatEcho: 'Beat echo',
-      trailContain: 'Contain in room',
+      trailWallMode: 'Walls',
+      trailWallOff: 'Off',
+      trailWallClip: 'Clip',
+      trailWallReflect: 'Reflect',
       trailBrightness: 'Brightness',
       mirrorLabel: 'Mirror',
       emittersLabel: 'Emitters',
@@ -10999,7 +11149,7 @@ void main() {
       hintDragSwatches: 'Arrastra las muestras para reordenar capas.',
       hintDuty: 'Ciclo: izq = mayormente oscuro, der = mayormente claro.',
       hintShape: 'Haz clic en etiquetas para resetear. Flujo: izq=entrada, der=salida.',
-      hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Zoom/giro/deriva de eco remuestrean la estela cada cuadro para crear túneles, espirales y estelas arrastradas por el viento. Eco de ritmo (necesita Detección de ritmo activada) congela brevemente la estela en cada golpe para un fantasma rítmico. Contener en la sala: evita que el zoom/giro/deriva difuminen la estela más allá de las paredes (más visible con el Caleidoscopio). Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
+      hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Zoom/giro/deriva de eco remuestrean la estela cada cuadro para crear túneles, espirales y estelas arrastradas por el viento. Eco de ritmo (necesita Detección de ritmo activada) congela brevemente la estela en cada golpe para un fantasma rítmico. Paredes: Apagado deja que el zoom/giro/deriva difuminen la estela más allá de las paredes (más visible con el Caleidoscopio); Recorte la detiene en seco en la pared; Reflejo la rebota de vuelta, como hacen los haces. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
       trailFilter: 'Filtrado',
       trailCutoff: 'Corte',
       trailZoom: 'Zoom',
@@ -11007,7 +11157,10 @@ void main() {
       trailDriftX: 'Deriva X',
       trailDriftY: 'Deriva Y',
       trailBeatEcho: 'Eco de ritmo',
-      trailContain: 'Contener en la sala',
+      trailWallMode: 'Paredes',
+      trailWallOff: 'Apagado',
+      trailWallClip: 'Recorte',
+      trailWallReflect: 'Reflejo',
       trailBrightness: 'Brillo',
       mirrorLabel: 'Espejo',
       emittersLabel: 'Emisores',
@@ -11252,7 +11405,7 @@ void main() {
       hintDragSwatches: 'Arraste as amostras para reordenar camadas.',
       hintDuty: 'Ciclo: esq = principalmente escuro, dir = principalmente claro.',
       hintShape: 'Clique nos rótulos para resetar. Fluxo: esq=entrada, dir=saída.',
-      hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Zoom/giro/deriva de eco reamostram o rastro a cada quadro para criar túneis, espirais e rastros arrastados pelo vento. Eco de batida (precisa da Deteção de batida ativada) congela brevemente o rastro a cada batida, para um fantasma rítmico. Conter na sala: impede que o zoom/giro/deriva espalhem o rastro para além das paredes (mais visível com o Caleidoscópio). Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
+      hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Zoom/giro/deriva de eco reamostram o rastro a cada quadro para criar túneis, espirais e rastros arrastados pelo vento. Eco de batida (precisa da Deteção de batida ativada) congela brevemente o rastro a cada batida, para um fantasma rítmico. Paredes: Desligado deixa o zoom/giro/deriva espalharem o rastro para além das paredes (mais visível com o Caleidoscópio); Recorte trava-o na parede; Reflexo faz-o ressaltar de volta, como os feixes. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
       trailFilter: 'Filtragem',
       trailCutoff: 'Corte',
       trailZoom: 'Zoom',
@@ -11260,7 +11413,10 @@ void main() {
       trailDriftX: 'Deriva X',
       trailDriftY: 'Deriva Y',
       trailBeatEcho: 'Eco de batida',
-      trailContain: 'Conter na sala',
+      trailWallMode: 'Paredes',
+      trailWallOff: 'Desligado',
+      trailWallClip: 'Recorte',
+      trailWallReflect: 'Reflexo',
       trailBrightness: 'Brilho',
       mirrorLabel: 'Espelho',
       emittersLabel: 'Emissores',
@@ -11505,7 +11661,7 @@ void main() {
       hintDragSwatches: 'Glissez les échantillons pour réorganiser les couches.',
       hintDuty: 'Cycle: gauche = principalement sombre, droite = principalement clair.',
       hintShape: 'Cliquez sur les étiquettes pour réinitialiser. Flux: gauche=entrée, droite=sortie.',
-      hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Zoom/rotation/dérive rétroaction ré-échantillonnent la traînée à chaque image pour créer tunnels, spirales et filaments emportés par le vent. Écho de battement (nécessite la Détection de battement activée) gèle brièvement la traînée à chaque battement, pour un fantôme rythmique. Contenir dans la salle: empêche le zoom/rotation/dérive d\'étaler la traînée au-delà des murs (surtout visible avec le Kaléidoscope). Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
+      hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Zoom/rotation/dérive rétroaction ré-échantillonnent la traînée à chaque image pour créer tunnels, spirales et filaments emportés par le vent. Écho de battement (nécessite la Détection de battement activée) gèle brièvement la traînée à chaque battement, pour un fantôme rythmique. Murs: Désactivé laisse le zoom/rotation/dérive étaler la traînée au-delà des murs (surtout visible avec le Kaléidoscope); Découpe l\'arrête net au mur; Réflexion la fait rebondir, comme les faisceaux. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
       trailFilter: 'Filtrage',
       trailCutoff: 'Seuil',
       trailZoom: 'Zoom',
@@ -11513,7 +11669,10 @@ void main() {
       trailDriftX: 'Dérive X',
       trailDriftY: 'Dérive Y',
       trailBeatEcho: 'Écho de battement',
-      trailContain: 'Contenir dans la salle',
+      trailWallMode: 'Murs',
+      trailWallOff: 'Désactivé',
+      trailWallClip: 'Découpe',
+      trailWallReflect: 'Réflexion',
       trailBrightness: 'Luminosité',
       mirrorLabel: 'Miroir',
       emittersLabel: 'Émetteurs',
@@ -12165,7 +12324,7 @@ void main() {
     trailDriftX: 'Feedback: shifts the fading trail sideways a little each frame — a "wind" pushing the whole trail left (−) or right (+). Needs Trails on and some Length.',
     trailDriftY: 'Feedback: shifts the fading trail up/down a little each frame — combine with Drift X for a diagonal wind. Needs Trails on and some Length.',
     trailBeatEcho: 'On each detected beat, briefly holds the trail near-frozen instead of continuously fading, so a rhythmic ghost stamps and then decays before the next beat. Needs Beat Detection on (and audio active) to do anything; decay pace follows Beat Detection\'s own Decay control.',
-    trailContain: 'Clips the trail to the room shape, so Zoom/Spin/Drift feedback can\'t smear content past the walls into the corners — most noticeable with Kaleidoscope, where escaped trail otherwise folds back into the pattern.',
+    trailWallMode: 'Off: Zoom/Spin/Drift feedback can smear trail content past the walls into the corners (visible once Kaleidoscope folds it back in). Clip: content outside the room just goes black. Reflect: it bounces off the nearest wall instead, like beams and the wave field — an approximation, most accurate on simple/convex room shapes.',
     phosphorWalls: 'Beams paint decaying glow onto the walls where they strike.',
     ringsTitle: 'Expanding circular wavefronts from their own emitters that fold and reflect off the walls.',
     autoSpawn: 'Off = rings appear only when you press Activate. On = a randomized scheduler keeps spawning them.',

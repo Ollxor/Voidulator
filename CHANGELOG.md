@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.34.0] - 2026-07-30
+
+### ✨ Trails — wall Reflect mode, alongside Clip
+Followed up on the "Contain in room" toggle from v1.32.0 with the option originally set aside as too big a lift: **trails can now actually bounce off the walls, like beams and the wave field already do**, not just stop dead at them. The old On/Off toggle is now a three-way **Walls** select — **Off** (today's default, unclipped), **Clip** (v1.32's behaviour, unchanged), or **Reflect** (new).
+
+Reflect works by building a second field alongside the existing room-shape mask: for every point in a grid, the nearest point on the room's boundary and the wall's normal there (computed the same way beam collision already derives a wall normal from the nearest polygon edge — circles get an exact analytic reflection, no search needed). When the trail feedback's zoom/spin/drift would sample from outside the room, the shader reflects that sample position across the nearest wall instead of clipping it to black — up to two bounces, since a single reflection can undershoot near concave walls. This is a genuine approximation, not a physically exact multi-bounce simulation (a real bounce needs the incoming direction, which a pixel position alone doesn't carry) — most accurate on simple, convex rooms, and reasonable everywhere else.
+
+Verified, not assumed: confirmed Off and Clip are byte-for-byte unchanged from v1.32 (same leak reproduction, same instant cleanup). For Reflect, since positive zoom on a convex room provably never samples outside the wall in the first place (shrinking any interior point toward an interior centre point stays interior — the original corner-leak bug turned out to be about *output* pixels outside the room showing magnified interior content, not about samples crossing the wall, which is exactly why the v1.32 output-position clip was already sufficient for that case), the differentiating tests specifically used negative zoom (samples pulled from *outside* the wall) and pure rotation on a hexagon (which can cross a non-circular boundary at constant radius) — both showed Reflect producing measurably different, more energy-preserving results than Clip (2.3× brighter interior under negative zoom; broader lit coverage under rotation), on both the analytic circle path and the general polygon path, with zero corner leaks and zero GL errors throughout.
+
 ## [1.33.0] - 2026-07-30
 
 ### ✨ Click a label to reset that control
