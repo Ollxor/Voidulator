@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.31.0] - 2026-07-30
+
+### 🩹 Fixed stretched image on Android fullscreen
+Going fullscreen on Android stretched the room out of square instead of keeping it a centred square. Root cause: the fullscreen `.stage` rules used `position: fixed; inset: 0`, which pins all four edges and makes both width and height definite — leaving `aspect-ratio: 1/1` nothing to compute, so it was silently ignored and the stage just filled the whole (non-square) viewport.
+
+Fixed by switching to `position: fixed` with explicit `width`/`height: min(100svw, 100svh)` (centred via `top/left: 50%` + `translate(-50%, -50%)`), which sizes a true square directly instead of relying on `aspect-ratio` to rescue a pre-stretched box. Getting this right took three passes, each caught by testing a different screen shape rather than assuming one fix covered all of them: an unconditional `min-height: 100vh` (left over from the old rule) was still forcing height above the square on short/wide windows; the same floor also existed in the plain desktop fullscreen rule, only exposed by a landscape-phone-width viewport falling outside the mobile breakpoint; and a leftover `max-width: calc(100vh - 16px)` from the base (non-fullscreen) `.stage` rule was silently shaving width down in both the mobile and hide-ui fullscreen rules. All three were overridden with matching `!important` weight, reasoned through via CSS specificity against the native `:fullscreen` pseudo-class rules (which can't easily be triggered headlessly to test directly).
+
+Verified, not assumed: measured actual computed styles and canvas backing-store size across desktop-with-panel (1600×900 → 884×884), desktop + hide-ui (1600×900 → 900×900, previously 884×900), phone portrait (412×915 → 412×412), and phone landscape (915×412 → 396×396, previously 396×412) — all perfect squares, zero GL errors after a rendered test frame in each.
+
 ## [1.30.0] - 2026-07-27
 
 ### ✨ Beam glow — a proper menu for edge softness, plus new effects

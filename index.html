@@ -606,11 +606,18 @@
     height: 100vh;
   }
   body.fullscreen-mode .stage {
+    /* NOT min-height:100vh — that's a floor, and it can force height ABOVE
+       what aspect-ratio:1/1 (base .stage rule) would otherwise compute from
+       width, breaking squareness whenever the available width is less than
+       the viewport height (e.g. a short/wide window, or a phone in
+       landscape — the fullscreen-on-mobile rule below has an identical
+       fix, with the full root-cause writeup). max-width:calc(100vh - 16px)
+       + aspect-ratio:1/1 (both from the base rule) are sufficient on their
+       own to size this correctly; min-height only ever fights them. */
     position: relative;
     z-index: 9999;
     border-radius: 0;
     border: none;
-    min-height: 100vh;
     max-height: 100vh !important;
     background: #000;
   }
@@ -631,8 +638,46 @@
       gap: 0;
     }
     body.fullscreen-mode .stage {
+      /* NOT inset:0 — with position:fixed, pinning all four edges makes both
+         width AND height definite from the (non-square) viewport, which
+         defeats the base rule's aspect-ratio:1/1 (aspect-ratio only resolves
+         a dimension left auto; with both already definite it has nothing to
+         do). That stretched the square room into the phone's tall viewport.
+         min(100svw,100svh) on both axes instead computes an explicit square
+         that fits the smaller viewport dimension, centered — a normal
+         letterboxed fullscreen, same principle as the desktop rule's
+         max-width: calc(100vh - 16px) above, just centered instead of
+         pinned to a grid cell. svh/svw (not vh/vw) for Android's collapsing
+         address bar, matching this file's existing convention.
+         height/min-height/max-height ALL need !important: two separate
+         unconditional (non-media-query) rules already fight for these —
+         body.fullscreen-mode .stage above sets min-height:100vh (desktop
+         case) and max-height:100vh !important, and :fullscreen .stage /
+         :-webkit-full-screen .stage (real native fullscreen, fires whenever
+         the browser's actual Fullscreen API is active, independent of our
+         .fullscreen-mode class) force height/min-height/max-height all to
+         100vh !important. Both act as floors/ceilings that silently
+         override a smaller explicit height — confirmed via
+         getComputedStyle while building this fix. body.fullscreen-mode
+         .stage (0,2,1 specificity: body + 2 classes) beats :fullscreen
+         .stage (0,2,0: pseudo-class + class) on specificity alone, so
+         matching their !important here is enough to win outright — no
+         reliance on source order. max-width needs the same treatment as
+         max-height: the base .stage rule's max-width:calc(100vh - 16px)
+         is a leftover from the desktop layout and silently caps this
+         rule's width whenever calc(100vh-16px) < min(100svw,100svh) —
+         caught by testing a short/wide viewport where the two diverge
+         (900px vh-based cap vs. an intended 900px square: the -16px alone
+         was enough to visibly break squareness). */
       position: fixed;
-      inset: 0;
+      top: 50%;
+      left: 50%;
+      width: min(100svw, 100svh) !important;
+      height: min(100svw, 100svh) !important;
+      min-height: 0 !important;
+      max-height: min(100svw, 100svh) !important;
+      max-width: min(100svw, 100svh) !important;
+      transform: translate(-50%, -50%);
     }
     body.fullscreen-mode .panel {
       display: none;
@@ -641,7 +686,7 @@
       display: none; /* No keyboard hint on mobile */
     }
   }
-  
+
   /* When UI is explicitly hidden (U key) */
   body.fullscreen-mode.hide-ui .app {
     grid-template-columns: 1fr;
@@ -649,8 +694,26 @@
     gap: 0;
   }
   body.fullscreen-mode.hide-ui .stage {
+    /* Same inset:0-vs-aspect-ratio conflict as the mobile rule above, and
+       this one isn't limited to the mobile media query — it would stretch
+       on ANY screen size when hide-ui is toggled in fullscreen (U key).
+       Same !important requirement too: body.fullscreen-mode.hide-ui .stage
+       is (0,3,1) — beats :fullscreen .stage (0,2,0) and the unconditional
+       body.fullscreen-mode .stage (0,2,1) on specificity, so matching
+       their !important on height/min-height/max-height wins outright.
+       max-width needs the same override as max-height, for the same
+       reason as the mobile rule above: the base .stage rule's
+       max-width:calc(100vh - 16px) otherwise silently caps width below
+       the intended min(100svw,100svh) square. */
     position: fixed;
-    inset: 0;
+    top: 50%;
+    left: 50%;
+    width: min(100svw, 100svh) !important;
+    height: min(100svw, 100svh) !important;
+    min-height: 0 !important;
+    max-height: min(100svw, 100svh) !important;
+    max-width: min(100svw, 100svh) !important;
+    transform: translate(-50%, -50%);
   }
   body.fullscreen-mode.hide-ui .panel {
     display: none;
@@ -2819,7 +2882,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.30.0';
+  const APP_VERSION = 'v1.31.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
