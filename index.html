@@ -2048,15 +2048,15 @@
         </select>
       </div>
 
-      <div class="row" data-emit="beamring"><label data-i18n="reflectivity">Reflectivity</label>
+      <div class="row" data-emit="beamring"><label class="clickable" data-reset="reflect" data-i18n="reflectivity">Reflectivity</label>
         <input id="reflect" type="range" min="0" max="1" step="0.001" value="0.80">
       </div>
 
-      <div class="row" data-emit="beamring"><label data-i18n="maxBounces">Max bounces</label>
+      <div class="row" data-emit="beamring"><label class="clickable" data-reset="bounces" data-i18n="maxBounces">Max bounces</label>
         <input id="bounces" type="range" min="1" max="375" step="1" value="234">
       </div>
 
-      <div class="row" data-emit="beamring"><label data-i18n="beamWidth">Beam width</label>
+      <div class="row" data-emit="beamring"><label class="clickable" data-reset="beamWidth" data-i18n="beamWidth">Beam width</label>
         <input id="beamWidth" type="range" min="0.5" max="8" step="0.1" value="2">
       </div>
 
@@ -2092,7 +2092,7 @@
 
       <div class="speed-control">
         <div class="speed-header">
-          <label data-i18n="speed">Speed</label>
+          <label class="clickable" data-reset="speedMultiplier" data-i18n="speed">Speed</label>
           <span id="speedMultiplierNum" class="speed-value">0.1000</span>
         </div>
         <input id="speedMultiplier" type="range" min="0" max="1" step="0.0005" value="0.675">
@@ -2117,13 +2117,13 @@
             <option value="vesica">Vesica Piscis</option>
           </select>
 
-          <label data-i18n="eccentricityL" id="lblEccentricity">Eccentricity</label>
+          <label class="clickable" data-reset="eccentricity" data-i18n="eccentricityL" id="lblEccentricity">Eccentricity</label>
           <div class="ctrl-row" id="eccentricityCtrl">
             <input id="eccentricity" type="range" min="0" max="0.95" step="0.01" value="0.6">
             <input id="eccentricityNum" type="number" min="0" max="0.95" step="0.01" value="0.6">
           </div>
 
-          <label data-i18n="wallBend">Wall bend</label>
+          <label class="clickable" data-reset="wallBend" data-i18n="wallBend">Wall bend</label>
           <div class="ctrl-row">
             <input id="wallBend" type="range" min="-0.8" max="1" step="0.01" value="0">
             <input id="wallBendNum" type="number" min="-0.8" max="1" step="0.01" value="0">
@@ -2221,11 +2221,11 @@
       <div class="group-title" data-i18n="beamMaterial">Beam Material</div>
       <div class="group-content">
         <div class="subgrid">
-          <label data-i18n="beamOpacity">Opacity</label>
+          <label class="clickable" data-reset="beamAlpha" data-i18n="beamOpacity">Opacity</label>
           <input id="beamAlpha" type="range" min="0.05" max="1" step="0.01" value="1">
-          <label data-i18n="beamAbsorb">Absorption</label>
+          <label class="clickable" data-reset="beamAbsorb" data-i18n="beamAbsorb">Absorption</label>
           <input id="beamAbsorb" type="range" min="0" max="1" step="0.01" value="0">
-          <label data-i18n="beamHueDrift">Hue drift</label>
+          <label class="clickable" data-reset="beamHueDrift" data-i18n="beamHueDrift">Hue drift</label>
           <input id="beamHueDrift" type="range" min="-360" max="360" step="5" value="0">
         </div>
         <div class="hint" data-i18n="hintBeamMaster">Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path (°/1000px).</div>
@@ -2250,9 +2250,9 @@
       <div class="group-title" data-i18n="beamGlow">Beam glow</div>
       <div class="group-content">
         <div class="subgrid">
-          <label data-i18n="edgeSoftness">Edge softness</label>
+          <label class="clickable" data-reset="edgeWidth" data-i18n="edgeSoftness">Edge softness</label>
           <input id="edgeWidth" type="range" min="0" max="1" step="0.01" value="0.6">
-          <label data-i18n="edgeIntensity">Edge intensity</label>
+          <label class="clickable" data-reset="edgeIntensity" data-i18n="edgeIntensity">Edge intensity</label>
           <input id="edgeIntensity" type="range" min="0" max="1" step="0.01" value="0">
           <label data-i18n="edgeShape">Shape</label>
           <select id="edgeShapeSel">
@@ -2266,11 +2266,11 @@
             <button class="btn" id="edgeTintToggle">Off</button>
             <input id="edgeTintColor" type="color" value="#ff9933">
           </div>
-          <label data-i18n="edgeTintAmount">Tint amount</label>
+          <label class="clickable" data-reset="edgeTintAmount" data-i18n="edgeTintAmount">Tint amount</label>
           <input id="edgeTintAmount" type="range" min="0" max="1" step="0.01" value="0.6">
-          <label data-i18n="coreWidth">Core width</label>
+          <label class="clickable" data-reset="beamCoreWidth" data-i18n="coreWidth">Core width</label>
           <input id="beamCoreWidth" type="range" min="0" max="1" step="0.01" value="0.25">
-          <label data-i18n="coreIntensity">Core intensity</label>
+          <label class="clickable" data-reset="beamCoreIntensity" data-i18n="coreIntensity">Core intensity</label>
           <input id="beamCoreIntensity" type="range" min="0" max="1" step="0.01" value="0">
         </div>
         <div class="hint" data-i18n="hintBeamGlow">Edge softness/intensity/shape shape the fade at the beam's sides; Tint colours that fade instead of just dimming it. Core width/intensity add an independent bright whitened centreline — a laser's hot core inside a softer glow.</div>
@@ -2283,9 +2283,9 @@
       <div class="subgrid">
         <label data-i18n="enable">Enable</label>
         <button class="btn" id="segToggle">Off</button>
-        <label data-i18n="segLength">Length</label>
+        <label class="clickable" data-reset="segWavelength" data-i18n="segLength">Length</label>
         <input id="segWavelength" type="range" min="20" max="1200" step="1" value="220">
-        <label data-i18n="speed">Speed</label>
+        <label class="clickable" data-reset="segSpeed" data-i18n="speed">Speed</label>
         <input id="segSpeed" type="range" min="0" max="225" step="1" value="60">
       </div>
       <!-- clickable segment strip + add/remove -->
@@ -2366,12 +2366,12 @@
             <button class="btn" id="ringsCenterBtn" data-i18n="centerShort">Center</button>
             <button class="btn" id="ringsUprightBtn" data-i18n="alignRot">Upright</button>
           </div>
-          <label data-i18n="clusterRotation">Rotation (°)</label>
+          <label class="clickable" data-reset="ringRot" data-i18n="clusterRotation">Rotation (°)</label>
           <div class="ctrl-row">
             <input id="ringRot" type="range" min="0" max="360" step="1" value="0">
             <input id="ringRotNum" type="number" min="0" max="360" step="1" value="0">
           </div>
-          <label data-i18n="clusterSpin">Spin (°/s)</label>
+          <label class="clickable" data-reset="ringSpin" data-i18n="clusterSpin">Spin (°/s)</label>
           <div class="ctrl-row">
             <input id="ringSpin" type="range" min="-180" max="180" step="1" value="0">
             <input id="ringSpinNum" type="number" min="-180" max="180" step="1" value="0">
@@ -2388,7 +2388,7 @@
           <div class="dual-range-slot" id="ringSpeedSlot"></div>
           <label data-i18n="ringLifetime">Lifetime (bounces)</label>
           <div class="dual-range-slot" id="ringLifetimeSlot"></div>
-          <label data-i18n="ringTaper">Taper</label>
+          <label class="clickable" data-reset="ringTaper" data-i18n="ringTaper">Taper</label>
           <input id="ringTaper" type="range" min="-1" max="1" step="0.01" value="0">
           <label data-i18n="ringRainbow">Rainbow</label>
           <button class="btn" id="ringRainbowToggle">On</button>
@@ -2417,12 +2417,12 @@
             <option value="rings" data-i18n="fieldWfRings">Rings (pulsed)</option>
             <option value="off" data-i18n="fieldWfOff">Manual only</option>
           </select>
-          <label data-i18n="fieldRingRate">Ring rate</label>
+          <label class="clickable" data-reset="fieldPulseRate" data-i18n="fieldRingRate">Ring rate</label>
           <div class="ctrl-row">
             <input id="fieldPulseRate" type="range" min="0.2" max="5" step="0.1" value="1.2">
             <input id="fieldPulseRateNum" type="number" min="0.2" max="5" step="0.1" value="1.2">
           </div>
-          <label data-i18n="fieldRingSharp">Ring sharpness</label>
+          <label class="clickable" data-reset="fieldPulseWidth" data-i18n="fieldRingSharp">Ring sharpness</label>
           <input id="fieldPulseWidth" type="range" min="0.04" max="0.5" step="0.01" value="0.16">
           <label data-i18n="ringEmitters">Emitters</label>
           <div class="stepper">
@@ -2437,28 +2437,28 @@
             <button class="btn" id="fieldCenterBtn" data-i18n="centerShort">Center</button>
             <button class="btn" id="fieldUprightBtn" data-i18n="alignRot">Upright</button>
           </div>
-          <label data-i18n="clusterRotation">Rotation (°)</label>
+          <label class="clickable" data-reset="fieldRot" data-i18n="clusterRotation">Rotation (°)</label>
           <div class="ctrl-row">
             <input id="fieldRot" type="range" min="0" max="360" step="1" value="0">
             <input id="fieldRotNum" type="number" min="0" max="360" step="1" value="0">
           </div>
-          <label data-i18n="clusterSpin">Spin (°/s)</label>
+          <label class="clickable" data-reset="fieldSpin" data-i18n="clusterSpin">Spin (°/s)</label>
           <div class="ctrl-row">
             <input id="fieldSpin" type="range" min="-180" max="180" step="1" value="0">
             <input id="fieldSpinNum" type="number" min="-180" max="180" step="1" value="0">
           </div>
-          <label data-i18n="fieldFreq">Frequency</label>
+          <label class="clickable" data-reset="fieldFreq" data-i18n="fieldFreq">Frequency</label>
           <div class="ctrl-row">
             <input id="fieldFreq" type="range" min="0.05" max="4" step="0.05" value="0.6">
             <input id="fieldFreqNum" type="number" min="0.05" max="4" step="0.05" value="0.6">
           </div>
-          <label data-i18n="fieldAmp">Amplitude</label>
+          <label class="clickable" data-reset="fieldAmp" data-i18n="fieldAmp">Amplitude</label>
           <input id="fieldAmp" type="range" min="0.05" max="2" step="0.05" value="0.4">
-          <label data-i18n="fieldSpeed">Wave speed</label>
+          <label class="clickable" data-reset="fieldSpeed" data-i18n="fieldSpeed">Wave speed</label>
           <input id="fieldSpeed" type="range" min="0.1" max="0.7" step="0.01" value="0.45">
-          <label data-i18n="fieldDamping">Damping</label>
+          <label class="clickable" data-reset="fieldDamping" data-i18n="fieldDamping">Damping</label>
           <input id="fieldDamping" type="range" min="0" max="0.1" step="0.002" value="0.02">
-          <label data-i18n="fieldGain">Brightness</label>
+          <label class="clickable" data-reset="fieldGain" data-i18n="fieldGain">Brightness</label>
           <input id="fieldGain" type="range" min="0.2" max="6" step="0.1" value="2.5">
           <label data-i18n="fieldSubsteps">Speed ×</label>
           <div class="stepper">
@@ -2478,7 +2478,7 @@
             <option value="spectral" data-i18n="fieldSpectral">Spectral</option>
             <option value="prism" data-i18n="fieldPrism">Prism</option>
           </select>
-          <label data-i18n="fieldFog">Fog</label>
+          <label class="clickable" data-reset="fieldFog" data-i18n="fieldFog">Fog</label>
           <input id="fieldFog" type="range" min="0" max="1" step="0.01" value="0">
           <label data-i18n="fieldRes">Resolution</label>
           <select id="fieldRes">
@@ -2503,17 +2503,17 @@
             <option value="tunnel" data-i18n="genTunnel">Tunnel</option>
             <option value="orbs" data-i18n="genOrbs">Orbs</option>
           </select>
-          <label data-i18n="speed">Speed</label>
+          <label class="clickable" data-reset="generativeSpeed" data-i18n="speed">Speed</label>
           <div class="ctrl-row">
             <input id="generativeSpeed" type="range" min="0" max="4" step="0.05" value="1">
             <input id="generativeSpeedNum" type="number" min="0" max="4" step="0.05" value="1">
           </div>
-          <label data-i18n="scale">Scale</label>
+          <label class="clickable" data-reset="generativeScale" data-i18n="scale">Scale</label>
           <div class="ctrl-row">
             <input id="generativeScale" type="range" min="0.2" max="3" step="0.05" value="1">
             <input id="generativeScaleNum" type="number" min="0.2" max="3" step="0.05" value="1">
           </div>
-          <label data-i18n="color">Colour</label>
+          <label class="clickable" data-reset="generativeHue" data-i18n="color">Colour</label>
           <input id="generativeHue" type="range" min="0" max="1" step="0.01" value="0">
         </div>
         <div class="hint" data-i18n="hintGenerative">A gallery of original fullscreen shaders standing in for beams/rings — no room geometry involved. Works with Glow and Kaleidoscope like every other mode.</div>
@@ -2526,27 +2526,27 @@
         <div class="subgrid">
           <label data-i18n="enable">Enable</label>
           <button class="btn" id="trailsToggle">Off</button>
-          <label data-i18n="length">Length</label>
+          <label class="clickable" data-reset="trailsLength" data-i18n="length">Length</label>
           <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
-          <label data-i18n="trailBrightness">Brightness</label>
+          <label class="clickable" data-reset="trailsOpacity" data-i18n="trailBrightness">Brightness</label>
           <input id="trailsOpacity" type="range" min="0" max="1" step="0.01" value="1">
-          <label data-i18n="hueShift">Hue shift</label>
+          <label class="clickable" data-reset="trailsHueShift" data-i18n="hueShift">Hue shift</label>
           <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
-          <label data-i18n="trailZoom">Zoom</label>
+          <label class="clickable" data-reset="trailsFbZoom" data-i18n="trailZoom">Zoom</label>
           <input id="trailsFbZoom" type="range" min="-0.05" max="0.05" step="0.001" value="0">
-          <label data-i18n="trailSpin">Spin</label>
+          <label class="clickable" data-reset="trailsFbSpin" data-i18n="trailSpin">Spin</label>
           <input id="trailsFbSpin" type="range" min="-3" max="3" step="0.05" value="0">
-          <label data-i18n="trailDriftX">Drift X</label>
+          <label class="clickable" data-reset="trailsFbDriftX" data-i18n="trailDriftX">Drift X</label>
           <input id="trailsFbDriftX" type="range" min="-0.02" max="0.02" step="0.0005" value="0">
-          <label data-i18n="trailDriftY">Drift Y</label>
+          <label class="clickable" data-reset="trailsFbDriftY" data-i18n="trailDriftY">Drift Y</label>
           <input id="trailsFbDriftY" type="range" min="-0.02" max="0.02" step="0.0005" value="0">
-          <label data-i18n="trailBeatEcho">Beat echo</label>
+          <label class="clickable" data-reset="trailsBeatEcho" data-i18n="trailBeatEcho">Beat echo</label>
           <input id="trailsBeatEcho" type="range" min="0" max="1" step="0.01" value="0">
           <label data-i18n="trailContain">Contain in room</label>
           <button class="btn" id="trailsContainWalls">Off</button>
           <label data-i18n="trailFilter">Filtering</label>
           <button class="btn" id="trailsFilter">Smooth</button>
-          <label data-i18n="trailCutoff">Cutoff</label>
+          <label class="clickable" data-reset="trailsCutoff" data-i18n="trailCutoff">Cutoff</label>
           <div class="ctrl-row">
             <input id="trailsCutoff" type="range" min="0" max="0.06" step="0.001" value="0.015">
             <input id="trailsCutoffNum" type="number" min="0" max="0.06" step="0.001" value="0.015">
@@ -2562,12 +2562,12 @@
         <div class="subgrid">
           <label data-i18n="enable">Enable</label>
           <button class="btn" id="bloomToggle">On</button>
-          <label data-i18n="strength">Strength</label>
+          <label class="clickable" data-reset="bloomStrength" data-i18n="strength">Strength</label>
           <div class="ctrl-row">
             <input id="bloomStrength" type="range" min="0" max="3" step="0.05" value="0.85">
             <input id="bloomStrengthNum" type="number" min="0" max="3" step="0.05" value="0.85">
           </div>
-          <label data-i18n="threshold">Threshold</label>
+          <label class="clickable" data-reset="bloomThreshold" data-i18n="threshold">Threshold</label>
           <input id="bloomThreshold" type="range" min="0" max="1" step="0.01" value="0.3">
         </div>
         <div class="hint" data-i18n="hintGlow">Real laser glow &mdash; bright beams bleed light like through haze. Threshold: how bright a pixel must be to bloom.</div>
@@ -2586,12 +2586,12 @@
             <span class="step-val" id="kaleidoSegVal">6</span>
             <button class="btn step-btn" id="kaleidoSegUp">&#9650;</button>
           </div>
-          <label data-i18n="clusterRotation">Rotation (&deg;)</label>
+          <label class="clickable" data-reset="kaleidoRot" data-i18n="clusterRotation">Rotation (&deg;)</label>
           <div class="ctrl-row">
             <input id="kaleidoRot" type="range" min="0" max="360" step="1" value="0">
             <input id="kaleidoRotNum" type="number" min="0" max="360" step="1" value="0">
           </div>
-          <label data-i18n="clusterSpin">Spin (&deg;/s)</label>
+          <label class="clickable" data-reset="kaleidoSpin" data-i18n="clusterSpin">Spin (&deg;/s)</label>
           <div class="ctrl-row">
             <input id="kaleidoSpin" type="range" min="-180" max="180" step="1" value="0">
             <input id="kaleidoSpinNum" type="number" min="-180" max="180" step="1" value="0">
@@ -2609,17 +2609,17 @@
         <div class="subgrid">
           <label data-i18n="enable">Enable</label>
           <button class="btn" id="phosToggle">Off</button>
-          <label data-i18n="persistenceS">Persistence (s)</label>
+          <label class="clickable" data-reset="phosPersistence" data-i18n="persistenceS">Persistence (s)</label>
           <div class="ctrl-row">
             <input id="phosPersistence" type="range" min="0.3" max="8" step="0.1" value="2.5">
             <input id="phosPersistenceNum" type="number" min="0.3" max="8" step="0.1" value="2.5">
           </div>
-          <label data-i18n="intensity">Intensity</label>
+          <label class="clickable" data-reset="phosIntensity" data-i18n="intensity">Intensity</label>
           <div class="ctrl-row">
             <input id="phosIntensity" type="range" min="0" max="2" step="0.05" value="1">
             <input id="phosIntensityNum" type="number" min="0" max="2" step="0.05" value="1">
           </div>
-          <label data-i18n="widthPx">Width (px)</label>
+          <label class="clickable" data-reset="phosWidth" data-i18n="widthPx">Width (px)</label>
           <input id="phosWidth" type="range" min="2" max="40" step="1" value="12">
         </div>
         <div class="hint" data-i18n="hintPhosphor">Beams paint glow onto the walls where they strike; it fades over Persistence seconds. Great with bent walls &mdash; the hot spots reveal the caustics.</div>
@@ -2641,14 +2641,14 @@
         <button class="btn" id="deleteScene" data-i18n="delete">Delete</button>
       </div>
       <div class="subgrid" style="margin-top:6px;">
-        <label data-i18n="transition">Transition</label>
+        <label class="clickable" data-reset="transitionDuration" data-i18n="transition">Transition</label>
         <div class="ctrl-row">
           <input id="transitionDuration" type="range" min="0" max="60" step="0.1" value="6">
           <input id="transitionDurationNum" type="number" min="0" max="600" step="0.1" value="6">
         </div>
       </div>
       <div class="subgrid" style="margin-top:8px;">
-        <label data-i18n="screensaver">Screensaver</label>
+        <label class="clickable" data-reset="screensaverDuration" data-i18n="screensaver">Screensaver</label>
         <div class="ctrl-row">
           <input id="screensaverDuration" type="range" min="1" max="120" step="1" value="12">
           <input id="screensaverDurationNum" type="number" min="1" max="120" step="1" value="12">
@@ -2680,12 +2680,12 @@
           <div class="btn-row">
             <button class="btn" id="audioToggle" data-i18n="startListening">Start listening</button>
           </div>
-          <label data-i18n="sensitivity">Sensitivity</label>
+          <label class="clickable" data-reset="audioSensitivity" data-i18n="sensitivity">Sensitivity</label>
           <div class="ctrl-row">
             <input id="audioSensitivity" type="range" min="0.1" max="5" step="0.1" value="4">
             <input id="audioSensitivityNum" type="number" min="0.1" max="5" step="0.1" value="4">
           </div>
-          <label data-i18n="smoothing">Smoothing</label>
+          <label class="clickable" data-reset="audioSmoothing" data-i18n="smoothing">Smoothing</label>
           <input id="audioSmoothing" type="range" min="0" max="0.98" step="0.01" value="0.5">
           <label data-i18n="level">Level</label>
           <div class="audio-level-track"><div id="audioLevelBar" class="audio-level-bar"></div></div>
@@ -2751,12 +2751,12 @@
             <button class="btn" id="beatToggle">Off</button>
             <span id="beatDot" class="beat-dot"></span>
           </div>
-          <label data-i18n="sensitivity">Sensitivity</label>
+          <label class="clickable" data-reset="beatSens" data-i18n="sensitivity">Sensitivity</label>
           <div class="ctrl-row">
             <input id="beatSens" type="range" min="1.05" max="2.5" step="0.05" value="1.4">
             <input id="beatSensNum" type="number" min="1.05" max="2.5" step="0.05" value="1.4">
           </div>
-          <label data-i18n="envelopeDecay">Envelope decay</label>
+          <label class="clickable" data-reset="beatDecay" data-i18n="envelopeDecay">Envelope decay</label>
           <input id="beatDecay" type="range" min="1" max="15" step="0.5" value="6">
           <label data-i18n="onBeatRipple">On beat: ripple</label>
           <div class="btn-row"><button class="btn" id="beatRippleToggle">Off</button></div>
@@ -2831,34 +2831,34 @@
             <button class="btn" id="emitterGeoToggle">On</button>
           </div>
 
-          <label data-i18n="clusterRotation">Rotation (°)</label>
+          <label class="clickable" data-reset="emitterRot" data-i18n="clusterRotation">Rotation (°)</label>
           <div class="ctrl-row">
             <input id="emitterRot" type="range" min="0" max="360" step="1" value="0">
             <input id="emitterRotNum" type="number" min="0" max="360" step="1" value="0">
           </div>
 
-          <label data-i18n="clusterSpin">Spin (°/s)</label>
+          <label class="clickable" data-reset="emitterSpin" data-i18n="clusterSpin">Spin (°/s)</label>
           <div class="ctrl-row">
             <input id="emitterSpin" type="range" min="-180" max="180" step="1" value="0">
             <input id="emitterSpinNum" type="number" min="-180" max="180" step="1" value="0">
           </div>
 
-          <label data-i18n="moveSpeed">Move speed</label>
+          <label class="clickable" data-reset="emitterSpeed" data-i18n="moveSpeed">Move speed</label>
           <div class="ctrl-row">
             <input id="emitterSpeed" type="range" min="50" max="500" step="10" value="150">
             <input id="emitterSpeedNum" type="number" min="50" max="500" value="150">
           </div>
 
-          <label data-i18n="spreadLabel">Spread (°)</label>
+          <label class="clickable" data-reset="spread" data-i18n="spreadLabel">Spread (°)</label>
           <div class="ctrl-row">
             <input id="spread" type="range" min="0" max="180" step="0.1" value="0">
             <input id="spreadNum" type="number" min="0" max="180" value="0">
           </div>
 
-          <label data-i18n="angleLabel">Angle (°)</label>
+          <label class="clickable" data-reset="angle" data-i18n="angleLabel">Angle (°)</label>
           <input id="angle" type="range" min="0" max="360" step="0.1" value="0">
 
-          <label data-i18n="globalSpeed">Global speed</label>
+          <label class="clickable" data-reset="rotSpeed" data-i18n="globalSpeed">Global speed</label>
           <div class="ctrl-row">
             <input id="rotSpeed" type="range" min="0" max="5" step="0.01" value="0">
             <input id="rotSpeedNum" type="number" min="0" max="5" step="0.01" value="0">
@@ -2884,7 +2884,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.32.0';
+  const APP_VERSION = 'v1.33.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -11999,6 +11999,119 @@ void main() {
     }
   };
 
+  // Click-a-label-to-reset-that-control: every `label.clickable[data-reset]`
+  // resets the single slider named by data-reset to its factory default.
+  // Each entry returns the value to put IN THE SLIDER ELEMENT (i.e.
+  // slider-space, not always S-space — matters for speedMultiplier, whose
+  // slider position is remapped through sliderToSpeed()). Reusing FACTORY
+  // (the deep-cloned snapshot GROUP_RESETS also reads from) keeps this in
+  // sync with the real shipped defaults instead of a second hand-copied
+  // set of numbers; a handful of fields were never added to FACTORY's
+  // snapshot (same gap GROUP_RESETS.bonus/roomTitle already have — reflect,
+  // bounces, beamWidth, transitionDuration, emitterRot/Spin) so those fall
+  // back to the literal shipped default. screensaverDuration has no S
+  // backing at all (read straight from the DOM), so it's a literal too.
+  // Excluded on purpose: per-beam trim sliders (pbOpacity/pbAbsorb/
+  // pbHueDrift) already have their own "Reset" button for the selected
+  // beam; per-segment-item sliders (segWidth/segOpacity/segSoft/
+  // segItemWavelength/segItemSpeed) are selected-item-dependent with no
+  // single global default to return to.
+  const RESET_DEFAULTS = {
+    // Room / beam basics
+    reflect: () => 0.8,
+    bounces: () => 234,
+    beamWidth: () => 2,
+    speedMultiplier: () => speedToSlider(FACTORY.speedMultiplier),
+    eccentricity: () => FACTORY.eccentricity,
+    wallBend: () => FACTORY.wallBend,
+    // Beam material (master)
+    beamAlpha: () => FACTORY.beamAlpha,
+    beamAbsorb: () => FACTORY.beamAbsorb,
+    beamHueDrift: () => FACTORY.beamHueDrift,
+    // Beam glow
+    edgeWidth: () => FACTORY.beamEdge.width,
+    edgeIntensity: () => FACTORY.beamEdge.intensity,
+    edgeTintAmount: () => FACTORY.beamEdge.tintAmount,
+    beamCoreWidth: () => FACTORY.beamCore.width,
+    beamCoreIntensity: () => FACTORY.beamCore.intensity,
+    // Segments (global cycle)
+    segWavelength: () => FACTORY.segments.wavelength,
+    segSpeed: () => FACTORY.segments.speed,
+    // Rings
+    ringRot: () => 0,
+    ringSpin: () => FACTORY.rings.spin,
+    ringTaper: () => FACTORY.rings.taper,
+    // Wave field
+    fieldPulseRate: () => FACTORY.field.pulseRate,
+    fieldPulseWidth: () => FACTORY.field.pulseWidth,
+    fieldRot: () => 0,
+    fieldSpin: () => FACTORY.field.spin,
+    fieldFreq: () => FACTORY.field.freq,
+    fieldAmp: () => FACTORY.field.amp,
+    fieldSpeed: () => FACTORY.field.speed,
+    fieldDamping: () => FACTORY.field.damping,
+    fieldGain: () => FACTORY.field.gain,
+    fieldFog: () => FACTORY.field.fog,
+    // Generative
+    generativeSpeed: () => FACTORY.generative.speed,
+    generativeScale: () => FACTORY.generative.scale,
+    generativeHue: () => FACTORY.generative.hue,
+    // Trails
+    trailsLength: () => FACTORY.trails.length,
+    trailsOpacity: () => FACTORY.trails.opacity,
+    trailsHueShift: () => FACTORY.trails.hueShift,
+    trailsFbZoom: () => FACTORY.trails.fbZoom,
+    trailsFbSpin: () => FACTORY.trails.fbSpin,
+    trailsFbDriftX: () => FACTORY.trails.fbDriftX,
+    trailsFbDriftY: () => FACTORY.trails.fbDriftY,
+    trailsBeatEcho: () => FACTORY.trails.beatEcho,
+    trailsCutoff: () => FACTORY.trails.cutoff,
+    // Glow (bloom)
+    bloomStrength: () => FACTORY.bloom.strength,
+    bloomThreshold: () => FACTORY.bloom.threshold,
+    // Kaleidoscope
+    kaleidoRot: () => FACTORY.kaleido.rot,
+    kaleidoSpin: () => FACTORY.kaleido.spin,
+    // Phosphor walls
+    phosPersistence: () => FACTORY.phosphor.persistence,
+    phosIntensity: () => FACTORY.phosphor.intensity,
+    phosWidth: () => FACTORY.phosphor.width,
+    // Scenes
+    transitionDuration: () => 6,
+    screensaverDuration: () => 12,
+    // Audio
+    audioSensitivity: () => FACTORY.audio.sensitivity,
+    audioSmoothing: () => FACTORY.audio.smoothing,
+    // Beat detection
+    beatSens: () => FACTORY.beat.sensitivity,
+    beatDecay: () => FACTORY.beat.decay,
+    // Emitters
+    emitterRot: () => 0,
+    emitterSpin: () => 0,
+    emitterSpeed: () => FACTORY.emitterMoveSpeed,
+    spread: () => FACTORY.spreadDeg,
+    angle: () => FACTORY.angleDeg,
+    rotSpeed: () => FACTORY.rotationSpeed,
+  };
+  function initClickableResets() {
+    const panel = document.querySelector('.panel');
+    if (!panel) return;
+    panel.addEventListener('click', (e) => {
+      const lbl = e.target.closest('label.clickable[data-reset]');
+      if (!lbl) return;
+      const id = lbl.getAttribute('data-reset');
+      const getDefault = RESET_DEFAULTS[id];
+      const input = _el(id);
+      if (!getDefault || !input) return;
+      input.value = getDefault();
+      // Replay the exact handler a manual drag would fire, so every
+      // side effect (rebuildSegStrip, applyEmitterCluster, requestAutosave,
+      // paired-number-input sync, etc.) happens exactly as it normally
+      // would — no need to duplicate any of that logic here.
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
   const PANEL_TABS = [
     ['all', 'tabAll', 'All'],
     ['beams', 'tabBeams', 'Beams'],
@@ -12314,6 +12427,7 @@ void main() {
     // so the tab buttons pick up the language)
     initPanelTools();
     initTooltips();
+    initClickableResets();
     updateEccentricityVisibility();
 
     // Load language preferences and apply translations

@@ -2,6 +2,19 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.33.0] - 2026-07-30
+
+### ✨ Click a label to reset that control
+Every numeric slider in the panel (~60 of them, across every group — Beam material, Beam glow, Segments, Rings, Wave field, Generative, Trails, Glow, Kaleidoscope, Phosphor walls, Scenes, Audio, Beat Detection, Emitters) now resets to its factory default when you click its label — the same behaviour four Beam Shapes labels (Density/Size/Flow/Spin) already had, now everywhere.
+
+Rather than hand-writing ~60 near-identical click handlers, this is one small data-driven mechanism: labels carry a `data-reset="<id>"` attribute, a single delegated click listener looks up that control's default and writes it into the slider, then dispatches a real `input` event — which replays the *exact* handler a manual drag would have fired, so every side effect (paired number-input sync, `rebuildSegStrip()`, `applyEmitterCluster()`, autosave, whatever that control already does) happens correctly with no duplicated logic to keep in sync.
+
+Defaults are read from `FACTORY` — the same deep-cloned snapshot the per-group ↺ reset buttons already use — rather than a second hand-copied set of numbers. That mattered in practice: while wiring this up, two controls turned up with a stale fallback-on-NaN literal in their existing input handler that didn't match the real shipped default (`fieldGain` handler fell back to 1.4, real default 2.5; `audioSensitivity` fell back to 1.5, real default 4) — reading live from `FACTORY` sidesteps that class of bug entirely instead of reproducing it. A handful of controls (`reflect`/`bounces`/`beamWidth`/`transitionDuration`/`emitterRot`/`emitterSpin`) aren't part of the FACTORY snapshot at all (a pre-existing gap, same one `GROUP_RESETS.bonus`/`roomTitle` already have) and use a literal default instead; `screensaverDuration` has no backing state whatsoever (read straight from the DOM), so it does too.
+
+Deliberately excluded: per-beam trim sliders (Opacity/Absorption/Hue drift under Beam Material) already have their own dedicated reset button for the selected beam; per-segment-item sliders (Width/Opacity/Softness/Length/Speed under the segment strip) are selected-item-dependent with no single global default to return to. Both would need a different, item-aware design, not a bigger version of this one.
+
+Verified, not assumed: cross-checked all 60 `data-reset` ids against the map and against real DOM elements (exact match, no orphans either direction); scripted clicks confirmed correct resets across a representative sample spanning every category, including the two corrected fallback-literal bugs above; the one non-trivial transform case (`speedMultiplier`'s slider position and stored value are related by a logarithmic curve, not equal) was checked against the app's own pre-existing, independently-coded `bonus` group-reset button and produces an identical result; and the user's own example control (Trails → Zoom) was confirmed with a real mouse click in a live browser, not just a script.
+
 ## [1.32.0] - 2026-07-30
 
 ### ✨ Trails — Contain in room
