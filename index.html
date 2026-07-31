@@ -2074,6 +2074,18 @@
         </select>
       </div>
 
+      <div class="row advanced-only" data-emit="beamring"><label data-i18n="overlapOnly">Overlap only</label>
+        <button class="btn" id="overlapToggle">Off</button>
+      </div>
+
+      <div class="row advanced-only" data-emit="beamring"><label data-i18n="overlapMinCount">Min overlap</label>
+        <div class="stepper">
+          <button class="btn step-btn" id="overlapMinDown">&#9660;</button>
+          <span class="step-val" id="overlapMinVal">2</span>
+          <button class="btn step-btn" id="overlapMinUp">&#9650;</button>
+        </div>
+      </div>
+
       <div class="row" data-emit="beam"><label data-i18n="beamCount">Beam count</label>
         <div class="stepper">
           <button class="btn step-btn" id="beamCountDown">▼</button>
@@ -2888,7 +2900,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.34.0';
+  const APP_VERSION = 'v1.35.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -2969,6 +2981,10 @@
   const widthWaveRotationEl = _el('widthWaveRotation');
   // Blend mode
   const blendModeEl = _el('blendMode');
+  // Overlap only
+  const overlapToggleBtn = _el('overlapToggle');
+  const overlapMinValEl = _el('overlapMinVal');
+  const overlapMinUpBtn = _el('overlapMinUp'), overlapMinDownBtn = _el('overlapMinDown');
   const savePresetBtn = _el('savePreset');
   const loadPresetBtn = _el('loadPreset');
   const presetFile = _el('presetFile');
@@ -3241,6 +3257,16 @@
       rotation: 0       // rotations per second (-2 to +2)
     },
     blendMode: 'normal', // normal, additive
+    // Overlap only: a second coverage-count pass over the same beam/ring
+    // geometry masks the scene so only pixels touched by minCount or more
+    // shapes stay visible — everything else goes black. Beams/rings only
+    // (no field/generative — there's no discrete "shapes" to overlap
+    // there); masks the fresh per-frame draw before Trails/Bloom/Kaleido
+    // see it, so it composes with those for free, EXCEPT Trails itself:
+    // masking only the fresh contribution inside the trail ping-pong's
+    // write step needs restructuring that hasn't been done yet, so this
+    // has no effect while Trails is on.
+    overlap: { enabled: false, minCount: 2 },
     dpr: 1,
     lastSegments: 0,
     layerMode: 'depth', // 'depth' (radial sorting) or 'static' (beam order)
@@ -3785,7 +3811,8 @@
         ratio: S.motion.ratio,
         phaseOffset: S.motion.phaseOffset
       },
-      blendMode: S.blendMode
+      blendMode: S.blendMode,
+      overlap: { enabled: S.overlap.enabled, minCount: S.overlap.minCount }
     };
   }
 
@@ -4027,6 +4054,8 @@
     }
     
     S.blendMode = scene.blendMode ?? 'normal';
+    S.overlap.enabled = scene.overlap?.enabled ?? false;
+    S.overlap.minCount = scene.overlap?.minCount ?? 2;
 
     // Rebuild
     buildShape();
@@ -4112,6 +4141,9 @@
     if (widthWaveRotationEl) widthWaveRotationEl.value = S.widthWave.rotation;
     // Blend mode
     if (blendModeEl) blendModeEl.value = S.blendMode;
+    // Overlap only
+    if (overlapToggleBtn) overlapToggleBtn.textContent = S.overlap.enabled ? 'On' : 'Off';
+    if (overlapMinValEl) overlapMinValEl.textContent = S.overlap.minCount ?? 2;
   }
 
   // Easing function for smooth transitions
@@ -4306,6 +4338,9 @@
 
     // Blend mode (instant at midpoint)
     S.blendMode = t > 0.5 ? (to.blendMode ?? 'normal') : (from.blendMode ?? 'normal');
+    const overlapSrc = t > 0.5 ? to.overlap : from.overlap;
+    S.overlap.enabled = overlapSrc?.enabled ?? false;
+    S.overlap.minCount = overlapSrc?.minCount ?? 2;
 
     // Beams visibility + wave-field mode switch at the midpoint
     S.showBeams = t > 0.5 ? (to.showBeams ?? true) : (from.showBeams ?? true);
@@ -5321,6 +5356,9 @@
   let sceneFBO, sceneTex;
   let bloomFBOA, bloomTexA, bloomFBOB, bloomTexB;
   let brightProg, blurProg, blitProg;
+  // Overlap-only coverage pass
+  let coverageFBO, coverageTex, coverageProg;
+  let overlapMaskFBO, overlapMaskTex, overlapMaskProg;
   let genAuroraProg, genTunnelProg, genOrbsProg;
 
   // Wave field FDTD: float ping-pong textures hold (u_n in .r, u_{n-1} in .g)
@@ -5690,6 +5728,52 @@ void main() {
     brightProg = makeProgram(copyVs, brightFs);
     blurProg = makeProgram(copyVs, blurFs);
     blitProg = makeProgram(copyVs, blitFs);
+
+    // === Overlap-only coverage pass ===
+    // Draws the SAME beam/ring/phosphor geometry a second time, ignoring
+    // colour entirely, into a coverage texture: every fragment adds 1/64 to
+    // the R channel with additive blending. A standard UNORM8 target would
+    // clamp additive blending at 1.0 (losing any count above "some"), so
+    // each fragment contributes a small enough fraction that up to 64
+    // overlapping shapes stay distinguishable (64 x 1/64 = 1.0, the point
+    // an 8-bit channel is exhausted anyway) — avoids needing a float
+    // render target (EXT_color_buffer_float, gated/unsupported on some
+    // devices — see the wave field's fieldFloatOK) for what only ever
+    // needs a small integer count.
+    const coverageVs = `#version 300 es
+in vec2 a_pos;
+uniform vec2 u_res;
+void main() {
+  vec2 clip = (a_pos / u_res) * 2.0 - 1.0;
+  clip.y = -clip.y;
+  gl_Position = vec4(clip, 0.0, 1.0);
+}`;
+    const coverageFs = `#version 300 es
+precision highp float;
+out vec4 outColor;
+void main() {
+  outColor = vec4(1.0 / 64.0, 0.0, 0.0, 1.0);
+}`;
+    coverageProg = makeProgram(coverageVs, coverageFs);
+
+    // Masks a scene texture by the coverage texture above: pixels with
+    // fewer than u_minCount overlapping shapes go black, the rest pass the
+    // scene colour through unchanged. Runs BEFORE Trails/Bloom/Kaleido (on
+    // the fresh per-frame beam draw), so none of those need to know this
+    // exists — they just see an already-masked scene, same as always.
+    const overlapMaskFs = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_tex;
+uniform sampler2D u_coverage;
+uniform float u_minCount;
+out vec4 outColor;
+void main() {
+  float count = texture(u_coverage, v_uv).r * 64.0;
+  if (count < u_minCount - 0.5) { outColor = vec4(0.0, 0.0, 0.0, 1.0); return; }
+  outColor = texture(u_tex, v_uv);
+}`;
+    overlapMaskProg = makeProgram(copyVs, overlapMaskFs);
 
     // === Generative shader gallery (Emission → "Generative") ===
     // Three independently-written fullscreen shaders using generic, freely
@@ -6512,6 +6596,83 @@ void main() {
     const b = makeRenderTarget(bw, bh);
     bloomFBOB = b.fbo; bloomTexB = b.tex;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  // Coverage-count target (full res, same size as sceneFBO — coverage is
+  // sampled 1:1 against the fresh beam draw, no downscaling) plus a second
+  // full-res target to hold the masked result (can't read u_coverage while
+  // writing into the same texture in one pass).
+  function ensureCoverageTargets() {
+    const w = glCanvas.width, h = glCanvas.height;
+    if (coverageTex && coverageTex._w === w && coverageTex._h === h) return;
+    if (coverageFBO) gl.deleteFramebuffer(coverageFBO);
+    if (coverageTex) gl.deleteTexture(coverageTex);
+    if (overlapMaskFBO) gl.deleteFramebuffer(overlapMaskFBO);
+    if (overlapMaskTex) gl.deleteTexture(overlapMaskTex);
+    const cov = makeRenderTarget(w, h);
+    coverageFBO = cov.fbo; coverageTex = cov.tex;
+    const msk = makeRenderTarget(w, h);
+    overlapMaskFBO = msk.fbo; overlapMaskTex = msk.tex;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  // Redraws whatever's currently in vertBuf (beams + rings + phosphor, same
+  // range drawBeamGeometry() draws) into the currently-bound coverage FBO,
+  // ignoring colour/segments/glow entirely — every fragment just adds its
+  // 1/64 share. Caller is responsible for binding coverageFBO, clearing it,
+  // binding coverageProg, and setting additive blending first.
+  function drawCoverageGeometry() {
+    const totalVerts = vertCount / 8;
+    if (totalVerts > 0) gl.drawArrays(gl.TRIANGLES, 0, totalVerts);
+  }
+
+  // Runs the coverage pass for whatever's in vertBuf right now, then masks
+  // srcTex by it (S.overlap.minCount or more overlapping shapes to stay
+  // visible, else black), returning the masked result. Caller swaps this in
+  // wherever it was about to use srcTex — Bloom/Kaleido/the final blit never
+  // need to know this ran.
+  function applyOverlapMask(srcTex) {
+    ensureCoverageTargets();
+    const w = glCanvas.width, h = glCanvas.height;
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, coverageFBO);
+    gl.viewport(0, 0, w, h);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(coverageProg);
+    gl.uniform2f(uloc(coverageProg, 'u_res'), w, h);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    // Other beam attribs may still be enabled from the caller's own draw —
+    // disable them first so a stray enabled array (pointing at an index
+    // coverageProg never bound anything to) doesn't upset the draw.
+    gl.disableVertexAttribArray(a_pos);
+    gl.disableVertexAttribArray(a_t);
+    gl.disableVertexAttribArray(a_col);
+    gl.disableVertexAttribArray(a_alpha);
+    gl.disableVertexAttribArray(a_edge);
+    const covPosLoc = gl.getAttribLocation(coverageProg, 'a_pos');
+    gl.enableVertexAttribArray(covPosLoc);
+    gl.vertexAttribPointer(covPosLoc, 2, gl.FLOAT, false, 8 * 4, 0);
+    gl.enable(gl.BLEND);
+    gl.blendEquation(gl.FUNC_ADD);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    drawCoverageGeometry();
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, overlapMaskFBO);
+    gl.viewport(0, 0, w, h);
+    gl.useProgram(overlapMaskProg);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, srcTex);
+    gl.uniform1i(uloc(overlapMaskProg, 'u_tex'), 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, coverageTex);
+    gl.uniform1i(uloc(overlapMaskProg, 'u_coverage'), 1);
+    gl.uniform1f(uloc(overlapMaskProg, 'u_minCount'), Math.max(1, S.overlap.minCount | 0));
+    gl.disable(gl.BLEND);
+    drawPostQuad(overlapMaskProg);
+    gl.enable(gl.BLEND);
+
+    return overlapMaskTex;
   }
 
   // Draws a fullscreen quad with the given post program (a_pos from copyBuf).
@@ -7623,9 +7784,11 @@ void main() {
       // Swap ping-pong for next frame
       trailPingPong = 1 - pp;
     } else {
-      // No trails - simple render (into the scene FBO when bloom or kaleidoscope needs a post-pass)
+      // No trails - simple render (into the scene FBO when bloom, kaleidoscope
+      // or overlap-only needs a post-pass)
       const useBloom = S.bloom.enabled && S.bloom.strength > 0.001;
       const useKscope = S.kaleido.enabled;
+      const useOverlap = S.overlap.enabled;
       uploadBeamUniforms();
 
       gl.bindBuffer(gl.ARRAY_BUFFER, buf);
@@ -7635,7 +7798,7 @@ void main() {
       gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
       gl.enableVertexAttribArray(a_edge); gl.vertexAttribPointer(a_edge, 1, gl.FLOAT, false, stride, 28);
 
-      if (useBloom || useKscope) {
+      if (useBloom || useKscope || useOverlap) {
         ensureBloomTargets(); // also allocates sceneFBO/sceneTex, which the plain kaleidoscope-only path below reuses
         gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
       } else {
@@ -7646,17 +7809,22 @@ void main() {
       gl.clear(gl.COLOR_BUFFER_BIT);
       drawBeamGeometry();
 
+      // Overlap-only masks the fresh beam draw BEFORE Bloom/Kaleido see it,
+      // so neither of those (nor the plain-blit branch below) needs to know
+      // it ran — they just treat sceneSource as "the scene."
+      const sceneSource = useOverlap ? applyOverlapMask(sceneTex) : sceneTex;
+
       if (useBloom) {
-        runBloom(sceneTex);
-        compositeWithBloom(sceneTex);
-      } else if (useKscope) {
+        runBloom(sceneSource);
+        compositeWithBloom(sceneSource);
+      } else if (useKscope || useOverlap) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, glCanvas.width, glCanvas.height);
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(copyProg);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+        gl.bindTexture(gl.TEXTURE_2D, sceneSource);
         gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
         uploadKscopeUniforms(copyProg);
         gl.disable(gl.BLEND);
@@ -8174,6 +8342,15 @@ void main() {
     S.blendMode = blendModeEl.value;
   });
 
+  // Overlap only
+  function setOverlapMinCount(n) { S.overlap.minCount = clamp(Math.round(n), 2, 16); overlapMinValEl.textContent = S.overlap.minCount; }
+  _on(overlapToggleBtn, 'click', () => {
+    S.overlap.enabled = !S.overlap.enabled;
+    overlapToggleBtn.textContent = S.overlap.enabled ? 'On' : 'Off';
+  });
+  _on(overlapMinUpBtn, 'click', () => setOverlapMinCount(S.overlap.minCount + 1));
+  _on(overlapMinDownBtn, 'click', () => setOverlapMinCount(S.overlap.minCount - 1));
+
   // Width wave handlers
   _on(widthWaveToggle, 'click', () => {
     S.widthWave.enabled = !S.widthWave.enabled;
@@ -8234,6 +8411,7 @@ void main() {
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
+      overlap: { enabled: S.overlap.enabled, minCount: S.overlap.minCount },
       segments: cloneSegments(S.segments),
       bloom: { enabled: S.bloom.enabled, strength: S.bloom.strength, threshold: S.bloom.threshold },
       kaleido: { enabled: S.kaleido.enabled, segments: S.kaleido.segments, rot: S.kaleido.rot, spin: S.kaleido.spin, mirror: S.kaleido.mirror },
@@ -8319,6 +8497,10 @@ void main() {
       S.kaleido.rot = P.kaleido.rot ?? 0;
       S.kaleido.spin = P.kaleido.spin ?? 0;
       S.kaleido.mirror = P.kaleido.mirror ?? true;
+    }
+    if (P.overlap) {
+      S.overlap.enabled = P.overlap.enabled ?? false;
+      S.overlap.minCount = P.overlap.minCount ?? 2;
     }
     if (P.generative) {
       S.generative.enabled = P.generative.enabled ?? false;
@@ -10868,6 +11050,8 @@ void main() {
       shuffle: 'Shuffle',
       layerMode: 'Layer mode',
       blendMode: 'Blend mode',
+      overlapOnly: 'Overlap only',
+      overlapMinCount: 'Min overlap',
       stepSize: 'Step size',
       // Settings
       settings: 'Settings',
@@ -11125,6 +11309,8 @@ void main() {
       shuffle: 'Mezclar',
       layerMode: 'Modo capa',
       blendMode: 'Modo mezcla',
+      overlapOnly: 'Solo superposición',
+      overlapMinCount: 'Superposición mín.',
       stepSize: 'Paso',
       // Settings
       settings: 'Ajustes',
@@ -11381,6 +11567,8 @@ void main() {
       shuffle: 'Embaralhar',
       layerMode: 'Modo camada',
       blendMode: 'Modo mistura',
+      overlapOnly: 'Só sobreposição',
+      overlapMinCount: 'Sobreposição mín.',
       stepSize: 'Passo',
       // Settings
       settings: 'Configurações',
@@ -11637,6 +11825,8 @@ void main() {
       shuffle: 'Mélanger',
       layerMode: 'Mode calque',
       blendMode: 'Mode fusion',
+      overlapOnly: 'Chevauchement seul',
+      overlapMinCount: 'Chevauch. min.',
       stepSize: 'Pas',
       // Settings
       settings: 'Paramètres',
@@ -12307,6 +12497,8 @@ void main() {
     coreIntensity: 'How strongly the core whitens toward the centre — 0 = off, 1 = burns to pure white.',
     layerMode: 'Depth sorts beams by direction for a 3D feel; Static keeps a fixed draw order.',
     blendMode: 'Normal = standard transparency. Additive = overlaps brighten (good for glow, but dense overlaps wash to white). Screen = a softer brighten that eases toward white instead of overshooting. Lighten = overlaps show whichever is brighter, so they stay colorful instead of washing out. Difference = new beams carve/erode into existing trails and glow — experimental.',
+    overlapOnly: 'Hides everything except where Min overlap or more beams/rings cross the same spot — a second pass counts coverage, everything under the threshold goes black. Beams/rings only (no Wave field or Generative — nothing discrete to overlap there); has no effect while Trails is on.',
+    overlapMinCount: 'How many shapes need to overlap a pixel before it stays visible with Overlap only on. 2 = any crossing; higher = only denser knots of beams.',
     glow: 'Bloom: bright beams bleed light like real lasers in haze.',
     kaleido: 'Mirrors the whole final frame into N radial wedges — works with any emission mode. Mirror off gives a plain rotating repeat instead of a reflected fold.',
     generativeTitle: 'A gallery of original fullscreen shaders that stand in for beams/rings — pick a Style, then Speed/Scale/Colour tune it.',

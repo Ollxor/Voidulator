@@ -2,6 +2,17 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.35.0] - 2026-07-31
+
+### ✨ Overlap only
+New **Overlap only** toggle (top Beams section, next to Blend mode) hides everything except where beams/rings actually cross — a **Min overlap** stepper sets how many need to stack up (2 = any crossing, higher = only denser knots).
+
+Built as a second render pass rather than a colour trick: the same beam/ring/phosphor geometry is drawn again into a coverage texture, every fragment adding a small fixed amount with additive blending (a standard 8-bit render target clamps additive blending at 1.0, so a naive "+1 per shape" scheme couldn't count past the first overlap — each fragment instead contributes 1/64, keeping counts up to 64 distinguishable without needing a float render target). A mask pass then blacks out anything under the threshold, running on the fresh beam draw *before* Trails/Bloom/Kaleidoscope see it, so those compose with it automatically — Bloom glows only the surviving overlap regions, Kaleidoscope folds the already-masked result exactly like it folds everything else.
+
+Scope for this pass: Beams and Rings only (Wave field and Generative have no discrete shapes to overlap), and **no effect yet while Trails is on** — masking only the fresh per-frame contribution inside the trail ping-pong's write step needs more restructuring than this pass covered; the toggle stays visible but is a no-op there for now rather than silently half-working.
+
+Verified, not assumed: swept the Min overlap threshold from 2 to 8 on a 6-beam scene and confirmed strictly decreasing lit-pixel coverage at each step (28% → 5% → 0.02%), confirmed Overlap+Bloom and Overlap+Kaleidoscope (and both together) all render without error, and confirmed the actual toggle/stepper UI controls update state correctly via real clicks.
+
 ## [1.34.0] - 2026-07-30
 
 ### ✨ Trails — wall Reflect mode, alongside Clip
