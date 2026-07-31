@@ -6482,9 +6482,44 @@ void main() {
     vertCount = i;
   }
 
+  // Rainbow rings colour every ray by its angle around the ring, which meant
+  // an hslToRgb per ray, per live ring, per emitter — up to ~46k calls a
+  // frame at 64 rings x 2 emitters, each also allocating a fresh [r,g,b].
+  // The colour only depends on the ray index and the three global colour
+  // offsets, so it collapses to a table rebuilt only when those offsets
+  // actually change (they are static at 0 unless the modulation matrix or a
+  // beat action is driving them).
+  //
+  // Two tables because the two consumers genuinely differ: the drawn ring
+  // applies satOffset/lightOffset, while the phosphor deposit has always
+  // used fixed 85/55. That looks like an oversight, but it is pre-existing
+  // visible behaviour, so it is preserved exactly rather than quietly
+  // changed here.
+  let ringHueLUT = null, ringHueLUTPhos = null, ringHueLUTKey = '';
+  function ensureRingRainbowLUT() {
+    const key = S.hueOffset + '|' + S.satOffset + '|' + S.lightOffset;
+    if (ringHueLUT && ringHueLUTKey === key) return;
+    ringHueLUTKey = key;
+    if (!ringHueLUT) {
+      ringHueLUT = new Array(RING_RAYS);
+      ringHueLUTPhos = new Array(RING_RAYS);
+      for (let k = 0; k < RING_RAYS; k++) { ringHueLUT[k] = [0, 0, 0]; ringHueLUTPhos[k] = [0, 0, 0]; }
+    }
+    const sat = clamp(85 + S.satOffset, 0, 100);
+    const light = clamp(55 + S.lightOffset, 0, 100);
+    for (let k = 0; k < RING_RAYS; k++) {
+      const hue = ((k / RING_RAYS * 360 + S.hueOffset) % 360 + 360) % 360;
+      const a = hslToRgb(hue, sat, light);
+      const e = ringHueLUT[k]; e[0] = a[0]; e[1] = a[1]; e[2] = a[2];
+      const b = hslToRgb(hue, 85, 55);
+      const p = ringHueLUTPhos[k]; p[0] = b[0]; p[1] = b[1]; p[2] = b[2];
+    }
+  }
+
   function buildRingGeometry() {
     ensureRingRays();
     if (!liveRings.length) return;
+    if (S.rings.rainbow) ensureRingRainbowLUT();
     // Sub-pixel ring widths alias badly into moire patterns — floor at ~1.2px
     const baseHalf = Math.max(0.6, (S.beamWidth || 2) / 2);
     const phosOn = S.phosphor.enabled && phosPoints;
@@ -6552,10 +6587,7 @@ void main() {
               ? dist2 < segLimit * segLimit
               : dist2 < tight * tight;
             if (sameSheet) {
-              const rgb = S.rings.rainbow
-                ? hslToRgb(((ki / RING_RAYS * 360 + S.hueOffset) % 360 + 360) % 360,
-                           clamp(85 + S.satOffset, 0, 100), clamp(55 + S.lightOffset, 0, 100))
-                : colRGB;
+              const rgb = S.rings.rainbow ? ringHueLUT[ki] : colRGB;
               pushRingQuad(px, py, x, y, half, d, rgb, pAmp, amp);
             }
           }
@@ -6572,9 +6604,7 @@ void main() {
               const sg = segs[j];
               const bcum = sg.cum + sg.len;
               if (bcum > prev && bcum <= d) {
-                const rgb = S.rings.rainbow
-                  ? hslToRgb(((k / RING_RAYS * 360 + S.hueOffset) % 360 + 360) % 360, 85, 55)
-                  : colRGB;
+                const rgb = S.rings.rainbow ? ringHueLUTPhos[k] : colRGB;
                 phosphorDeposit(sg.to.x, sg.to.y, rgb, sg.intensity * 0.6);
               }
             }
@@ -6637,6 +6667,22 @@ void main() {
     const msk = makeRenderTarget(w, h);
     overlapMaskFBO = msk.fbo; overlapMaskTex = msk.tex;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  // Overlap's two targets are full-resolution RGBA — ~66MB together while
+  // recording at 4K — and nothing else uses them, so hand them back as soon
+  // as the mode is switched off rather than holding them for the session.
+  // Called once per frame from renderBeamsGL (before its mode early-returns,
+  // so it also fires in Wave-field/Generative, where Overlap never runs);
+  // re-enabling just re-allocates via ensureCoverageTargets(). Toggling is a
+  // human action, not a per-frame one, so the churn is not a concern.
+  function releaseCoverageTargets() {
+    if (!coverageTex) return;
+    gl.deleteFramebuffer(coverageFBO);
+    gl.deleteTexture(coverageTex);
+    gl.deleteFramebuffer(overlapMaskFBO);
+    gl.deleteTexture(overlapMaskTex);
+    coverageFBO = coverageTex = overlapMaskFBO = overlapMaskTex = null;
   }
 
   // Redraws whatever's currently in vertBuf (beams + rings + phosphor, same
@@ -7441,6 +7487,9 @@ void main() {
   }
 
   function renderBeamsGL(timeSec) {
+    // Before the mode early-returns, so switching to Wave field/Generative
+    // (where Overlap never runs) also hands the memory back.
+    if (!S.overlap.enabled) releaseCoverageTargets();
     if (S.generative.enabled) { renderGenerative(timeSec); return; }
     if (S.field.enabled) { renderField(timeSec); return; }
     uploadBeamUniforms();
