@@ -2914,6 +2914,10 @@
   const glCanvas = _el('gl');
   const ovCanvas = _el('overlay');
   const octx = ovCanvas.getContext('2d');
+  // Whether the 2D overlay currently has anything painted on it, so
+  // drawOverlay() can skip a full-canvas clearRect on the many frames where
+  // it is already blank (fullscreen / hide-ui / emitters hidden).
+  let overlayHasContent = false;
 
   // UI refs
   const shapeSel = _el('shape');
@@ -4780,6 +4784,7 @@
       c.style.width = rect.width + 'px';
       c.style.height = rect.height + 'px';
     });
+    overlayHasContent = false; // setting .width already blanked the overlay
     buildShape();
     updateEmittersFromNorm(); // Convert normalized positions to actual coordinates
     if (gl) gl.viewport(0, 0, w, h);
@@ -5996,6 +6001,20 @@ void main() {
     return cache.get(name);
   }
 
+  // Same memoization for attribute locations, for the same reason: an
+  // attribute's location is fixed once a program is linked, but drawPostQuad
+  // (several calls per frame — bloom composites twice, plus the final blit)
+  // and the trail/coverage passes were each re-resolving 'a_pos' by string
+  // every time. Unlike uloc, a missing attribute resolves to -1, not null;
+  // it's cached the same way and callers already guard on it via the usual
+  // enable/pointer pair being a no-op for -1.
+  function aloc(prog, name) {
+    let cache = prog._aloc;
+    if (!cache) cache = prog._aloc = new Map();
+    if (!cache.has(name)) cache.set(name, gl.getAttribLocation(prog, name));
+    return cache.get(name);
+  }
+
   function setBlendMode(mode) {
     switch (mode) {
       case 'additive':
@@ -6478,15 +6497,19 @@ void main() {
       const fadePx = Math.max(1, S.rings.fade * ring.speed * S.rings.speedMul);
       const expectedGap = 2 * Math.PI * Math.max(d, 40) / RING_RAYS;
 
+      // Ring colour depends only on the ring (its palette index) — not on
+      // which emitter is being drawn — so resolve it once per ring instead
+      // of recomputing the identical hslToRgb for every emitter.
+      const palette = S.emitterPalettes[0] || S.beamPalette;
+      const col = palette[ring.ci % Math.max(1, palette.length)] || { h: 0, s: 0, l: 80 };
+      const colRGB = hslToRgb(
+        (((col.h + S.hueOffset) % 360) + 360) % 360,
+        clamp(col.s + S.satOffset, 0, 100),
+        clamp(col.l + S.lightOffset, 0, 100)
+      );
+
       for (let em = 0; em < ringEmitters.length; em++) {
         const rays = ringRays[em];
-        const palette = S.emitterPalettes[0] || S.beamPalette;
-        const col = palette[ring.ci % Math.max(1, palette.length)] || { h: 0, s: 0, l: 80 };
-        const colRGB = hslToRgb(
-          (((col.h + S.hueOffset) % 360) + 360) % 360,
-          clamp(col.s + S.satOffset, 0, 100),
-          clamp(col.l + S.lightOffset, 0, 100)
-        );
 
         let px = 0, py = 0, pAlive = false, pFade = 0, pSeg = -1, pAmp = 0;
         for (let k = 0; k <= RING_RAYS; k++) {
@@ -6650,7 +6673,7 @@ void main() {
     gl.disableVertexAttribArray(a_col);
     gl.disableVertexAttribArray(a_alpha);
     gl.disableVertexAttribArray(a_edge);
-    const covPosLoc = gl.getAttribLocation(coverageProg, 'a_pos');
+    const covPosLoc = aloc(coverageProg, 'a_pos');
     gl.enableVertexAttribArray(covPosLoc);
     gl.vertexAttribPointer(covPosLoc, 2, gl.FLOAT, false, 8 * 4, 0);
     gl.enable(gl.BLEND);
@@ -6685,7 +6708,7 @@ void main() {
     gl.disableVertexAttribArray(a_alpha);
     gl.disableVertexAttribArray(a_edge);
     gl.bindBuffer(gl.ARRAY_BUFFER, copyBuf);
-    const loc = gl.getAttribLocation(p, 'a_pos');
+    const loc = aloc(p, 'a_pos');
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -7671,7 +7694,7 @@ void main() {
       // Draw faded previous frame
       gl.useProgram(trailProg);
       gl.bindBuffer(gl.ARRAY_BUFFER, trailBuf);
-      const taPosLoc = gl.getAttribLocation(trailProg, 'a_pos');
+      const taPosLoc = aloc(trailProg, 'a_pos');
       gl.enableVertexAttribArray(taPosLoc);
       gl.vertexAttribPointer(taPosLoc, 2, gl.FLOAT, false, 0, 0);
       
@@ -7841,7 +7864,15 @@ void main() {
   function drawOverlay() {
     const W = ovCanvas.width / S.dpr, H = ovCanvas.height / S.dpr;
     octx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
-    octx.clearRect(0, 0, W, H);
+    // Only clear when the overlay actually has something on it. In
+    // fullscreen/hide-ui (and any frame where the flash has expired and
+    // emitters are hidden) it stays empty frame after frame, and a
+    // full-canvas clearRect is not free at 4K / on a phone — this used to
+    // run every frame purely to erase nothing.
+    if (overlayHasContent) {
+      octx.clearRect(0, 0, W, H);
+      overlayHasContent = false;
+    }
 
     // Skip boundary and emitters in fullscreen or hide-ui mode for clean look
     if (document.fullscreenElement || document.body.classList.contains('fullscreen-mode') || document.body.classList.contains('hide-ui')) return;
@@ -7860,6 +7891,7 @@ void main() {
     const now = performance.now();
     const flashLeft = roomOutlineUntil - now;
     if (flashLeft > 0) {
+      overlayHasContent = true;
       const k = Math.min(1, flashLeft / 600); // fade over the last 0.6s
       octx.strokeStyle = 'rgba(255, 159, 28, ' + (0.85 * k).toFixed(3) + ')';
       octx.lineWidth = 2;
@@ -7880,6 +7912,7 @@ void main() {
     // Focus markers (ellipse: two foci, parabola: one) — subtle crosses;
     // drop an emitter on one to get the resonator orbits
     if (S.foci && S.showEmitter) {
+      overlayHasContent = true;
       octx.strokeStyle = 'rgba(255, 159, 28, 0.45)';
       octx.lineWidth = 1;
       for (const f of S.foci) {
@@ -7893,6 +7926,7 @@ void main() {
     // Emitters (only if visible; hidden entirely in Generative mode, where
     // the emitter dots have no meaning — the fullscreen shader ignores them)
     if (S.showEmitter && !S.generative.enabled) {
+      overlayHasContent = true;
       for (const e of S.emitters) {
         octx.fillStyle = '#ff9f1c';
         octx.strokeStyle = '#0a0b0e';
