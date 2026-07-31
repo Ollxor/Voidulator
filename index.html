@@ -2900,7 +2900,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.35.0';
+  const APP_VERSION = 'v1.36.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -6267,6 +6267,10 @@ void main() {
   const RING_RAYS = 360;
   let ringRays = null;       // per ring-emitter: [{segs, total, firstLeg}]
   let ringRaysKey = null;
+  // Circle rooms only: per-emitter rotation taking the cached canonical rays
+  // (traced at angle 0) to the emitter's actual angle. null in non-circular
+  // rooms, where rays are traced in place. See ensureRingRays().
+  let ringRayRot = null;
   let ringEmitters = [];     // px positions derived from rings.emittersNorm
   let liveRings = [];        // {d, prev, ci} — expanding rings in flight
   let pendingRings = [];     // countdown timers (s) for scheduled spawns
@@ -6379,31 +6383,83 @@ void main() {
     }));
   }
 
+  function traceRingRaysFrom(E, cap) {
+    const rays = [];
+    for (let k = 0; k < RING_RAYS; k++) {
+      const a = k * 2 * Math.PI / RING_RAYS;
+      const segs = computePath(E, { x: Math.cos(a), y: Math.sin(a) }, cap);
+      const last = segs[segs.length - 1];
+      rays.push({
+        segs,
+        total: last ? last.cum + last.len : 0,
+        firstLeg: segs.length ? segs[0].len : 1
+      });
+    }
+    return rays;
+  }
+
   function ensureRingRays() {
     updateRingEmitters();
     const cap = ringBounceCap();
-    const emKey = ringEmitters.map(e => ((e.x * 4) | 0) + ',' + ((e.y * 4) | 0)).join(';');
     const geoKey = S.isCircle
       ? 'c' + S.circle.cx.toFixed(0) + ',' + S.circle.cy.toFixed(0) + ',' + S.circle.R.toFixed(0)
       : null;
-    const verts = S.isCircle ? null : S.vertices;
-    if (ringRaysKey && ringRaysKey.verts === verts && ringRaysKey.geo === geoKey &&
-        ringRaysKey.em === emKey && ringRaysKey.cap === cap) return;
-    ringRaysKey = { verts, geo: geoKey, em: emKey, cap };
-    ringRays = ringEmitters.map(E => {
-      const rays = [];
-      for (let k = 0; k < RING_RAYS; k++) {
-        const a = k * 2 * Math.PI / RING_RAYS;
-        const segs = computePath(E, { x: Math.cos(a), y: Math.sin(a) }, cap);
-        const last = segs[segs.length - 1];
-        rays.push({
-          segs,
-          total: last ? last.cum + last.len : 0,
-          firstLeg: segs.length ? segs[0].len : 1
-        });
+
+    // Circle rooms only: a circle is rotationally symmetric about its centre,
+    // and rotateFormationBy() explicitly preserves each emitter's radius, so
+    // spinning the formation moves every emitter along a circle concentric
+    // with the room. A path traced from a rotated emitter is therefore
+    // EXACTLY the path traced from the unrotated one, rotated by the same
+    // angle — an identity, not an approximation (the distinction that
+    // matters: approximating ring/beam geometry is what caused the v1.29
+    // jitter). So key the cache on each emitter's RADIUS instead of its
+    // position, trace once from a canonical point at angle 0, and rotate the
+    // cached points at draw time. Pure spin then never invalidates the
+    // cache, where before it re-traced RING_RAYS x emitters paths per frame.
+    //
+    // The rotation is always applied as an absolute angle derived from the
+    // emitter's current position — never accumulated frame to frame — so it
+    // cannot drift.
+    if (S.isCircle) {
+      const cx = S.circle.cx, cy = S.circle.cy;
+      const radii = ringEmitters.map(e => Math.hypot(e.x - cx, e.y - cy));
+      // Same quarter-pixel tolerance the position key already used, so a
+      // radius wobbling inside one bucket doesn't force a re-trace.
+      const radKey = radii.map(r => (r * 4) | 0).join(';');
+      if (!(ringRaysKey && ringRaysKey.mode === 'circleRot' && ringRaysKey.geo === geoKey &&
+            ringRaysKey.rad === radKey && ringRaysKey.cap === cap)) {
+        ringRaysKey = { mode: 'circleRot', geo: geoKey, rad: radKey, cap, verts: null, em: null };
+        ringRays = radii.map(r => traceRingRaysFrom({ x: cx + r, y: cy }, cap));
       }
-      return rays;
-    });
+      // Refreshed every frame (trivial cost) even on a cache hit — this is
+      // the part that actually tracks the spin.
+      ringRayRot = ringEmitters.map(e => {
+        const ang = Math.atan2(e.y - cy, e.x - cx);
+        return {
+          c: Math.cos(ang), s: Math.sin(ang), cx, cy,
+          // Rainbow hue is keyed to a ray's ABSOLUTE emission direction.
+          // Canonical ray k leaves at angle a_k; after rotating by `ang` its
+          // real direction is a_k + ang, so the hue table has to be read
+          // that many ray-steps along to keep the colour pattern fixed in
+          // room space exactly as it was before this optimisation. Rounding
+          // to whole steps is not a new approximation: the rays themselves
+          // are one step apart, so the hue table has no finer resolution to
+          // lose.
+          hueSteps: Math.round(ang / (2 * Math.PI) * RING_RAYS)
+        };
+      });
+      return;
+    }
+
+    // Non-circular rooms are not rotation-invariant, so they keep the
+    // original behaviour: key on emitter positions, re-trace when they move.
+    ringRayRot = null;
+    const emKey = ringEmitters.map(e => ((e.x * 4) | 0) + ',' + ((e.y * 4) | 0)).join(';');
+    const verts = S.vertices;
+    if (ringRaysKey && ringRaysKey.mode === 'poly' && ringRaysKey.verts === verts &&
+        ringRaysKey.geo === geoKey && ringRaysKey.em === emKey && ringRaysKey.cap === cap) return;
+    ringRaysKey = { mode: 'poly', verts, geo: geoKey, em: emKey, cap };
+    ringRays = ringEmitters.map(E => traceRingRaysFrom(E, cap));
   }
 
   // Spawns one activation: a small burst of rings spaced in time
@@ -6545,6 +6601,9 @@ void main() {
 
       for (let em = 0; em < ringEmitters.length; em++) {
         const rays = ringRays[em];
+        // Circle rooms: cached rays are canonical (traced at angle 0) and get
+        // rotated onto the emitter's real angle here. null elsewhere.
+        const rot = ringRayRot ? ringRayRot[em] : null;
 
         let px = 0, py = 0, pAlive = false, pFade = 0, pSeg = -1, pAmp = 0;
         for (let k = 0; k <= RING_RAYS; k++) {
@@ -6561,6 +6620,14 @@ void main() {
                 const f = (d - sg.cum) / (sg.len || 1);
                 x = sg.from.x + (sg.to.x - sg.from.x) * f;
                 y = sg.from.y + (sg.to.y - sg.from.y) * f;
+                if (rot) {
+                  // Rotating the interpolated point is identical to rotating
+                  // both endpoints and then interpolating — rotation is
+                  // affine, so it commutes with the lerp.
+                  const rx = x - rot.cx, ry = y - rot.cy;
+                  x = rot.cx + rx * rot.c - ry * rot.s;
+                  y = rot.cy + rx * rot.s + ry * rot.c;
+                }
                 inten = sg.intensity;
                 fadeF = clamp((deathD + fadePx - d) / fadePx, 0, 1);
                 segIdx = j;
@@ -6587,7 +6654,9 @@ void main() {
               ? dist2 < segLimit * segLimit
               : dist2 < tight * tight;
             if (sameSheet) {
-              const rgb = S.rings.rainbow ? ringHueLUT[ki] : colRGB;
+              const rgb = S.rings.rainbow
+                ? ringHueLUT[rot ? (((ki + rot.hueSteps) % RING_RAYS) + RING_RAYS) % RING_RAYS : ki]
+                : colRGB;
               pushRingQuad(px, py, x, y, half, d, rgb, pAmp, amp);
             }
           }
@@ -6604,8 +6673,18 @@ void main() {
               const sg = segs[j];
               const bcum = sg.cum + sg.len;
               if (bcum > prev && bcum <= d) {
-                const rgb = S.rings.rainbow ? ringHueLUTPhos[k] : colRGB;
-                phosphorDeposit(sg.to.x, sg.to.y, rgb, sg.intensity * 0.6);
+                const rgb = S.rings.rainbow
+                  ? ringHueLUTPhos[rot ? (((k + rot.hueSteps) % RING_RAYS) + RING_RAYS) % RING_RAYS : k]
+                  : colRGB;
+                // The wall-strike point needs the same rotation as the drawn
+                // ring, or the glow would land on the unrotated wall position.
+                let hx = sg.to.x, hy = sg.to.y;
+                if (rot) {
+                  const rx = hx - rot.cx, ry = hy - rot.cy;
+                  hx = rot.cx + rx * rot.c - ry * rot.s;
+                  hy = rot.cy + rx * rot.s + ry * rot.c;
+                }
+                phosphorDeposit(hx, hy, rgb, sg.intensity * 0.6);
               }
             }
           }

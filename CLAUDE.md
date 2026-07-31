@@ -181,7 +181,22 @@ All three emission systems (beams, rings, wave field) keep their emitters as `{n
 
 Per-system specifics:
 - **Beams** (`S.emitters` / `S.emittersNorm`): cluster params `emitterGeo` (align/drag-follow on), `emitterRot` (deg), `emitterSpin` (deg/s), `emitterRadiusN`. `applyEmitterCluster()` lays them out; `moveEmitterSymmetric(idx,pos)` derives radius+rotation from a drag and re-applies so the rest follow. `setEmitterCount` / `randomizeEmitters` call the cluster when `emitterGeo`.
-- **Rings** (`S.rings.emittersNorm`, teal dots) and **field** (`S.field.emittersNorm`, magenta dots): each has `geometric`, `rot`, `spin`; manual rotation applies the delta via `rotateFormationBy`, spin advances in `loopBody`. **Ring spin re-traces the ray cache every frame** (emitter moved → `ensureRingRays` rebuilds) — expensive at high bounce counts; field spin just relocates wave sources (cheap).
+- **Rings** (`S.rings.emittersNorm`, teal dots) and **field** (`S.field.emittersNorm`, magenta dots): each has `geometric`, `rot`, `spin`; manual rotation applies the delta via `rotateFormationBy`, spin advances in `loopBody`. Field spin just relocates wave sources (cheap). **Ring spin used to re-trace the whole ray cache every frame** (emitters moved → `ensureRingRays` rebuilt), costing 3–9 ms/frame with 2+ ring emitters. Since v1.36 that is avoided in **circle rooms only**, via the rotation-equivariance argument below.
+
+### Ring spin fast path (circle rooms, v1.36) — and the invariant it rests on
+
+`ensureRingRays()` has two modes, tagged in `ringRaysKey.mode`:
+- `'circleRot'` — a circle is rotationally symmetric about its centre, and `rotateFormationBy()` explicitly re-places each emitter at its *own preserved radius*, so spinning moves every emitter along a circle concentric with the room. The path traced from a rotated emitter is therefore **exactly** the path from the unrotated one, rotated by the same angle. So the cache is keyed on each emitter's **radius** (quarter-pixel buckets, matching the pre-existing position tolerance), rays are traced once from a canonical point at angle 0, and `ringRayRot[em]` (`cos`/`sin` about the room centre, plus `hueSteps`) rotates the points at draw time in `buildRingGeometry`. Pure spin never invalidates the cache.
+- `'poly'` — everything else keeps the original behaviour (key on emitter positions, re-trace when they move), because non-circular rooms are **not** rotation-invariant.
+
+Things that will silently break this if changed:
+- **`rotateFormationBy` must keep preserving each emitter's radius.** If it ever moved emitters off their own concentric circle, the cached-and-rotated path would stop matching a fresh trace.
+- **`roomCenter()` must stay the circle's own centre** for circles — it is the symmetry axis the whole argument depends on.
+- **The rotation must be applied as an absolute angle** derived from the emitter's current position (`atan2`), never accumulated frame to frame, or float error would drift.
+- **Both** places that read a cached point need the rotation: the drawn ring position *and* the phosphor wall-strike point. Rotating the interpolated point (rather than each endpoint) is deliberate and safe — rotation is affine, so it commutes with the lerp.
+- **Rainbow hue** is keyed to a ray's *absolute* emission direction. Canonical ray `k` leaves at `a_k`; rotated by `ang` its real direction is `a_k + ang`, so the hue table is read `hueSteps` along to keep the colour pattern fixed in room space. Rounding to whole ray-steps adds no error the sampling didn't already have — the rays themselves are one step apart.
+
+**This is an identity, not an approximation** — the distinction that matters, because approximating ring/beam geometry is exactly what caused the v1.29 jitter. It was verified that way too: frame-to-frame brightness discontinuity over 200 spinning frames is statistically identical to the old code (same count of >5% jumps, zero >15% jumps in both), and all room-shape × spin × emitter-count combinations still render. Note the output is *not* bit-identical to a fresh trace — tracing from `(cx+r, cy)` and rotating differs from tracing at the original coordinates by ~1e-13, which billiard dynamics amplify over 8–16 bounces. That is a different arrangement of the same chaotic system, not instability; the jitter measurement is what establishes it is not a regression, so **re-run that measurement rather than a pixel diff if you touch this.**
 - Drag routing in the overlay pointer handlers: `S.draggingIdx` (beam), `S.ringDraggingIdx`, `S.fieldDraggingIdx`. Cluster params persist via scene/preset (beams explicitly; rings/field via whole-object JSON clone, defaulted in the apply migrations).
 
 ## Hover tooltips

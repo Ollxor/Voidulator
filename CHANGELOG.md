@@ -2,6 +2,25 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.36.0] - 2026-07-31
+
+### ⚡ Performance pass — ring spin is up to 25× cheaper
+No visible changes; this release is entirely about CPU and memory.
+
+- **Ring spin (the big one).** With 2 or more ring emitters and Spin on, every frame re-traced 360 rays per emitter through the full bounce engine, because the emitters had moved and invalidated the ray cache — 3–9 ms/frame, up to half a 60fps budget, and the app's single most expensive operation. In a **circle** room this turns out to be avoidable *exactly*: a circle is rotationally symmetric about its centre, and the spin code already re-places each emitter at its own preserved radius, so the path from a rotated emitter **is** the path from the unrotated one, rotated. Rays are now traced once per radius and rotated at draw time; pure spin never invalidates the cache. Measured **90–98% faster** (7.8 ms → 0.75 ms, 9.2 ms → 0.33 ms, 9.2 ms → 0.19 ms across three configurations). Non-circular rooms aren't rotationally symmetric, so they deliberately keep the original behaviour.
+
+  This is the kind of change that caused the v1.29 jittery-beam bug, so it was built as a mathematical identity rather than an approximation, and verified as one: frame-to-frame brightness discontinuity across 200 spinning frames is statistically identical to the old code (same number of >5% jumps, zero >15% jumps in both), and all room-shape × spin × emitter-count combinations still render. Worth recording for anyone revisiting this — the output is deliberately *not* compared bit-for-bit against a fresh trace, because tracing from a rotated canonical point differs by ~1e-13 and billiard paths amplify that over 8–16 bounces; that's a different arrangement of the same chaotic system, not instability, which is why the jitter measurement rather than a pixel diff is the correct check here.
+
+- **Rainbow rings** called `hslToRgb` once per ray, per ring, per emitter — up to ~46,000 calls a frame at 64 rings, each also allocating a throwaway array. Replaced by a table rebuilt only when the global hue/saturation/lightness offsets actually change. Verified byte-for-byte identical output, including with those offsets animated every frame.
+
+- **Overlap only** held two full-resolution textures (~66 MB together at 4K) for the whole session after first use; they're now released as soon as the mode is switched off.
+
+- **Attribute locations** are memoized like uniform locations already were — `drawPostQuad` was making a string-keyed GL query on every call, several times per frame.
+
+- **The 2D overlay** no longer clears itself on frames where it's already blank (fullscreen, hide-UI, emitters hidden), which was a full-canvas clear per frame to erase nothing.
+
+- **Ring colour** was resolved once per emitter although it only depends on the ring.
+
 ## [1.35.0] - 2026-07-31
 
 ### ✨ Overlap only
