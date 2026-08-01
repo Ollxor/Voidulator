@@ -2900,7 +2900,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.36.0';
+  const APP_VERSION = 'v1.37.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -5312,7 +5312,15 @@
       if (!hit) break;
 
       const len = Math.hypot(hit.point.x - o.x, hit.point.y - o.y);
-      segs.push({ from: {...o}, to: hit.point, len, cum, intensity });
+      // `from: o` rather than `from: {...o}`: `o` is already a private clone
+      // (made at function entry) and is only ever REASSIGNED below, never
+      // mutated in place, so the defensive copy allocated a second object per
+      // segment for nothing. At ~670 segments/frame that was ~40k redundant
+      // objects a second. Do not "restore" the spread without first checking
+      // that invariant still holds — if anything ever starts mutating `o`
+      // in place, ring ray caches (which hold these segments across frames)
+      // would silently change under the renderer.
+      segs.push({ from: o, to: hit.point, len, cum, intensity });
       cum += len;
       o = hit.point;
 
@@ -5376,6 +5384,12 @@
   // Reusable vertex buffer — grows as needed, never re-allocated per frame
   let vertBuf = new Float32Array(65536);
   let vertCount = 0;
+  // Depth-mode segment sort staging, reused across frames — see the
+  // LAYERED DEPTH MODE block in renderBeamsGL(). Pool owns the objects and
+  // only ever grows; view holds the references that get sorted.
+  const depthSegPool = [];
+  const depthSegView = [];
+
   function vertReserve(n) {
     if (vertCount + n > vertBuf.length) {
       let newSize = vertBuf.length * 2;
@@ -7683,41 +7697,55 @@ void main() {
 
     // Render based on layer depth setting
     if (S.layerMode === 'depth') {
-      // LAYERED DEPTH MODE: Sort all segments by distance from center
-      const allSegments = [];
-      
+      // LAYERED DEPTH MODE: Sort all segments by distance from center.
+      // The staging objects are pooled rather than re-allocated: this runs
+      // once per segment per frame (~670 at max settings), and together with
+      // computePath's former per-segment clone it was the app's largest
+      // source of short-lived garbage. `depthSegPool` owns the objects and
+      // never shrinks; `depthSegView` holds references and is what actually
+      // gets sorted, so sorting shuffles the view without disturbing the
+      // pool's index->object mapping.
+      let nItems = 0;
       for (const beam of allBeams) {
         let bounceIdx = 0;
         for (const s of beam.segs) {
           const midX = (s.from.x + s.to.x) / 2;
           const midY = (s.from.y + s.to.y) / 2;
           const distFromCenter = Math.hypot(midX - centerX, midY - centerY);
-          
-          allSegments.push({
-            seg: s,
-            mat: beam.mat,
-            distFromCenter,
-            radialScore: beam.radialScore,
-            bounceIdx: bounceIdx
-          });
+
+          let item = depthSegPool[nItems];
+          if (item === undefined) {
+            item = depthSegPool[nItems] = { seg: null, mat: null, distFromCenter: 0, radialScore: 0, bounceIdx: 0 };
+          }
+          item.seg = s;
+          item.mat = beam.mat;
+          item.distFromCenter = distFromCenter;
+          item.radialScore = beam.radialScore;
+          item.bounceIdx = bounceIdx;
+          depthSegView[nItems] = item;
+          nItems++;
           bounceIdx++;
         }
       }
-      
+      // Drop any references left over from a busier previous frame, so the
+      // sort below only sees this frame's segments.
+      depthSegView.length = nItems;
+
       // Sort: early bounces first, then by distance, then by radial score
-      allSegments.sort((a, b) => {
+      depthSegView.sort((a, b) => {
         const aEarly = a.bounceIdx < 3 ? 0 : 1;
         const bEarly = b.bounceIdx < 3 ? 0 : 1;
         if (aEarly !== bEarly) return aEarly - bEarly;
-        
+
         const distDiff = a.distFromCenter - b.distFromCenter;
         if (Math.abs(distDiff) > 10) return distDiff;
-        
+
         return a.radialScore - b.radialScore;
       });
 
       // Render sorted segments
-      for (const item of allSegments) {
+      for (let i = 0; i < nItems; i++) {
+        const item = depthSegView[i];
         const s = item.seg;
         pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.mat, s.intensity, timeSec);
       }

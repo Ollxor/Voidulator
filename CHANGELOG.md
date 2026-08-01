@@ -2,6 +2,18 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.37.0] - 2026-07-31
+
+### ⚡ Cut the two largest sources of per-frame garbage
+No visible change — the rendered output is bit-for-bit identical. Both of these ran once per beam segment (~670 segments/frame at maximum settings, so roughly 40,000 short-lived objects a second each):
+
+- **`computePath` no longer clones the segment start point.** The value it was copying is already a private copy that the tracing loop only ever reassigns, never modifies in place, so the copy was pure waste. (The code now carries a warning: if anything ever does start modifying that value in place, the copy has to come back — ring ray caches hold these segment objects across frames, so an in-place edit would silently rewrite already-cached geometry.)
+- **The depth-sort staging objects are pooled** instead of rebuilt every frame.
+
+**Honest note on the speedup: there isn't a number here, because this machine couldn't produce a trustworthy one.** Timing the same unmodified build three times gave medians of 27 ms, 2.8 ms and 0.5 ms, with samples inside a single run ranging 3.7 ms to 205 ms. Switching to paired sampling (both builds running at once, measured alternately) didn't help — the new build won 9 of 15 paired rounds, which is chance. Earlier runs suggesting "~58%" are inside that noise and aren't quotable. What is verified is that the allocations are gone and the output is unchanged; any real timing needs an idle machine with hardware GL.
+
+Correctness was checked properly even though the timing wasn't: output is bit-identical to the previous build across beams in four room shapes plus spinning rings, and the pooling was additionally tested with the segment count swung 672 → 28 → 672 repeatedly, which is exactly where a stale-reuse bug would surface. The comparison harness itself was validated first by running a build against itself — worth noting because the first attempt at this test was silently broken (both pages shared saved state, so a build differed from *itself*) and would otherwise have reported a false regression.
+
 ## [1.36.0] - 2026-07-31
 
 ### ⚡ Performance pass — ring spin is up to 25× cheaper
