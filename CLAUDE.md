@@ -95,6 +95,12 @@ The bug: `raw` used to be `Math.min(energy * sensitivity, 1)`, and the beat dete
 
 `softKnee()` (linear below 0.7, easing asymptotically to 1.0 above, with matching derivative at the knee) replaced the hard clamp on `bands`, so a high Sensitivity now compresses instead of flattening the modulation sources.
 
+### Auto gain (v1.39)
+`S.audio.autoGain` derives the gain from a rolling loudness estimate (`agcPeak`, fast ~0.15 s attack / slow ~6 s release) instead of the Sensitivity slider, targeting `AGC_TARGET` (0.8, not 1.0, so peaks still have somewhere to move). It **replaces** Sensitivity rather than multiplying with it, and the slider greys out (`.ctrl-disabled`) so it doesn't look live but inert. `agcPeak` has a hard floor — without it, silence drives the estimate toward zero and the gain toward infinity, so the first sound after a pause would slam to full scale. Auto gain only affects `bands` (meters + modulation), never `raw`/`kick`, so beat detection is identical with it on or off.
+
+### Rig config must load BEFORE any preset (v1.39)
+`loadModConfig()` is called *before* the URL/autosave/startup-preset block in `init()`, not after. `applyPreset()` calls `saveModConfig()` whenever the payload carries routes or beat settings — if the rig config hasn't been read yet, that write persists the still-default values over the stored ones, and the subsequent load reads back what was just clobbered. This silently discarded saved audio calibration (and would do the same to matrix/beat settings). Don't move that call back down.
+
 ### Band edges are Hz, not bin fractions
 `BANDS_HZ` / `KICK_HZ` declare real frequencies; `ensureBandBins()` resolves them to bin indices from the live `ctx.sampleRate` and `analyser.fftSize` (cached on `A.binKey`). The old code sliced the bin array by percentage, which meant the bands drifted with sample rate and fftSize — at `fftSize` 128 each bin spanned ~375 Hz and "bass" actually meant 0–3.4 kHz, so snares and vocals swamped the kick. **`fftSize` is 2048** (~23 Hz bins) for that reason; `smoothingTimeConstant` stays **0** because the analyser must not smear transients before the detector sees them (per-band smoothing happens afterwards in `updateAudio`).
 

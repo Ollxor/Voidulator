@@ -2,6 +2,21 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.39.0] - 2026-07-31
+
+### ✨ Per-band meters, Auto gain, and audio settings that actually persist
+Follow-on to the v1.38.0 beat-detection fix.
+
+- **Per-band level meters.** The Audio panel now shows four bars — All, Low, Mid, High — instead of one combined level. Low/Mid/High are exactly the bands you can route separately in the Modulation Matrix, so you can see which part of the spectrum is driving a route rather than guessing. Measured against a synthetic techno mix, the three band meters read 85% / 44% / 26% — correctly reflecting a kick-heavy track.
+
+- **Auto gain.** Tracks how loud the input actually is and derives the gain itself, with a fast (~0.15 s) attack and slow (~6 s) release so a quiet breakdown isn't instantly pumped back up. Across a 40× loudness swing the meter spread dropped from 0.603 with a fixed Sensitivity to 0.217 with Auto gain — about 2.8× better normalised. It replaces the Sensitivity slider while active (which greys out) rather than stacking with it, and it deliberately does **not** touch beat detection: measured 42 beats in every combination of Auto gain on/off and loud/quiet input.
+
+- **Audio settings now persist.** Sensitivity, Smoothing and Auto gain are saved with the rig config. Previously they were saved nowhere at all and silently reset to defaults on every reload.
+
+- **Fixed a pre-existing load-order bug** that the above exposed: applying a preset or the autosave calls `saveModConfig()`, which was writing the still-default rig settings over the stored ones *before* they had been read back. The rig config is now loaded before any preset is applied. This affected the modulation matrix and beat settings too, not just audio.
+
+To be clear about what was and wasn't checked by eye: the meters were verified by measuring rendered pixel widths (exactly 62/85/44/28% of their tracks, with distinct colours) rather than from a screenshot — repeated attempts to capture the panel produced misaligned crops, and chasing that further wasn't a good use of time given the measurements were unambiguous.
+
 ## [1.38.0] - 2026-07-31
 
 ### 🩹 Beat detection was completely dead at the default setting
