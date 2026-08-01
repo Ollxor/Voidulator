@@ -2,6 +2,33 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.38.0] - 2026-07-31
+
+### 🩹 Beat detection was completely dead at the default setting
+Audio-reactive effects and beat detection "didn't work well". They didn't work at all out of the box, and the reason was a self-inflicted one: **at the default Sensitivity of 4, beat detection never fired a single time.**
+
+Sensitivity multiplied each band's energy and then hard-clamped the result to 1.0. At 4, any normal-loudness music pinned every band at exactly 1.0 — measured 100% clipped with a standard deviation of zero. The beat detector looks for a spike above the recent average, and a signal with no variance has no spikes, so it sat silent. The same clamp flattened the Modulation Matrix's audio sources (63% clipped at the default), which is why routing audio to effects produced so little movement. Counter-intuitively, *lowering* Sensitivity was the only thing that made either work.
+
+Measured against a synthetic 128 BPM techno track, 20 seconds, ~43 kicks:
+
+| Audio Sensitivity | 0.5 | 1 | 2 | 3 | 4 (old default) | 5 |
+|---|---|---|---|---|---|---|
+| Beats detected — before | 40 | 42 | 7 | 0 | **0** | 0 |
+| Beats detected — after | 42 | 42 | 42 | 42 | **42** | 42 |
+
+What changed:
+- **Beat detection no longer reads a Sensitivity-scaled signal at all.** It now uses the true, unscaled acoustic energy, so where you park that slider can't break it — hence the flat row above.
+- **A dedicated narrow kick band (40–120 Hz)** drives detection instead of the general "bass" band. With a snare added on beats 2 and 4, detection still tracks 42/42 kicks rather than double-triggering.
+- **Bands are now defined in Hz** (bass 20–250, mid 250–2000, high 2000–16000) rather than as fractions of the FFT bin array. The old scheme made "bass" mean 0–3400 Hz, which swept in snares, vocals and stabs.
+- **FFT size raised from 128 to 2048**, giving ~23 Hz resolution instead of ~375 Hz — a kick and a vocal previously landed in the same bin.
+- **A soft knee replaces the hard clamp**, so pushing Sensitivity up now compresses gracefully instead of pinning at 1.0 and going flat. Modulation sources keep their movement.
+- **The default Sensitivity is now 1.5.** Existing saved scenes keep whatever value they had — and thanks to the first item, beat detection works regardless.
+- **The adaptive threshold compares against preceding frames only.** The current sample used to be added to the history before being tested against its own average, blunting the very spikes being looked for.
+
+Also verified: zero false positives on silence and on a sustained tone with no transients, and correct tracking from 100 to 174 BPM (house through drum'n'bass). Beat Sensitivity has a wide usable plateau — 1.05 through 1.8 all score full marks, with the 1.4 default comfortably centred; 2.0 and above starts dropping beats.
+
+The in-app hints now explain the calibration too: set Sensitivity so the Level bar *moves* rather than sitting pinned, and lower Beat Sensitivity for more beats.
+
 ## [1.37.0] - 2026-07-31
 
 ### ⚡ Cut the two largest sources of per-frame garbage

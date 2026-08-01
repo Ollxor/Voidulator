@@ -82,9 +82,27 @@ Hides everything except pixels where `minCount`+ beams/rings overlap. A genuine 
 - **Vesica piscis** (`polygonType 'vesica'`): two R-circles with centre separation R, √3∶1 lens. `S.vertices` still holds the 258-point traced polyline (drawn boundary, wave-field mask, centroid — all generic over `S.vertices`), but collision is analytic: `S.wallArcs` holds the two exact circles (`{line:false, cx, cy, R, apexAng: 0|π, halfSpan: π/3}`), so `computePath`'s `const arcs = S.isCircle ? null : S.wallArcs` picks them up automatically — same `firstHitArcs`/`arcNormal` path as bent polygons, no other code changes. **This matters**: the segment-approximation this replaced (v1.28 and earlier) was a real bug — reflecting off the wrong one of 258 near-identical tiny segments near a cusp sent beams on wildly wrong paths ("very long steps" a couple of bounces later, fixed in v1.29). Do not revert Vesica to `firstHitPoly`/`findNearestEdge` collision. Generating centres stored in `S.foci` (reuses the ellipse focus markers). Wall bend exempt (no `baseVertices`) — `bendWalls()` already no-ops here (`if (S.isCircle || !S.baseVertices) return;`), so it can't clobber `S.wallArcs`.
 - **Trail filter, cutoff & brightness** (`S.trails.filter 'smooth'|'crisp'`, `S.trails.cutoff` 0–0.06, `S.trails.opacity` 0–1): `applyTrailFilter()` lazily re-stamps LINEAR/NEAREST on both ping-pong textures (reset to null on `ensureTrailFBO` recreate — fresh textures are LINEAR); `cutoff` feeds the trail shader's `u_threshold` residue floor. These are the user-facing dials for the sub-pixel moiré/interference look (thin beams + slow speed + long trails). `opacity` ("Brightness", v1.27) dims the accumulated trail independently of decay rate — see the dedicated writeup under "Trail ping-pong" below for why that needed a second beam draw rather than just scaling the feedback.
 
-## Beat detection
+## Audio analysis & beat detection
 
-`updateBeat(dtSec)` in the render loop. Adaptive threshold: a beat fires when raw (unsmoothed) bass energy exceeds its ~0.7 s rolling mean × sensitivity, gated by a 0.18 s re-trigger interval and a 0.08 absolute floor. On detect: `S.beat.env = 1` (decays as `exp(-decay·dt)`, usable as a matrix source) and `triggerBeatActions()` fires the enabled one-shots. MIDI note-on can fire the same path when `S.midi.noteBeat` is on.
+### The `raw` vs `bands` split — do not collapse it (v1.38)
+
+`updateAudio()` produces **two different signals per band, and mixing them up is what broke beat detection for several versions:**
+- `S.audio.raw[band]` — **true acoustic energy, deliberately NOT multiplied by `S.audio.sensitivity` and NOT clamped.** Anything reasoning about *dynamics* must read this.
+- `S.audio.bands[band]` — smoothed, sensitivity-scaled, soft-saturated 0–1. This is the display meter and the modulation-matrix source, where a bounded 0–1 is what's wanted.
+- `S.audio.kick` — the narrow `KICK_HZ` (40–120 Hz) band, unscaled. The beat detector's actual input.
+
+The bug: `raw` used to be `Math.min(energy * sensitivity, 1)`, and the beat detector read `raw.bass`. At the old default sensitivity of 4, normal music pinned it at exactly 1.0 (measured: 100% clipped, sd = 0). An adaptive threshold looking for a spike above a rolling mean finds nothing in a constant signal, so **beat detection never fired at the default setting** — and raising Sensitivity, the intuitive fix, made it worse. If you ever find yourself scaling `raw` by sensitivity again, this is what you are re-breaking.
+
+`softKnee()` (linear below 0.7, easing asymptotically to 1.0 above, with matching derivative at the knee) replaced the hard clamp on `bands`, so a high Sensitivity now compresses instead of flattening the modulation sources.
+
+### Band edges are Hz, not bin fractions
+`BANDS_HZ` / `KICK_HZ` declare real frequencies; `ensureBandBins()` resolves them to bin indices from the live `ctx.sampleRate` and `analyser.fftSize` (cached on `A.binKey`). The old code sliced the bin array by percentage, which meant the bands drifted with sample rate and fftSize — at `fftSize` 128 each bin spanned ~375 Hz and "bass" actually meant 0–3.4 kHz, so snares and vocals swamped the kick. **`fftSize` is 2048** (~23 Hz bins) for that reason; `smoothingTimeConstant` stays **0** because the analyser must not smear transients before the detector sees them (per-band smoothing happens afterwards in `updateAudio`).
+
+### Detector
+`updateBeat(dtSec)`: a beat fires when `S.audio.kick` exceeds its ~0.7 s rolling mean × `S.beat.sensitivity`, gated by a 0.18 s re-trigger interval and a 0.05 absolute floor. **The mean is computed over preceding frames only** — the current sample is pushed into `hist` *after* the comparison, because including it let a loud transient inflate the very average it was being tested against. On detect: `S.beat.env = 1` (decays as `exp(-decay·dt)`, usable as a matrix source) and `triggerBeatActions()` fires the enabled one-shots. MIDI note-on can fire the same path when `S.midi.noteBeat` is on.
+
+### Testing this without a microphone
+`getUserMedia` isn't available headless, but the calibration lives above the mic: stub `S.audio.analyser` with an object exposing `fftSize`, `frequencyBinCount` and `getByteFrequencyData(arr)` that writes a synthetic spectrum, set `S.audio.ctx = {sampleRate}` and `S.audio.active = true`, then drive `Voidulator.step()`. That exercises the real band-splitting and the real detector. Measured behaviour to regress against (synthetic 128 BPM techno, 20 s, 43 kicks): full detection at every Sensitivity 0.5–5; Beat Sensitivity usable across 1.05–1.8 and dropping beats from 2.0; correct at 100–174 BPM; zero false positives on silence or a sustained transient-free tone; and no double-triggering with a snare on 2 and 4. **Warm up ~40 frames before counting** — the first `step()` call's `dt` depends on real page-load time and will otherwise shift results run to run.
 
 ## Video recording
 
