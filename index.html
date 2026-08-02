@@ -2568,10 +2568,24 @@
           <button class="btn" id="trailsToggle">Off</button>
           <label class="clickable" data-reset="trailsLength" data-i18n="length">Length</label>
           <input id="trailsLength" type="range" min="1" max="180" step="1" value="20">
+          <label data-i18n="trailSmoothness">Smoothness</label>
+          <div class="stepper" id="trailsSmoothnessRow">
+            <button class="btn step-btn" id="trailsSmoothnessDown">&#9660;</button>
+            <span class="step-val" id="trailsSmoothnessVal">1x</span>
+            <button class="btn step-btn" id="trailsSmoothnessUp">&#9650;</button>
+          </div>
+          <label data-i18n="trailStyle">Style</label>
+          <select id="trailsStyle">
+            <option value="full" data-i18n="trailStyleFull">Full beam</option>
+            <option value="edge" data-i18n="trailStyleEdge">Edge only</option>
+            <option value="core" data-i18n="trailStyleCore">Core only</option>
+          </select>
           <label class="clickable" data-reset="trailsOpacity" data-i18n="trailBrightness">Brightness</label>
           <input id="trailsOpacity" type="range" min="0" max="1" step="0.01" value="1">
           <label class="clickable" data-reset="trailsHueShift" data-i18n="hueShift">Hue shift</label>
           <input id="trailsHueShift" type="range" min="0" max="360" step="1" value="0">
+          <label class="clickable" data-reset="trailsSatShift" data-i18n="trailSatShift">Saturation</label>
+          <input id="trailsSatShift" type="range" min="-1" max="1" step="0.01" value="0">
           <label class="clickable" data-reset="trailsFbZoom" data-i18n="trailZoom">Zoom</label>
           <input id="trailsFbZoom" type="range" min="-0.05" max="0.05" step="0.001" value="0">
           <label class="clickable" data-reset="trailsFbSpin" data-i18n="trailSpin">Spin</label>
@@ -2613,7 +2627,7 @@
             <input id="trailsCutoffNum" type="number" min="0" max="0.06" step="0.001" value="0.015">
           </div>
         </div>
-        <div class="hint" data-i18n="hintTrails">Length: trail duration. Hue shift: 0=same color, 180=complementary. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Walls: Off lets zoom/spin/drift smear trails past the walls (most visible with Kaleidoscope); Clip stops it dead at the wall; Reflect bounces it back like beams do. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.</div>
+        <div class="hint" data-i18n="hintTrails">Length: trail duration. Smoothness: re-traces fast rotation several times per frame so it leaves a continuous gradient instead of stepped copies -- costs more GPU the higher it goes, 1x is free. Style: Full is today's solid trail; Edge/Core only feed a thin line into the trail for a light-streak look (only affects the trail, not the room's normal render). Hue shift/Saturation: total change a trail pixel builds up over its whole lifetime, however long Length makes that -- 360 hue = one full revolution by the time it fades out; Saturation -1..+1 fades toward gray or toward neon. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Walls: Off lets zoom/spin/drift smear trails past the walls (most visible with Kaleidoscope); Clip stops it dead at the wall; Reflect bounces it back like beams do. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.</div>
       </div>
     </div>
 
@@ -2957,7 +2971,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.41.0';
+  const APP_VERSION = 'v1.42.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -3023,8 +3037,12 @@
   // Trails
   const trailsToggle = _el('trailsToggle');
   const trailsLengthEl = _el('trailsLength');
+  const trailsSmoothnessValEl = _el('trailsSmoothnessVal');
+  const trailsSmoothnessUpBtn = _el('trailsSmoothnessUp'), trailsSmoothnessDownBtn = _el('trailsSmoothnessDown');
+  const trailsStyleEl = _el('trailsStyle');
   const trailsOpacityEl = _el('trailsOpacity');
   const trailsHueShiftEl = _el('trailsHueShift');
+  const trailsSatShiftEl = _el('trailsSatShift');
   const trailsFbZoomEl = _el('trailsFbZoom');
   const trailsFbSpinEl = _el('trailsFbSpin');
   const trailsFbDriftXEl = _el('trailsFbDriftX');
@@ -3236,10 +3254,28 @@
       enabled: false,
       length: 20,      // controls fade rate (1=fast, 180=slow)
       opacity: 1,      // intensity/brightness of trails (0.1-1)
-      hueShift: 0,     // degrees of hue shift (0=none, 180=complement)
+      // Total hue rotation a trail pixel has accumulated by the time it fades
+      // out (0=none, 360=one full revolution), independent of Length -- see
+      // hueShiftPerFrame() for the derivation.
+      hueShift: 0,
+      satShift: 0,     // saturation change over a trail pixel's life: -1 fades to gray, +1 intensifies toward neon
       // The two "moiré dials": how the trail buffer re-samples itself each frame.
       filter: 'smooth', // smooth (LINEAR, sub-pixel blur feeds interference) | crisp (NEAREST, pixel-exact)
       cutoff: 0.015,    // brightness floor before a trail pixel cuts to black — lower = faint layers persist longer
+      // What gets fed into the trail accumulator each frame: 'full' = the
+      // solid beam (today's look), 'edge' = just a thin line at the beam's
+      // side (reuses the same cross-beam coordinate as the Edge glow effect),
+      // 'core' = just the hot centreline. Edge/core give a light-streak trail
+      // instead of a smeared-shape one; the ON-SCREEN beam itself (this
+      // frame's actual render) is unaffected either way.
+      style: 'full', // 'full' | 'edge' | 'core'
+      // Trail stamps per rendered frame (1-4). >1 re-traces the beam path at
+      // interpolated angles across the frame and stamps each sub-position at
+      // 1/N strength, turning fast rotation into a continuous gradient instead
+      // of discrete copies. Only beam geometry is re-stamped -- rings and
+      // phosphor still render once per frame regardless of this setting. Real
+      // cost: up to Nx the per-frame beam-path tracing, so it's opt-in.
+      substeps: 1,
       // Feedback: each frame the trail buffer is re-sampled slightly scaled +
       // rotated + shifted, so trails spiral/tunnel/drift. All 0 = plain trails.
       fbZoom: 0,        // per-frame scale: + expands outward, − pulls inward (~±0.05)
@@ -3985,6 +4021,9 @@
         length: S.trails.length,
         opacity: S.trails.opacity,
         hueShift: S.trails.hueShift,
+        satShift: S.trails.satShift,
+        style: S.trails.style,
+        substeps: S.trails.substeps,
         filter: S.trails.filter,
         cutoff: S.trails.cutoff,
         fbZoom: S.trails.fbZoom,
@@ -4189,6 +4228,9 @@
       S.trails.length = scene.trails.length ?? 20;
       S.trails.opacity = scene.trails.opacity ?? 1;
       S.trails.hueShift = scene.trails.hueShift ?? 0;
+      S.trails.satShift = scene.trails.satShift ?? 0;
+      S.trails.style = scene.trails.style ?? 'full';
+      S.trails.substeps = scene.trails.substeps ?? 1;
       S.trails.filter = scene.trails.filter ?? 'smooth';
       S.trails.cutoff = scene.trails.cutoff ?? 0.015;
       S.trails.fbZoom = scene.trails.fbZoom ?? 0;
@@ -4355,8 +4397,11 @@
     // Trails
     if (trailsToggle) trailsToggle.textContent = S.trails.enabled ? 'On' : 'Off';
     if (trailsLengthEl) trailsLengthEl.value = S.trails.length;
+    if (trailsSmoothnessValEl) trailsSmoothnessValEl.textContent = (S.trails.substeps ?? 1) + 'x';
+    if (trailsStyleEl) trailsStyleEl.value = S.trails.style ?? 'full';
     if (trailsOpacityEl) trailsOpacityEl.value = S.trails.opacity ?? 1;
     if (trailsHueShiftEl) trailsHueShiftEl.value = S.trails.hueShift;
+    if (trailsSatShiftEl) trailsSatShiftEl.value = S.trails.satShift ?? 0;
     if (trailsFbZoomEl) trailsFbZoomEl.value = S.trails.fbZoom ?? 0;
     if (trailsFbSpinEl) trailsFbSpinEl.value = S.trails.fbSpin ?? 0;
     if (trailsFbDriftXEl) trailsFbDriftXEl.value = S.trails.fbDriftX ?? 0;
@@ -4500,6 +4545,9 @@
     S.trails.length = Math.round(lerp(fromTrails.length, toTrails.length, t));
     S.trails.opacity = lerp(fromTrails.opacity, toTrails.opacity, t);
     S.trails.hueShift = lerp(fromTrails.hueShift, toTrails.hueShift, t);
+    S.trails.satShift = lerp(fromTrails.satShift ?? 0, toTrails.satShift ?? 0, t);
+    S.trails.style = (t > 0.5 ? toTrails : fromTrails).style ?? 'full';
+    S.trails.substeps = Math.round(lerp(fromTrails.substeps ?? 1, toTrails.substeps ?? 1, t));
     S.trails.filter = t > 0.5 ? (toTrails.filter ?? 'smooth') : (fromTrails.filter ?? 'smooth');
     S.trails.cutoff = lerp(fromTrails.cutoff ?? 0.015, toTrails.cutoff ?? 0.015, t);
     S.trails.fbZoom = lerp(fromTrails.fbZoom ?? 0, toTrails.fbZoom ?? 0, t);
@@ -5595,11 +5643,16 @@
   let u_edgeWidth, u_edgeIntensity, u_edgeShape;
   let u_edgeTintOn, u_edgeTintAmount, u_edgeTintCol;
   let u_coreWidth, u_coreIntensity;
+  let u_trailStyle;
 
   // Framebuffer trails
   let trailFBO, trailTex, trailProg, trailBuf;
   let trailFBO2, trailTex2, trailPingPong = 0;
   let copyProg, copyBuf;
+  // How far S.angleDeg turned THIS frame (rotationSpeed * dtSec), set once per
+  // loopBody call. Trails substeps interpolates across this range to smooth
+  // out per-frame rotation stepping -- see buildBeamsOnly()/renderBeamsGL().
+  let lastAngleDelta = 0;
 
   // Bloom post-process (quarter-res bright-pass + separable gaussian)
   let sceneFBO, sceneTex;
@@ -5663,6 +5716,9 @@ in float v_t; in vec3 v_col; in float v_alpha; in float v_edge;
 uniform float u_edgeWidth, u_edgeIntensity, u_edgeShape;
 uniform float u_edgeTintOn, u_edgeTintAmount; uniform vec3 u_edgeTintCol;
 uniform float u_coreWidth, u_coreIntensity;
+// Trail style: 0 = full beam (default), 1 = edge only, 2 = core only. Masks
+// what feeds the trail accumulator -- see uploadBeamUniforms().
+uniform float u_trailStyle;
 // Segments: a repeating cycle along v_t sliced into u_segCount bands, each with
 // its own colour / opacity / width / softness. u_invSegWl = 1/globalWavelength,
 // u_segScroll = global cycle offset, u_segTime = seconds (for drifting segs).
@@ -5743,6 +5799,13 @@ void main() {
     }
     col = c; a = aa;
   }
+  if (u_trailStyle > 0.5) {
+    if (u_trailStyle < 1.5) {
+      a *= smoothstep(0.55, 0.95, d); // edge only: thin band near the side (d=1)
+    } else {
+      a *= 1.0 - smoothstep(0.0, 0.35, d); // core only: thin band on the centreline (d=0)
+    }
+  }
   outColor = vec4(col, a);
 }`;
 
@@ -5782,6 +5845,7 @@ void main() {
     u_edgeTintCol = gl.getUniformLocation(prog, 'u_edgeTintCol');
     u_coreWidth = gl.getUniformLocation(prog, 'u_coreWidth');
     u_coreIntensity = gl.getUniformLocation(prog, 'u_coreIntensity');
+    u_trailStyle = gl.getUniformLocation(prog, 'u_trailStyle');
 
     buf = gl.createBuffer();
     
@@ -5799,6 +5863,7 @@ in vec2 v_uv;
 uniform sampler2D u_tex;
 uniform float u_fade;
 uniform float u_hueShift;
+uniform float u_satShift;
 uniform float u_threshold;
 uniform float u_fbScale; // feedback: sample-region scale (1 = none)
 uniform float u_fbAngle; // feedback: sample-region rotation, radians
@@ -5885,10 +5950,15 @@ void main() {
     outColor = vec4(0.0, 0.0, 0.0, 1.0);
     return;
   }
-  // Apply hue shift (180 = complementary color)
-  if (u_hueShift > 0.001) {
+  // Apply hue shift (180 = complementary color) and/or saturation drift
+  // (fades toward gray or toward neon as the pixel ages). Both are per-frame
+  // rates already scaled by the caller so their TOTAL effect by fade-out
+  // matches the sliders' face values, independent of Length -- see
+  // hueShiftPerFrame/satShiftPerFrame in renderBeamsGL().
+  if (u_hueShift > 0.001 || abs(u_satShift) > 0.001) {
     vec3 hsv = rgb2hsv(col.rgb);
     hsv.x = fract(hsv.x + u_hueShift);
+    hsv.y = clamp(hsv.y + u_satShift, 0.0, 1.0);
     col.rgb = hsv2rgb(hsv);
   }
   outColor = vec4(col.rgb, 1.0);
@@ -6377,6 +6447,7 @@ void main() {
   let phosCenter = { x: 0, y: 0 };
   let phosGeomKey = null;
   let phosVertStart = 0;                 // where phosphor verts begin in vertBuf
+  let lastRingVertEnd = 0;               // where ring verts end / beam verts begin in vertBuf (this frame)
 
   function clearPhosphor() {
     phosR.fill(0); phosG.fill(0); phosB.fill(0);
@@ -7813,28 +7884,34 @@ void main() {
     gl.uniform3f(u_edgeTintCol, S.beamEdge.tint[0], S.beamEdge.tint[1], S.beamEdge.tint[2]);
     gl.uniform1f(u_coreWidth, S.beamCore.width);
     gl.uniform1f(u_coreIntensity, S.beamCore.intensity);
+    // Trail style only masks what feeds the trail accumulator -- inert
+    // whenever Trails itself is off, so beams always render at full shape
+    // in every other mode.
+    const trailStyleNum = (S.trails.enabled && S.trails.style === 'edge') ? 1
+      : (S.trails.enabled && S.trails.style === 'core') ? 2 : 0;
+    gl.uniform1f(u_trailStyle, trailStyleNum);
   }
 
-  function renderBeamsGL(timeSec) {
-    // Before the mode early-returns, so switching to Wave field/Generative
-    // (where Overlap never runs) also hands the memory back.
-    if (!S.overlap.enabled) releaseCoverageTargets();
-    if (S.generative.enabled) { renderGenerative(timeSec); return; }
-    if (S.field.enabled) { renderField(timeSec); return; }
-    uploadBeamUniforms();
-    if (S.phosphor.enabled) ensurePhosphorGeometry();
-
-    vertCount = 0; // Reuse the persistent vertBuf; pushQuad/pushShape write into it
-    if (S.rings.enabled) buildRingGeometry(); // rings coexist with beams
-    const base = S.angleDeg * Math.PI / 180;
+  // Builds ONLY beam geometry (bounce-traces every beam and pushes its
+  // quads), appending to vertBuf from the current vertCount. Rings and
+  // phosphor are handled separately by the caller (renderBeamsGL) -- this is
+  // split out so Trails Smoothness can re-invoke just this part several
+  // times per frame at interpolated angles without re-tracing rings too.
+  // angleDeg overrides S.angleDeg (lets substeps interpolate rotation across
+  // the frame); stampMul scales every pushed quad's intensity (1/N per
+  // substep, so N stamps sum to roughly the same total as one); depositPhosphor
+  // gates the phosphor-deposit side effect so it fires once per rendered
+  // frame, not once per substep.
+  function buildBeamsOnly(timeSec, angleDeg, stampMul, depositPhosphor) {
+    const base = angleDeg * Math.PI / 180;
     const spread = (S.spreadDeg || 0) * Math.PI / 180;
     const n = S.showBeams ? S.beamCount | 0 : 0;
     const half = (S.beamWidth || 2) / 2;
     let totalSegs = 0;
-    
+
     // Check if we have per-beam bounce data from a transition
-    const hasPerBeamBounces = S.transition.active && 
-                              S.transition.perBeamBounces && 
+    const hasPerBeamBounces = S.transition.active &&
+                              S.transition.perBeamBounces &&
                               S.transition.perBeamBounces.length > 0;
 
     // Get room center for radial sorting
@@ -7862,12 +7939,12 @@ void main() {
         const off = (n === 1) ? 0 : (i / (n - 1) - 0.5);
         const ang = base + off * spread + (S.perBeamPhase[i] || 0) * Math.PI / 180;
         const dir = { x: Math.cos(ang), y: Math.sin(ang) };
-        
+
         // Get per-beam bounce count if transitioning, otherwise use global
-        const beamBounces = hasPerBeamBounces 
+        const beamBounces = hasPerBeamBounces
           ? (S.transition.perBeamBounces[i] !== undefined ? S.transition.perBeamBounces[i] : S.maxBounces)
           : S.maxBounces;
-        
+
         const segs = computePath(E, dir, beamBounces);
         totalSegs += segs.length;
         const col = palette[i % palette.length];
@@ -7887,33 +7964,33 @@ void main() {
         };
 
         // Phosphor: every segment endpoint is a wall strike — deposit glow
-        if (S.phosphor.enabled && phosPoints) {
+        if (depositPhosphor && S.phosphor.enabled && phosPoints) {
           for (const sg of segs) phosphorDeposit(sg.to.x, sg.to.y, rgb, sg.intensity);
         }
-        
+
         // Calculate layer score based on beam direction relative to center
         // Beams pointing AWAY from center (toward walls) = TOP layer
         // Beams pointing TOWARD center = BOTTOM layer
-        
+
         // Get the angle of this beam's direction
         const beamAngle = Math.atan2(dir.y, dir.x);
-        
+
         // Get the "outward" direction = FROM center TOWARD emitter (and beyond to wall)
         const fromCenterX = E.x - centerX;
         const fromCenterY = E.y - centerY;
         const outwardAngle = Math.atan2(fromCenterY, fromCenterX);
-        
+
         // How aligned is beam direction with "outward from center" direction?
         // angleDiff = 0 means beam points directly outward (away from center)
         // angleDiff = π means beam points toward center
         let angleDiff = beamAngle - outwardAngle;
         while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-        
+
         // Score: +1.0 = pointing directly outward (away from center), should be TOP
         //        -1.0 = pointing toward center, should be BOTTOM
         const radialScore = Math.cos(angleDiff);
-        
+
         allBeams.push({ segs, rgb, mat, radialScore, beamAngle, emitterIdx: em, beamIdx: i });
       }
     }
@@ -7922,14 +7999,6 @@ void main() {
     // Sort beams: most center-pointing (negative radialScore) first (bottom layer)
     // most outward-pointing (positive radialScore) last (top layer)
     allBeams.sort((a, b) => a.radialScore - b.radialScore);
-    
-    // Debug: log beam order (uncomment to debug)
-    // if (Math.random() < 0.005) {
-    //   console.log('Beam render order (first=bottom, last=top):', 
-    //     allBeams.map(b => `B${b.beamIdx}`).join(' → '),
-    //     'scores:', allBeams.map(b => b.radialScore.toFixed(2)).join(', ')
-    //   );
-    // }
 
     // Render based on layer depth setting
     if (S.layerMode === 'depth') {
@@ -7983,7 +8052,7 @@ void main() {
       for (let i = 0; i < nItems; i++) {
         const item = depthSegView[i];
         const s = item.seg;
-        pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.mat, s.intensity, timeSec);
+        pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, item.mat, s.intensity * stampMul, timeSec);
       }
     } else {
       // STATIC MODE: Render beams in beamOrder (user-defined layer order via drag-drop)
@@ -7991,7 +8060,7 @@ void main() {
       if (!S.beamOrder || S.beamOrder.length !== n) {
         S.beamOrder = [...Array(n).keys()];
       }
-      
+
       // Sort allBeams according to beamOrder
       const beamsByIdx = new Map();
       for (const beam of allBeams) {
@@ -7999,22 +8068,86 @@ void main() {
         if (!beamsByIdx.has(key)) beamsByIdx.set(key, []);
         beamsByIdx.get(key).push(beam);
       }
-      
+
       // Render in beamOrder - first in order = bottom, last = top
       for (const beamIdx of S.beamOrder) {
         for (let em = 0; em < S.emitters.length; em++) {
           const key = `${em}-${beamIdx}`;
           const beams = beamsByIdx.get(key);
           if (!beams) continue;
-          
+
           for (const beam of beams) {
             for (const s of beam.segs) {
-              pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.mat, s.intensity, timeSec);
+              pushQuad(s.from.x, s.from.y, s.to.x, s.to.y, half, s.cum, s.cum + s.len, beam.mat, s.intensity * stampMul, timeSec);
             }
           }
         }
       }
     }
+  }
+
+  // Draws the current frame's beams into `fbo` for the Trails path. At
+  // Smoothness 1x (or when nothing is rotating this frame) this is exactly
+  // the original single full-strength stamp. Above 1x, rings + phosphor
+  // still draw once each from the reference build already sitting in `buf`
+  // (refVertCount marks where that build ended, since vertCount itself gets
+  // reused below), and beams are re-traced at N interpolated angles across
+  // this frame's rotation and stamped at 1/N strength each -- see
+  // buildBeamsOnly(). Only S.angleDeg (global rotation) is interpolated;
+  // other motion sources (emitter spin, LFOs, per-beam speed patterns, width
+  // wave) still move in one step per rendered frame, same as today.
+  function stampBeamsInto(fbo, w, h, stride, timeSec, refVertCount) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.viewport(0, 0, w, h);
+    uploadBeamUniforms();
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
+    gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
+    gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
+    gl.enableVertexAttribArray(a_edge); gl.vertexAttribPointer(a_edge, 1, gl.FLOAT, false, stride, 28);
+    setBlendMode(S.blendMode);
+
+    const N = Math.max(1, Math.min(4, Math.round(S.trails.substeps ?? 1)));
+    if (N <= 1 || lastAngleDelta === 0) {
+      drawBeamGeometry();
+      return;
+    }
+
+    if (lastRingVertEnd > 0) gl.drawArrays(gl.TRIANGLES, 0, lastRingVertEnd / 8);
+    const phosVerts = (refVertCount - phosVertStart) / 8;
+    if (phosVerts > 0) {
+      gl.uniform1f(u_segOn, 0); gl.uniform1f(u_edgeIntensity, 0); gl.uniform1f(u_coreIntensity, 0);
+      gl.drawArrays(gl.TRIANGLES, phosVertStart / 8, phosVerts);
+      uploadBeamUniforms(); // restore real segment/edge/core uniforms for the beam substeps below
+    }
+
+    const angleNow = S.angleDeg, angleStart = angleNow - lastAngleDelta;
+    for (let sub = 1; sub <= N; sub++) {
+      const a = angleStart + lastAngleDelta * sub / N;
+      vertCount = lastRingVertEnd;
+      buildBeamsOnly(timeSec, a, 1 / N, false);
+      const beamVerts = vertCount - lastRingVertEnd;
+      if (beamVerts <= 0) continue;
+      gl.bufferData(gl.ARRAY_BUFFER, vertBuf.subarray(0, vertCount), gl.DYNAMIC_DRAW);
+      gl.drawArrays(gl.TRIANGLES, lastRingVertEnd / 8, beamVerts / 8);
+    }
+  }
+
+  function renderBeamsGL(timeSec) {
+    // Before the mode early-returns, so switching to Wave field/Generative
+    // (where Overlap never runs) also hands the memory back.
+    if (!S.overlap.enabled) releaseCoverageTargets();
+    if (S.generative.enabled) { renderGenerative(timeSec); return; }
+    if (S.field.enabled) { renderField(timeSec); return; }
+    uploadBeamUniforms();
+    if (S.phosphor.enabled) ensurePhosphorGeometry();
+
+    vertCount = 0; // Reuse the persistent vertBuf; pushQuad/pushShape write into it
+    if (S.rings.enabled) buildRingGeometry(); // rings coexist with beams
+    lastRingVertEnd = vertCount;
+    buildBeamsOnly(timeSec, S.angleDeg, 1, true);
 
     // Phosphor wall glow renders as extra quads in the same buffer/draw call
     phosVertStart = vertCount;
@@ -8025,6 +8158,9 @@ void main() {
     gl.bufferData(gl.ARRAY_BUFFER, vertBuf.subarray(0, vertCount), gl.DYNAMIC_DRAW);
     const stride = 8 * 4;
     const vertexCount = vertCount / 8;
+    // Snapshot before any Trails-substeps pass starts truncating/rebuilding
+    // vertCount for its own re-traced beam stamps (see stampBeamsInto()).
+    const refVertCount = vertCount;
     
     // Set blend mode
     setBlendMode(S.blendMode);
@@ -8051,14 +8187,25 @@ void main() {
       const len = Math.max(1, S.trails.length);
       const t = (len - 1) / 179; // 0 to 1
       const fadeRate = 0.995 * Math.pow(t, 0.5);
-      
-      // Hue shift: shift toward complementary color (180 = opposite on color wheel)
-      const hueShiftPerFrame = S.trails.hueShift / Math.max(1, len * 2);
-      
+
       // Threshold to cut to black (prevents grey residue). User-tunable:
       // lower keeps faint interference layers alive far longer, higher
       // scrubs the buffer clean sooner.
       const threshold = clamp(S.trails.cutoff ?? 0.015, 0, 0.06);
+
+      // Hue shift / Saturation shift: both sliders describe the TOTAL change
+      // a trail pixel accumulates over its lifetime (hue: degrees, 360 = one
+      // full revolution by fade-out; saturation: -1 fades to gray, +1 boosts
+      // toward neon), independent of Length. Each frame only re-samples and
+      // re-fades ONE step of that lifetime, so the per-frame rate = total /
+      // (estimated lifetime in frames). Lifetime falls out of the actual fade
+      // curve (fadeRate^k == threshold), with the threshold floored so a
+      // pixel still has a finite estimated lifetime at Cutoff 0 (where it
+      // technically never mathematically reaches zero).
+      const effCutoff = Math.max(threshold, 0.0008);
+      const lifetimeFrames = fadeRate > 0.0001 ? Math.log(effCutoff) / Math.log(fadeRate) : 1;
+      const hueShiftPerFrame = S.trails.hueShift / Math.max(1, lifetimeFrames);
+      const satShiftPerFrame = clamp(S.trails.satShift ?? 0, -1, 1) / Math.max(1, lifetimeFrames);
 
       // Feedback transform: + zoom expands the trail outward (sample a smaller
       // region), − zoom pulls it inward; spin rotates it each frame → spirals;
@@ -8095,6 +8242,7 @@ void main() {
       gl.uniform1i(uloc(trailProg, 'u_tex'), 0);
       gl.uniform1f(uloc(trailProg, 'u_fade'), effectiveFade);
       gl.uniform1f(uloc(trailProg, 'u_hueShift'), hueShiftPerFrame / 360);
+      gl.uniform1f(uloc(trailProg, 'u_satShift'), satShiftPerFrame);
       gl.uniform1f(uloc(trailProg, 'u_threshold'), threshold);
       gl.uniform1f(uloc(trailProg, 'u_fbScale'), fbScale);
       gl.uniform1f(uloc(trailProg, 'u_fbAngle'), fbAngle);
@@ -8147,31 +8295,13 @@ void main() {
         displayTex = sceneTex;
       }
 
-      // Draw current beams on top (to write FBO)
-      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO);
-      gl.viewport(0, 0, w, h);
-      uploadBeamUniforms();
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-      gl.enableVertexAttribArray(a_pos); gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, stride, 0);
-      gl.enableVertexAttribArray(a_t); gl.vertexAttribPointer(a_t, 1, gl.FLOAT, false, stride, 8);
-      gl.enableVertexAttribArray(a_col); gl.vertexAttribPointer(a_col, 3, gl.FLOAT, false, stride, 12);
-      gl.enableVertexAttribArray(a_alpha); gl.vertexAttribPointer(a_alpha, 1, gl.FLOAT, false, stride, 24);
-      gl.enableVertexAttribArray(a_edge); gl.vertexAttribPointer(a_edge, 1, gl.FLOAT, false, stride, 28);
-
-      setBlendMode(S.blendMode);
-      drawBeamGeometry();
+      // Draw current beams on top (to write FBO) -- handles Trails Smoothness
+      // substeps internally; at 1x this is exactly the original single stamp.
+      stampBeamsInto(writeFBO, w, h, stride, timeSec, refVertCount);
 
       if (dimTrails) {
         // Same beams again, full strength, over the dimmed history.
-        // uploadBeamUniforms() must be repeated: drawBeamGeometry() zeroes
-        // u_segOn/u_edgeIntensity for its phosphor pass and never restores
-        // them, so a second draw without it would lose segments and edges.
-        gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO);
-        gl.viewport(0, 0, w, h);
-        uploadBeamUniforms();
-        setBlendMode(S.blendMode);
-        drawBeamGeometry();
+        stampBeamsInto(sceneFBO, w, h, stride, timeSec, refVertCount);
       }
 
       // Step 2: composite to screen — with glow when bloom is on
@@ -8746,6 +8876,13 @@ void main() {
   _on(trailsLengthEl, 'input', () => {
     S.trails.length = parseInt(trailsLengthEl.value) || 20;
   });
+  function setTrailsSmoothness(n) {
+    S.trails.substeps = clamp(Math.round(n), 1, 4);
+    if (trailsSmoothnessValEl) trailsSmoothnessValEl.textContent = S.trails.substeps + 'x';
+  }
+  _on(trailsSmoothnessUpBtn, 'click', () => setTrailsSmoothness((S.trails.substeps ?? 1) + 1));
+  _on(trailsSmoothnessDownBtn, 'click', () => setTrailsSmoothness((S.trails.substeps ?? 1) - 1));
+  _on(trailsStyleEl, 'change', () => { S.trails.style = trailsStyleEl.value; });
   _on(trailsFilterBtn, 'click', () => {
     S.trails.filter = S.trails.filter === 'crisp' ? 'smooth' : 'crisp';
     trailsFilterBtn.textContent = S.trails.filter === 'crisp' ? 'Crisp' : 'Smooth';
@@ -8755,6 +8892,7 @@ void main() {
   _on(trailsHueShiftEl, 'input', () => {
     S.trails.hueShift = parseInt(trailsHueShiftEl.value) || 0;
   });
+  _on(trailsSatShiftEl, 'input', () => { S.trails.satShift = clamp(parseFloat(trailsSatShiftEl.value) || 0, -1, 1); });
   _on(trailsOpacityEl, 'input', () => { S.trails.opacity = clamp(parseFloat(trailsOpacityEl.value), 0, 1); });
   _on(trailsFbZoomEl, 'input', () => { S.trails.fbZoom = parseFloat(trailsFbZoomEl.value) || 0; });
   _on(trailsFbSpinEl, 'input', () => { S.trails.fbSpin = parseFloat(trailsFbSpinEl.value) || 0; });
@@ -8881,7 +9019,7 @@ void main() {
       beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
       perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
-      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, wallMode: S.trails.wallMode, driftMode: S.trails.driftMode, driftRate: S.trails.driftRate, driftAmount: S.trails.driftAmount, driftSides: S.trails.driftSides },
+      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, satShift: S.trails.satShift, style: S.trails.style, substeps: S.trails.substeps, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, wallMode: S.trails.wallMode, driftMode: S.trails.driftMode, driftRate: S.trails.driftRate, driftAmount: S.trails.driftAmount, driftSides: S.trails.driftSides },
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
@@ -8936,6 +9074,9 @@ void main() {
       S.trails.length = P.trails.length ?? 20;
       S.trails.opacity = P.trails.opacity ?? 1;
       S.trails.hueShift = P.trails.hueShift ?? 0;
+      S.trails.satShift = P.trails.satShift ?? 0;
+      S.trails.style = P.trails.style ?? 'full';
+      S.trails.substeps = P.trails.substeps ?? 1;
       S.trails.filter = P.trails.filter ?? 'smooth';
       S.trails.cutoff = P.trails.cutoff ?? 0.015;
       S.trails.fbZoom = P.trails.fbZoom ?? 0;
@@ -10692,8 +10833,11 @@ void main() {
     }
 
     if (S.rotationSpeed > 0) {
-      S.angleDeg = (S.angleDeg + S.rotationSpeed * dtSec) % 360;
+      lastAngleDelta = S.rotationSpeed * dtSec;
+      S.angleDeg = (S.angleDeg + lastAngleDelta) % 360;
       angleEl.value = S.angleDeg.toFixed(1);
+    } else {
+      lastAngleDelta = 0;
     }
     // Auto-spin the emitter cluster
     if (S.emitterGeo && S.emitterSpin && S.emitters.length > 1 && !S.transition.active) {
@@ -11694,7 +11838,13 @@ void main() {
       hintDragSwatches: 'Drag swatches to reorder layers.',
       hintDuty: 'Duty: left = mostly dark, right = mostly light.',
       hintShape: 'Click labels to reset. Flow: left=in, right=out.',
-      hintTrails: 'Length: trail duration. Hue shift: 0=same color, 180=complementary. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Walls: Off lets zoom/spin/drift smear trails past the walls (most visible with Kaleidoscope); Clip stops it dead at the wall; Reflect bounces it back like beams do. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
+      hintTrails: 'Length: trail duration. Smoothness: re-traces fast rotation several times per frame so it leaves a continuous gradient instead of stepped copies -- costs more GPU the higher it goes, 1x is free. Style: Full is today\'s solid trail; Edge/Core only feed a thin line into the trail for a light-streak look (only affects the trail, not the room\'s normal render). Hue shift/Saturation: total change a trail pixel builds up over its whole lifetime, however long Length makes that -- 360 hue = one full revolution by the time it fades out; Saturation -1..+1 fades toward gray or toward neon. Feedback zoom/spin/drift re-sample the trail each frame to build tunnels, spirals and wind-blown streaks. Beat echo (needs Beat Detection on) briefly freezes the trail on each beat for a rhythmic ghost. Walls: Off lets zoom/spin/drift smear trails past the walls (most visible with Kaleidoscope); Clip stops it dead at the wall; Reflect bounces it back like beams do. Filtering: Smooth re-blends sub-pixel detail each frame (feeds the interference patterns thin slow beams make); Crisp keeps pixels exact. Cutoff: lower keeps faint layers alive longer.',
+      trailSmoothness: 'Smoothness',
+      trailStyle: 'Style',
+      trailStyleFull: 'Full beam',
+      trailStyleEdge: 'Edge only',
+      trailStyleCore: 'Core only',
+      trailSatShift: 'Saturation',
       trailFilter: 'Filtering',
       trailCutoff: 'Cutoff',
       trailZoom: 'Zoom',
@@ -11967,7 +12117,13 @@ void main() {
       hintDragSwatches: 'Arrastra las muestras para reordenar capas.',
       hintDuty: 'Ciclo: izq = mayormente oscuro, der = mayormente claro.',
       hintShape: 'Haz clic en etiquetas para resetear. Flujo: izq=entrada, der=salida.',
-      hintTrails: 'Longitud: duración estela. Cambio tono: 0=mismo color, 180=complementario. Zoom/giro/deriva de eco remuestrean la estela cada cuadro para crear túneles, espirales y estelas arrastradas por el viento. Eco de ritmo (necesita Detección de ritmo activada) congela brevemente la estela en cada golpe para un fantasma rítmico. Paredes: Apagado deja que el zoom/giro/deriva difuminen la estela más allá de las paredes (más visible con el Caleidoscopio); Recorte la detiene en seco en la pared; Reflejo la rebota de vuelta, como hacen los haces. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
+      hintTrails: 'Longitud: duración estela. Suavidad: retraza la rotación rápida varias veces por cuadro para dejar un degradado continuo en vez de copias escalonadas -- cuesta más GPU cuanto más alto, 1x es gratis. Estilo: Haz completo es la estela sólida de siempre; Solo borde/núcleo alimentan una línea fina hacia la estela para un efecto de trazo de luz (solo afecta la estela, no el render normal de la sala). Cambio tono/Saturación: cambio total que acumula un píxel de la estela durante toda su vida, sea cual sea la duración que marque Longitud -- 360 de tono = una vuelta completa al desvanecerse; Saturación -1..+1 se desvanece hacia gris o hacia neón. Zoom/giro/deriva de eco remuestrean la estela cada cuadro para crear túneles, espirales y estelas arrastradas por el viento. Eco de ritmo (necesita Detección de ritmo activada) congela brevemente la estela en cada golpe para un fantasma rítmico. Paredes: Apagado deja que el zoom/giro/deriva difuminen la estela más allá de las paredes (más visible con el Caleidoscopio); Recorte la detiene en seco en la pared; Reflejo la rebota de vuelta, como hacen los haces. Filtrado: Suave remezcla el detalle subpíxel cada cuadro (alimenta los patrones de interferencia de haces finos y lentos); Nítido mantiene los píxeles exactos. Corte: más bajo mantiene vivas las capas tenues más tiempo.',
+      trailSmoothness: 'Suavidad',
+      trailStyle: 'Estilo',
+      trailStyleFull: 'Haz completo',
+      trailStyleEdge: 'Solo borde',
+      trailStyleCore: 'Solo núcleo',
+      trailSatShift: 'Saturación',
       trailFilter: 'Filtrado',
       trailCutoff: 'Corte',
       trailZoom: 'Zoom',
@@ -12239,7 +12395,13 @@ void main() {
       hintDragSwatches: 'Arraste as amostras para reordenar camadas.',
       hintDuty: 'Ciclo: esq = principalmente escuro, dir = principalmente claro.',
       hintShape: 'Clique nos rótulos para resetar. Fluxo: esq=entrada, dir=saída.',
-      hintTrails: 'Comprimento: duração do rastro. Mudança tom: 0=mesma cor, 180=complementar. Zoom/giro/deriva de eco reamostram o rastro a cada quadro para criar túneis, espirais e rastros arrastados pelo vento. Eco de batida (precisa da Deteção de batida ativada) congela brevemente o rastro a cada batida, para um fantasma rítmico. Paredes: Desligado deixa o zoom/giro/deriva espalharem o rastro para além das paredes (mais visível com o Caleidoscópio); Recorte trava-o na parede; Reflexo faz-o ressaltar de volta, como os feixes. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
+      hintTrails: 'Comprimento: duração do rastro. Suavidade: retraça a rotação rápida várias vezes por quadro para deixar um gradiente contínuo em vez de cópias em degraus -- custa mais GPU quanto mais alto, 1x é grátis. Estilo: Feixe completo é o rastro sólido de sempre; Só borda/núcleo alimentam uma linha fina no rastro para um efeito de traço de luz (só afeta o rastro, não o render normal da sala). Mudança tom/Saturação: mudança total que um píxel do rastro acumula ao longo de toda a sua vida, seja qual for a duração que o Comprimento definir -- 360 de tom = uma volta completa até desaparecer; Saturação -1..+1 esmaece para cinza ou para néon. Zoom/giro/deriva de eco reamostram o rastro a cada quadro para criar túneis, espirais e rastros arrastados pelo vento. Eco de batida (precisa da Deteção de batida ativada) congela brevemente o rastro a cada batida, para um fantasma rítmico. Paredes: Desligado deixa o zoom/giro/deriva espalharem o rastro para além das paredes (mais visível com o Caleidoscópio); Recorte trava-o na parede; Reflexo faz-o ressaltar de volta, como os feixes. Filtragem: Suave remistura o detalhe subpíxel a cada quadro (alimenta os padrões de interferência de feixes finos e lentos); Nítido mantém os píxeis exatos. Corte: mais baixo mantém as camadas ténues vivas por mais tempo.',
+      trailSmoothness: 'Suavidade',
+      trailStyle: 'Estilo',
+      trailStyleFull: 'Feixe completo',
+      trailStyleEdge: 'Só borda',
+      trailStyleCore: 'Só núcleo',
+      trailSatShift: 'Saturação',
       trailFilter: 'Filtragem',
       trailCutoff: 'Corte',
       trailZoom: 'Zoom',
@@ -12511,7 +12673,13 @@ void main() {
       hintDragSwatches: 'Glissez les échantillons pour réorganiser les couches.',
       hintDuty: 'Cycle: gauche = principalement sombre, droite = principalement clair.',
       hintShape: 'Cliquez sur les étiquettes pour réinitialiser. Flux: gauche=entrée, droite=sortie.',
-      hintTrails: 'Longueur: durée de la traînée. Décalage teinte: 0=même couleur, 180=complémentaire. Zoom/rotation/dérive rétroaction ré-échantillonnent la traînée à chaque image pour créer tunnels, spirales et filaments emportés par le vent. Écho de battement (nécessite la Détection de battement activée) gèle brièvement la traînée à chaque battement, pour un fantôme rythmique. Murs: Désactivé laisse le zoom/rotation/dérive étaler la traînée au-delà des murs (surtout visible avec le Kaléidoscope); Découpe l\'arrête net au mur; Réflexion la fait rebondir, comme les faisceaux. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
+      hintTrails: 'Longueur: durée de la traînée. Fluidité: retrace la rotation rapide plusieurs fois par image pour laisser un dégradé continu au lieu de copies par paliers -- coûte plus de GPU quand c\'est plus élevé, 1x est gratuit. Style: Faisceau complet est la traînée pleine habituelle; Contour/Noyau seul n\'envoient qu\'une fine ligne dans la traînée pour un effet de traînée lumineuse (n\'affecte que la traînée, pas le rendu normal de la salle). Décalage teinte/Saturation: changement total qu\'un pixel de traînée accumule sur toute sa vie, quelle que soit la durée que donne Longueur -- 360 de teinte = un tour complet à la disparition; Saturation -1..+1 s\'estompe vers le gris ou vers le néon. Zoom/rotation/dérive rétroaction ré-échantillonnent la traînée à chaque image pour créer tunnels, spirales et filaments emportés par le vent. Écho de battement (nécessite la Détection de battement activée) gèle brièvement la traînée à chaque battement, pour un fantôme rythmique. Murs: Désactivé laisse le zoom/rotation/dérive étaler la traînée au-delà des murs (surtout visible avec le Kaléidoscope); Découpe l\'arrête net au mur; Réflexion la fait rebondir, comme les faisceaux. Filtrage: Doux remélange le détail sous-pixel à chaque image (nourrit les motifs d\'interférence des faisceaux fins et lents); Net garde les pixels exacts. Seuil: plus bas garde les couches faibles vivantes plus longtemps.',
+      trailSmoothness: 'Fluidité',
+      trailStyle: 'Style',
+      trailStyleFull: 'Faisceau complet',
+      trailStyleEdge: 'Contour seul',
+      trailStyleCore: 'Noyau seul',
+      trailSatShift: 'Saturation',
       trailFilter: 'Filtrage',
       trailCutoff: 'Seuil',
       trailZoom: 'Zoom',
@@ -13087,6 +13255,7 @@ void main() {
     trailsLength: () => FACTORY.trails.length,
     trailsOpacity: () => FACTORY.trails.opacity,
     trailsHueShift: () => FACTORY.trails.hueShift,
+    trailsSatShift: () => FACTORY.trails.satShift,
     trailsFbZoom: () => FACTORY.trails.fbZoom,
     trailsFbSpin: () => FACTORY.trails.fbSpin,
     trailsFbDriftX: () => FACTORY.trails.fbDriftX,
@@ -13194,6 +13363,9 @@ void main() {
     threshold: 'How bright a pixel must be before it starts to glow.',
     trails: 'Persistent afterglow — previous frames fade out instead of clearing. Length now starts at 0 (invisible) and rises to very long.',
     trailBrightness: 'How bright the accumulated trail is, independent of how long it lasts. Lower it to keep the beams sharp while their smear sits back. Length still controls how fast it fades.',
+    trailSmoothness: 'Fast rotation normally leaves stepped copies in the trail because each frame stamps one full-strength snapshot. Above 1x, this re-traces the beam path several times per frame at interpolated angles and stamps each one lighter, turning the steps into a continuous gradient. 1x costs nothing extra; higher values re-trace the beam path that many times, so it costs more on busy scenes (many beams, high Max bounces).',
+    trailStyle: 'What gets fed into the trail each frame. Full beam is the solid shape you see today. Edge/Core only feed just a thin line — the beam\'s outer edge or its hot centreline — for a light-streak trail instead of a smeared-shape one. Only changes the trail; has no effect while Trails is off.',
+    trailSatShift: 'How much a trail pixel\'s saturation changes over its whole lifetime, however long Length makes that. Negative fades it toward gray as it ages; positive pushes it toward neon. 0 = no change. Pairs with Hue shift, which does the same thing to hue.',
     trailZoom: 'Feedback: each frame the fading trail is re-drawn slightly bigger (+) or smaller (−), so trails tunnel outward or spiral inward. 0 = plain trails. Needs Trails on and some Length.',
     trailSpin: 'Feedback: rotates the fading trail a little each frame, curling it into a spiral/vortex. Pairs with Feedback zoom for tunnels. Needs Trails on and some Length.',
     trailDriftX: 'Feedback: shifts the fading trail sideways a little each frame — a "wind" pushing the whole trail left (−) or right (+). Needs Trails on and some Length.',

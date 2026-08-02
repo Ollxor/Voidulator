@@ -2,6 +2,24 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.42.0] - 2026-08-02
+
+### ✨ Trails: Smoothness, Style, and honest Hue shift/Saturation
+Trails only ever stamped one full-strength beam per rendered frame into the feedback buffer. Length controls how many of those stamps survive the fade before hitting Cutoff — it never controlled how finely spaced they are — so with anything rotating, what looked like "copies repeating over a distance" was real: the trail's temporal resolution was capped by the monitor's frame rate, not by any trail setting.
+
+- **Smoothness** (1x–4x, new stepper next to Length). Above 1x, the beam path is re-traced at N angles interpolated across the rendered frame and stamped at 1/N strength each, turning a stepped sweep into a continuous gradient — the same "substeps" idea the wave field already uses for its own propagation. Rings and phosphor still draw once per frame regardless of this setting; only beam geometry is re-stamped, and only `S.angleDeg` (global rotation) is interpolated — per-beam speed patterns, emitter spin, and LFO-driven motion still move in one step per frame. 1x is the default and is byte-for-byte identical to the old single-stamp code (verified: a frozen, non-rotating scene produces the exact same pixel hash at every Smoothness value 1–4). On a rotating scene (40°/s, Length 60) lit pixel coverage rose from 105k at 1x to 151k at 2x — the gap Smoothness exists to close.
+
+- **Style: Full beam / Edge only / Core only** (new dropdown). Full is today's solid trail. Edge/Core only mask the beam down to a thin line — the same cross-beam coordinate the Edge/Core glow effect already computes — before it feeds the trail, for a light-streak look instead of a smeared-shape one. Only affects the trail; inert whenever Trails itself is off, so the room's normal render is never touched by it.
+
+- **Hue shift and Saturation now mean what the slider says.** Previously Hue shift's per-frame rotation rate was `hueShift / (Length × 2)` — a flat approximation with no real connection to how fast the trail actually decays, so the same slider value produced wildly different total rotation depending on Length, and brighter pixels (which survive more frames before Cutoff) rotated further than dim ones in the same trail. Both sliders now describe the **total change over a trail pixel's lifetime**, with the per-frame rate derived from the actual fade curve (`fadeRate^k == Cutoff`, solved for k): 360° of Hue shift is one full revolution by the time a pixel fades out, at any Length or Cutoff (verified algebraically across Length 1–180 and Cutoff 0–0.03: accumulated rotation always resolves to exactly the slider value, including the Cutoff=0 case, which the old formula didn't handle any more honestly than the new one but this one at least stays finite). **Saturation** (new slider, −1..+1) is the same idea applied to saturation instead of hue — negative fades a trail toward gray as it ages, positive pushes it toward neon — reusing the HSV conversion the shader already had for Hue shift.
+
+All four fields round-trip through Save/Share and File Presets → Export/Import, and interpolate correctly during scene transitions (Style snaps at the transition midpoint like other enum fields; Smoothness/Saturation/Hue shift lerp numerically).
+
+### 🩹 Two "not working" reports that were actually working as designed
+- **Segments with both items at opacity 0** shows nothing — correctly. Every phase of the beam belongs to one of the segment items, and if both multiply alpha by 0, there's no moment where anything draws. Not a bug, but there's no warning in the UI when a config goes permanently invisible.
+- **Beam glow (Edge/Core)** needs *both* Width and Intensity above 0 to show anything — Width sets how far the effect reaches inward, Intensity sets how strong it is, and Width=0 leaves no region for Intensity to act on. A saved scene with Edge Width 0 / Intensity 1 (and Core Width 0 / Intensity 0) is fully inert regardless of either Intensity slider, which is what prompted the report.
+- **Overlap-only has zero effect whenever Trails is enabled** — confirmed again (byte-identical render hashes across every Min-overlap value with a fully motion-frozen scene). This is the same gap noted when Overlap-only shipped in v1.35.0: Trails draws beams straight into the feedback buffer with history already blended in, so there's no separate "just this frame's beams" pass left for Overlap to mask against. Not attempted in this pass.
+
 ## [1.41.0] - 2026-07-31
 
 ### ✨ Drift motion is now a dot on an X/Y pad
