@@ -2,6 +2,11 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.48.0] - 2026-08-02
+
+### ✨ The stage isn't boxed into a square anymore
+On any reasonably wide monitor, the canvas was capped at a square sized to the viewport's *height*, leaving a strip of unused black space on either side. That square was never load-bearing — the room shape (circle, polygon, whatever) has always been sized to fit inside the *smaller* of the canvas's two dimensions, so it was only ever the CSS holding the square shape, not anything the room math depended on. Removed it: the canvas now fills the full rectangular area next to the panel, the room stays exactly as round as it was, and Trails' Zoom/Spin feedback — which already smears past the room's own boundary once Walls is off — now has real canvas on the wider axis to actually spread into instead of stopping dead at an arbitrary square edge. Checked pixels directly rather than just eyeballing it: with Zoom, Spin, and Trails running, regions well outside the circle near the canvas's own edges came back fully lit, which had no canvas to exist on before. Mobile and the fullscreen viewer mode keep their own square layouts, for their own separate reasons — untouched.
+
 ## [1.47.0] - 2026-08-02
 
 ### 🩹 Viewer links: fixed the F key, made fullscreen a real requirement
