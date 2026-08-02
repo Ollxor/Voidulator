@@ -2,6 +2,14 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.49.0] - 2026-08-02
+
+### 🩹 Old scenes were inheriting whatever the current session had on
+If Kaleidoscope (or Bloom, Phosphor, Rings, Shape wave, Center motion, or a handful of others) was on and you switched to a scene saved before that feature existed, it stayed on — the scene had nothing to say about it, and the loader was reading that silence as "leave it alone" instead of "reset it." Same root cause, independently, in both places a scene or preset gets applied: an entire settings block was skipped whenever the saved data didn't have that section at all, rather than falling back to defaults field by field. Fixed everywhere it appeared — trails, bloom, kaleidoscope, generative, beam edge/core glow, phosphor, rings, shape wave, and center motion — so loading an old scene now genuinely resets everything it doesn't mention, the same way it always correctly did for the fields it *does* specify. Verified against a real old-format scene loaded through the actual scene gallery, and confirmed scenes that *do* specify these settings still load their own values correctly.
+
+### 🩹 Beam material's Hue drift was wildly oversensitive
+It rotated hue by a fixed amount per 1000 raw canvas pixels — which meant the same slider value produced a completely different effect depending on how big your window happened to be, and even a modest-looking setting could spin a well-bounced beam through several *full* rainbow rotations, since a chaotically bouncing beam easily covers many thousands of pixels. Rescaled to the room's own size instead of a fixed pixel count, so the slider now means roughly the same thing regardless of window size — low values give a gentle tint along the beam's path, and the dramatic full-spectrum sweep is reserved for the top of the range, the way it reads on the slider.
+
 ## [1.48.0] - 2026-08-02
 
 ### ✨ The stage isn't boxed into a square anymore

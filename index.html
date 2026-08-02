@@ -2363,7 +2363,7 @@
           <label class="clickable" data-reset="beamHueDrift" data-i18n="beamHueDrift">Hue drift</label>
           <input id="beamHueDrift" type="range" min="-360" max="360" step="5" value="0">
         </div>
-        <div class="hint" data-i18n="hintBeamMaster">Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path (°/1000px).</div>
+        <div class="hint" data-i18n="hintBeamMaster">Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path, scaled to the room's size.</div>
         <div class="perbeam-head">
           <span data-i18n="perBeam">Per-beam trim</span>
           <button class="btn tool-mini" id="perBeamReset" title="Reset selected beam to neutral">↺</button>
@@ -3066,7 +3066,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.48.0';
+  const APP_VERSION = 'v1.49.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -3271,7 +3271,7 @@
     // beamAbsorb × perBeamAbsorb[i]; hueDrift = beamHueDrift + perBeamHueDrift[i].
     beamAlpha: 1,     // master beam opacity
     beamAbsorb: 0,    // master haze-like attenuation along the beam path (0 = off)
-    beamHueDrift: 0,  // master hue rotation along the path, degrees per 1000 px
+    beamHueDrift: 0,  // master hue rotation along the path, degrees per room-diameter × 50 travelled (see hueDriftDivisor in buildBeamsOnly)
     perBeamOpacity: [],   // per-beam opacity multiplier (default 1)
     perBeamAbsorb: [],    // per-beam absorption multiplier (default 1)
     perBeamHueDrift: [],  // per-beam hue-drift offset, deg/1000px (default 0)
@@ -4318,64 +4318,60 @@
     S.perBeamSpeed = [...scene.perBeamSpeed];
     S.perBeamPhase = scene.perBeamPhase ? [...scene.perBeamPhase] : S.perBeamSpeed.map(() => 0);
     S.patternBase = scene.patternBase;
-    if (scene.trails) {
-      S.trails.enabled = scene.trails.enabled ?? false;
-      S.trails.length = scene.trails.length ?? 20;
-      S.trails.opacity = scene.trails.opacity ?? 1;
-      S.trails.hueShift = scene.trails.hueShift ?? 0;
-      S.trails.satShift = scene.trails.satShift ?? 0;
-      S.trails.style = scene.trails.style ?? 'full';
-      S.trails.substeps = scene.trails.substeps ?? 1;
-      S.trails.filter = scene.trails.filter ?? 'smooth';
-      S.trails.cutoff = scene.trails.cutoff ?? 0.015;
-      S.trails.fbZoom = scene.trails.fbZoom ?? 0;
-      S.trails.fbSpin = scene.trails.fbSpin ?? 0;
-      S.trails.fbDriftX = scene.trails.fbDriftX ?? 0;
-      S.trails.fbDriftY = scene.trails.fbDriftY ?? 0;
-      S.trails.beatEcho = scene.trails.beatEcho ?? 0;
-      S.trails.driftMode = scene.trails.driftMode ?? 'off';
-      S.trails.driftRate = scene.trails.driftRate ?? 0.15;
-      S.trails.driftAmount = scene.trails.driftAmount ?? 0.006;
-      S.trails.driftSides = scene.trails.driftSides ?? 6;
-      S.trails.wallMode = readTrailWallMode(scene.trails);
-    }
-    if (scene.bloom) {
-      S.bloom.enabled = scene.bloom.enabled ?? true;
-      S.bloom.strength = scene.bloom.strength ?? 0.85;
-      S.bloom.threshold = scene.bloom.threshold ?? 0.3;
-    }
-    if (scene.kaleido) {
-      S.kaleido.enabled = scene.kaleido.enabled ?? false;
-      S.kaleido.segments = scene.kaleido.segments ?? 6;
-      S.kaleido.rot = scene.kaleido.rot ?? 0;
-      S.kaleido.spin = scene.kaleido.spin ?? 0;
-      S.kaleido.mirror = scene.kaleido.mirror ?? true;
-    }
-    if (scene.generative) {
-      S.generative.enabled = scene.generative.enabled ?? false;
-      S.generative.style = scene.generative.style ?? 'aurora';
-      S.generative.speed = scene.generative.speed ?? 1;
-      S.generative.scale = scene.generative.scale ?? 1;
-      S.generative.hue = scene.generative.hue ?? 0;
-    }
-    if (scene.beamEdge) {
-      S.beamEdge.width = scene.beamEdge.width ?? 0.6;
-      S.beamEdge.intensity = scene.beamEdge.intensity ?? 0;
-      S.beamEdge.shape = scene.beamEdge.shape ?? 'soft';
-      S.beamEdge.tintOn = scene.beamEdge.tintOn ?? false;
-      S.beamEdge.tint = Array.isArray(scene.beamEdge.tint) ? [...scene.beamEdge.tint] : [1, 0.6, 0.2];
-      S.beamEdge.tintAmount = scene.beamEdge.tintAmount ?? 0.6;
-    }
-    if (scene.beamCore) {
-      S.beamCore.width = scene.beamCore.width ?? 0.25;
-      S.beamCore.intensity = scene.beamCore.intensity ?? 0;
-    }
-    if (scene.phosphor) {
-      S.phosphor.enabled = scene.phosphor.enabled ?? false;
-      S.phosphor.persistence = scene.phosphor.persistence ?? 2.5;
-      S.phosphor.intensity = scene.phosphor.intensity ?? 1;
-      S.phosphor.width = scene.phosphor.width ?? 12;
-    }
+    // Every block below used to be `if (scene.X) { ...set fields... }`,
+    // which left S.X completely untouched -- keeping whatever the
+    // PREVIOUSLY loaded scene had -- for any scene saved before that
+    // feature existed (scene.X entirely absent, not just individual fields
+    // missing). That's the exact bug reported: an old scene loaded while
+    // Kaleidoscope was on from a prior scene kept showing kaleidoscoped,
+    // because scene.kaleido didn't exist so nothing ever reset it. Fixed by
+    // dropping the outer guard and using `?.` per field instead, so a
+    // missing scene.X now correctly resets every field to its own default
+    // (already correct once reached; the guard was only ever skipping that).
+    S.trails.enabled = scene.trails?.enabled ?? false;
+    S.trails.length = scene.trails?.length ?? 20;
+    S.trails.opacity = scene.trails?.opacity ?? 1;
+    S.trails.hueShift = scene.trails?.hueShift ?? 0;
+    S.trails.satShift = scene.trails?.satShift ?? 0;
+    S.trails.style = scene.trails?.style ?? 'full';
+    S.trails.substeps = scene.trails?.substeps ?? 1;
+    S.trails.filter = scene.trails?.filter ?? 'smooth';
+    S.trails.cutoff = scene.trails?.cutoff ?? 0.015;
+    S.trails.fbZoom = scene.trails?.fbZoom ?? 0;
+    S.trails.fbSpin = scene.trails?.fbSpin ?? 0;
+    S.trails.fbDriftX = scene.trails?.fbDriftX ?? 0;
+    S.trails.fbDriftY = scene.trails?.fbDriftY ?? 0;
+    S.trails.beatEcho = scene.trails?.beatEcho ?? 0;
+    S.trails.driftMode = scene.trails?.driftMode ?? 'off';
+    S.trails.driftRate = scene.trails?.driftRate ?? 0.15;
+    S.trails.driftAmount = scene.trails?.driftAmount ?? 0.006;
+    S.trails.driftSides = scene.trails?.driftSides ?? 6;
+    S.trails.wallMode = readTrailWallMode(scene.trails);
+    S.bloom.enabled = scene.bloom?.enabled ?? true;
+    S.bloom.strength = scene.bloom?.strength ?? 0.85;
+    S.bloom.threshold = scene.bloom?.threshold ?? 0.3;
+    S.kaleido.enabled = scene.kaleido?.enabled ?? false;
+    S.kaleido.segments = scene.kaleido?.segments ?? 6;
+    S.kaleido.rot = scene.kaleido?.rot ?? 0;
+    S.kaleido.spin = scene.kaleido?.spin ?? 0;
+    S.kaleido.mirror = scene.kaleido?.mirror ?? true;
+    S.generative.enabled = scene.generative?.enabled ?? false;
+    S.generative.style = scene.generative?.style ?? 'aurora';
+    S.generative.speed = scene.generative?.speed ?? 1;
+    S.generative.scale = scene.generative?.scale ?? 1;
+    S.generative.hue = scene.generative?.hue ?? 0;
+    S.beamEdge.width = scene.beamEdge?.width ?? 0.6;
+    S.beamEdge.intensity = scene.beamEdge?.intensity ?? 0;
+    S.beamEdge.shape = scene.beamEdge?.shape ?? 'soft';
+    S.beamEdge.tintOn = scene.beamEdge?.tintOn ?? false;
+    S.beamEdge.tint = Array.isArray(scene.beamEdge?.tint) ? [...scene.beamEdge.tint] : [1, 0.6, 0.2];
+    S.beamEdge.tintAmount = scene.beamEdge?.tintAmount ?? 0.6;
+    S.beamCore.width = scene.beamCore?.width ?? 0.25;
+    S.beamCore.intensity = scene.beamCore?.intensity ?? 0;
+    S.phosphor.enabled = scene.phosphor?.enabled ?? false;
+    S.phosphor.persistence = scene.phosphor?.persistence ?? 2.5;
+    S.phosphor.intensity = scene.phosphor?.intensity ?? 1;
+    S.phosphor.width = scene.phosphor?.width ?? 12;
     S.showBeams = scene.showBeams ?? true;
     if (scene.rings) {
       S.rings = JSON.parse(JSON.stringify(scene.rings));
@@ -4393,6 +4389,13 @@
       S.rings.enabled = true;
       S.rings.rainbow = scene.waveRainbow ?? true;
       S.rings.taper = scene.waveTaper ?? 0;
+    } else {
+      // Neither current-format rings nor legacy waves -- same gap as
+      // trails/kaleido/etc above, just structurally different fix since
+      // S.rings is a wholesale JSON clone rather than per-field, not worth
+      // resetting every sub-field the way field.enabled=false alone already
+      // does below (rendering is fully gated on enabled either way).
+      S.rings.enabled = false;
     }
     if (scene.field) {
       S.field = Object.assign({}, S.field, scene.field);
@@ -4404,25 +4407,21 @@
     }
 
     // Shape (widthWave)
-    if (scene.widthWave) {
-      S.widthWave.enabled = scene.widthWave.enabled ?? false;
-      S.widthWave.shape = scene.widthWave.shape ?? 'circle';
-      S.widthWave.freq = scene.widthWave.freq ?? 0.5;
-      S.widthWave.speed = scene.widthWave.speed ?? 0;
-      S.widthWave.duty = scene.widthWave.duty ?? 0.5;
-      S.widthWave.rotation = scene.widthWave.rotation ?? 0;
-    }
-    
+    S.widthWave.enabled = scene.widthWave?.enabled ?? false;
+    S.widthWave.shape = scene.widthWave?.shape ?? 'circle';
+    S.widthWave.freq = scene.widthWave?.freq ?? 0.5;
+    S.widthWave.speed = scene.widthWave?.speed ?? 0;
+    S.widthWave.duty = scene.widthWave?.duty ?? 0.5;
+    S.widthWave.rotation = scene.widthWave?.rotation ?? 0;
+
     // Center motion
-    if (scene.motion) {
-      S.motion.mode = scene.motion.mode || 'off';
-      S.motion.speed = scene.motion.speed || 0.15;
-      S.motion.range = scene.motion.range || 0.2;
-      S.motion.ratio = scene.motion.ratio || 1.5;
-      S.motion.phaseOffset = scene.motion.phaseOffset || 90;
-      S.motion.time = 0;
-    }
-    
+    S.motion.mode = scene.motion?.mode || 'off';
+    S.motion.speed = scene.motion?.speed || 0.15;
+    S.motion.range = scene.motion?.range || 0.2;
+    S.motion.ratio = scene.motion?.ratio || 1.5;
+    S.motion.phaseOffset = scene.motion?.phaseOffset || 90;
+    S.motion.time = 0;
+
     S.blendMode = scene.blendMode ?? 'normal';
     S.overlap.enabled = scene.overlap?.enabled ?? false;
     S.overlap.minCount = scene.overlap?.minCount ?? 2;
@@ -8012,6 +8011,20 @@ void main() {
     const n = S.showBeams ? S.beamCount | 0 : 0;
     const half = (S.beamWidth || 2) / 2;
     let totalSegs = 0;
+    // Hue drift used to be a flat "degrees per 1000 raw canvas px" rate --
+    // scale-dependent on the room's actual pixel size (which varies with
+    // viewport/DPR/window layout, e.g. the v1.48 rectangular-stage change),
+    // and disproportionate to the slider's own range: a chaotically-bouncing
+    // beam easily racks up several thousand px of cumulative path (dozens of
+    // bounces), so even a modest-looking slider value produced multiple full
+    // hue-wheel rotations -- the "overly sensitive" complaint. Normalizing
+    // by the room's own diameter (same min(W,H) buildShape() sizes the room
+    // from) instead makes the effect scale-invariant, and the extra ×50
+    // brings a *typical* beam's whole path (empirically ~28 diameters at a
+    // reflectivity around the default) down to roughly half a rotation at
+    // the slider's max, rather than ~19 full rotations under the old rate.
+    const roomDiameterPx = Math.max(1, Math.min(glCanvas.width, glCanvas.height) / S.dpr);
+    const hueDriftDivisor = roomDiameterPx * 50;
 
     // Check if we have per-beam bounce data from a transition
     const hasPerBeamBounces = S.transition.active &&
@@ -8064,7 +8077,7 @@ void main() {
           h: mh, s: ms, l: ml, baseRgb: rgb,
           opacity: eOpacity,
           absorbK: Math.pow(eAbsorb, 1.5) * 0.008,
-          driftPerPx: (S.beamHueDrift + (S.perBeamHueDrift[i] ?? 0)) / 1000
+          driftPerPx: (S.beamHueDrift + (S.perBeamHueDrift[i] ?? 0)) / hueDriftDivisor
         };
 
         // Phosphor: every segment endpoint is a wall strike — deposit glow
@@ -9173,83 +9186,71 @@ void main() {
       S.emitterPalettes = P.emitterPalettes;
     }
     S.segments = readSegments(P);
-    if (P.trails) {
-      S.trails.enabled = P.trails.enabled ?? false;
-      S.trails.length = P.trails.length ?? 20;
-      S.trails.opacity = P.trails.opacity ?? 1;
-      S.trails.hueShift = P.trails.hueShift ?? 0;
-      S.trails.satShift = P.trails.satShift ?? 0;
-      S.trails.style = P.trails.style ?? 'full';
-      S.trails.substeps = P.trails.substeps ?? 1;
-      S.trails.filter = P.trails.filter ?? 'smooth';
-      S.trails.cutoff = P.trails.cutoff ?? 0.015;
-      S.trails.fbZoom = P.trails.fbZoom ?? 0;
-      S.trails.fbSpin = P.trails.fbSpin ?? 0;
-      S.trails.fbDriftX = P.trails.fbDriftX ?? 0;
-      S.trails.fbDriftY = P.trails.fbDriftY ?? 0;
-      S.trails.beatEcho = P.trails.beatEcho ?? 0;
-      S.trails.driftMode = P.trails.driftMode ?? 'off';
-      S.trails.driftRate = P.trails.driftRate ?? 0.15;
-      S.trails.driftAmount = P.trails.driftAmount ?? 0.006;
-      S.trails.driftSides = P.trails.driftSides ?? 6;
-      S.trails.wallMode = readTrailWallMode(P.trails);
-    }
-    if (P.widthWave) {
-      S.widthWave.enabled = P.widthWave.enabled ?? false;
-      S.widthWave.shape = P.widthWave.shape ?? 'circle';
-      S.widthWave.freq = P.widthWave.freq ?? 0.5;
-      S.widthWave.speed = P.widthWave.speed ?? 0;
-      S.widthWave.duty = P.widthWave.duty ?? 0.5;
-      S.widthWave.rotation = P.widthWave.rotation ?? 0;
-    }
-    if (P.motion) {
-      S.motion.mode = P.motion.mode || 'off';
-      S.motion.speed = P.motion.speed ?? 0.15;
-      S.motion.range = P.motion.range ?? 0.2;
-      S.motion.ratio = P.motion.ratio ?? 1.5;
-      S.motion.phaseOffset = P.motion.phaseOffset ?? 90;
-    }
-    if (P.bloom) {
-      S.bloom.enabled = P.bloom.enabled ?? true;
-      S.bloom.strength = P.bloom.strength ?? 0.85;
-      S.bloom.threshold = P.bloom.threshold ?? 0.3;
-    }
-    if (P.kaleido) {
-      S.kaleido.enabled = P.kaleido.enabled ?? false;
-      S.kaleido.segments = P.kaleido.segments ?? 6;
-      S.kaleido.rot = P.kaleido.rot ?? 0;
-      S.kaleido.spin = P.kaleido.spin ?? 0;
-      S.kaleido.mirror = P.kaleido.mirror ?? true;
-    }
-    if (P.overlap) {
-      S.overlap.enabled = P.overlap.enabled ?? false;
-      S.overlap.minCount = P.overlap.minCount ?? 2;
-    }
-    if (P.generative) {
-      S.generative.enabled = P.generative.enabled ?? false;
-      S.generative.style = P.generative.style ?? 'aurora';
-      S.generative.speed = P.generative.speed ?? 1;
-      S.generative.scale = P.generative.scale ?? 1;
-      S.generative.hue = P.generative.hue ?? 0;
-    }
-    if (P.beamEdge) {
-      S.beamEdge.width = P.beamEdge.width ?? 0.6;
-      S.beamEdge.intensity = P.beamEdge.intensity ?? 0;
-      S.beamEdge.shape = P.beamEdge.shape ?? 'soft';
-      S.beamEdge.tintOn = P.beamEdge.tintOn ?? false;
-      S.beamEdge.tint = Array.isArray(P.beamEdge.tint) ? [...P.beamEdge.tint] : [1, 0.6, 0.2];
-      S.beamEdge.tintAmount = P.beamEdge.tintAmount ?? 0.6;
-    }
-    if (P.beamCore) {
-      S.beamCore.width = P.beamCore.width ?? 0.25;
-      S.beamCore.intensity = P.beamCore.intensity ?? 0;
-    }
-    if (P.phosphor) {
-      S.phosphor.enabled = P.phosphor.enabled ?? false;
-      S.phosphor.persistence = P.phosphor.persistence ?? 2.5;
-      S.phosphor.intensity = P.phosphor.intensity ?? 1;
-      S.phosphor.width = P.phosphor.width ?? 12;
-    }
+    // Same fix as applySceneInstant() above, same reason: these used to be
+    // `if (P.X) {...}`, which left S.X untouched (keeping whatever was
+    // already loaded) for any preset/state-URL/autosave payload saved
+    // before that feature existed, rather than resetting to X's own
+    // defaults. modRoutes/beat below are deliberately NOT included in this
+    // fix -- they're rig config loaded separately by loadModConfig() before
+    // any preset applies (see its own comment), not part of a scene's own
+    // data, and captureScene() doesn't even serialize them.
+    S.trails.enabled = P.trails?.enabled ?? false;
+    S.trails.length = P.trails?.length ?? 20;
+    S.trails.opacity = P.trails?.opacity ?? 1;
+    S.trails.hueShift = P.trails?.hueShift ?? 0;
+    S.trails.satShift = P.trails?.satShift ?? 0;
+    S.trails.style = P.trails?.style ?? 'full';
+    S.trails.substeps = P.trails?.substeps ?? 1;
+    S.trails.filter = P.trails?.filter ?? 'smooth';
+    S.trails.cutoff = P.trails?.cutoff ?? 0.015;
+    S.trails.fbZoom = P.trails?.fbZoom ?? 0;
+    S.trails.fbSpin = P.trails?.fbSpin ?? 0;
+    S.trails.fbDriftX = P.trails?.fbDriftX ?? 0;
+    S.trails.fbDriftY = P.trails?.fbDriftY ?? 0;
+    S.trails.beatEcho = P.trails?.beatEcho ?? 0;
+    S.trails.driftMode = P.trails?.driftMode ?? 'off';
+    S.trails.driftRate = P.trails?.driftRate ?? 0.15;
+    S.trails.driftAmount = P.trails?.driftAmount ?? 0.006;
+    S.trails.driftSides = P.trails?.driftSides ?? 6;
+    S.trails.wallMode = readTrailWallMode(P.trails);
+    S.widthWave.enabled = P.widthWave?.enabled ?? false;
+    S.widthWave.shape = P.widthWave?.shape ?? 'circle';
+    S.widthWave.freq = P.widthWave?.freq ?? 0.5;
+    S.widthWave.speed = P.widthWave?.speed ?? 0;
+    S.widthWave.duty = P.widthWave?.duty ?? 0.5;
+    S.widthWave.rotation = P.widthWave?.rotation ?? 0;
+    S.motion.mode = P.motion?.mode || 'off';
+    S.motion.speed = P.motion?.speed ?? 0.15;
+    S.motion.range = P.motion?.range ?? 0.2;
+    S.motion.ratio = P.motion?.ratio ?? 1.5;
+    S.motion.phaseOffset = P.motion?.phaseOffset ?? 90;
+    S.bloom.enabled = P.bloom?.enabled ?? true;
+    S.bloom.strength = P.bloom?.strength ?? 0.85;
+    S.bloom.threshold = P.bloom?.threshold ?? 0.3;
+    S.kaleido.enabled = P.kaleido?.enabled ?? false;
+    S.kaleido.segments = P.kaleido?.segments ?? 6;
+    S.kaleido.rot = P.kaleido?.rot ?? 0;
+    S.kaleido.spin = P.kaleido?.spin ?? 0;
+    S.kaleido.mirror = P.kaleido?.mirror ?? true;
+    S.overlap.enabled = P.overlap?.enabled ?? false;
+    S.overlap.minCount = P.overlap?.minCount ?? 2;
+    S.generative.enabled = P.generative?.enabled ?? false;
+    S.generative.style = P.generative?.style ?? 'aurora';
+    S.generative.speed = P.generative?.speed ?? 1;
+    S.generative.scale = P.generative?.scale ?? 1;
+    S.generative.hue = P.generative?.hue ?? 0;
+    S.beamEdge.width = P.beamEdge?.width ?? 0.6;
+    S.beamEdge.intensity = P.beamEdge?.intensity ?? 0;
+    S.beamEdge.shape = P.beamEdge?.shape ?? 'soft';
+    S.beamEdge.tintOn = P.beamEdge?.tintOn ?? false;
+    S.beamEdge.tint = Array.isArray(P.beamEdge?.tint) ? [...P.beamEdge.tint] : [1, 0.6, 0.2];
+    S.beamEdge.tintAmount = P.beamEdge?.tintAmount ?? 0.6;
+    S.beamCore.width = P.beamCore?.width ?? 0.25;
+    S.beamCore.intensity = P.beamCore?.intensity ?? 0;
+    S.phosphor.enabled = P.phosphor?.enabled ?? false;
+    S.phosphor.persistence = P.phosphor?.persistence ?? 2.5;
+    S.phosphor.intensity = P.phosphor?.intensity ?? 1;
+    S.phosphor.width = P.phosphor?.width ?? 12;
     S.showBeams = P.showBeams ?? true;
     if (P.rings) {
       S.rings = JSON.parse(JSON.stringify(P.rings));
@@ -9266,6 +9267,8 @@ void main() {
       S.rings.enabled = true;
       S.rings.rainbow = P.waveRainbow ?? true;
       S.rings.taper = P.waveTaper ?? 0;
+    } else {
+      S.rings.enabled = false;
     }
     if (P.field) { S.field = Object.assign({}, S.field, P.field); S.field.phase = 0; S.field.rot = S.field.rot ?? 0; S.field.spin = S.field.spin ?? 0; if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }]; }
     else S.field.enabled = false;
@@ -12195,7 +12198,7 @@ void main() {
       speedRange: 'Speed range',
       beamMaterial: 'Beam Material',
       perBeam: 'Per-beam trim',
-      hintBeamMaster: 'Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path (°/1000px).',
+      hintBeamMaster: 'Master for all beams. Opacity = transparency; Absorption = haze fade along the path; Hue drift = colour gradient along the path, scaled to the room\'s size.',
       hintBeamPerBeam: 'Pick a beam above, then trim its Opacity (×), Absorption (×) and Hue drift (+, added to master). New beams start neutral.',
       beamOpacity: 'Opacity',
       beamAbsorb: 'Absorption',
@@ -12474,7 +12477,7 @@ void main() {
       speedRange: 'Rango de velocidad',
       beamMaterial: 'Material del haz',
       perBeam: 'Ajuste por haz',
-      hintBeamMaster: 'Maestro para todos los haces. Opacidad = transparencia; Absorción = desvanecimiento por niebla a lo largo del trayecto; Deriva de tono = gradiente de color a lo largo del trayecto (°/1000px).',
+      hintBeamMaster: 'Maestro para todos los haces. Opacidad = transparencia; Absorción = desvanecimiento por niebla a lo largo del trayecto; Deriva de tono = gradiente de color a lo largo del trayecto, escalado al tamaño de la sala.',
       hintBeamPerBeam: 'Elige un haz arriba y ajusta su Opacidad (×), Absorción (×) y Deriva de tono (+, sumada al maestro). Los haces nuevos empiezan neutros.',
       beamOpacity: 'Opacidad',
       beamAbsorb: 'Absorción',
@@ -12752,7 +12755,7 @@ void main() {
       speedRange: 'Intervalo de velocidade',
       beamMaterial: 'Material do feixe',
       perBeam: 'Ajuste por feixe',
-      hintBeamMaster: 'Mestre para todos os feixes. Opacidade = transparência; Absorção = desvanecimento por névoa ao longo do trajeto; Deriva de tom = gradiente de cor ao longo do trajeto (°/1000px).',
+      hintBeamMaster: 'Mestre para todos os feixes. Opacidade = transparência; Absorção = desvanecimento por névoa ao longo do trajeto; Deriva de tom = gradiente de cor ao longo do trajeto, escalado ao tamanho da sala.',
       hintBeamPerBeam: 'Escolha um feixe acima e ajuste a sua Opacidade (×), Absorção (×) e Deriva de tom (+, somada ao mestre). Feixes novos começam neutros.',
       beamOpacity: 'Opacidade',
       beamAbsorb: 'Absorção',
@@ -13030,7 +13033,7 @@ void main() {
       speedRange: 'Plage de vitesse',
       beamMaterial: 'Matériau du faisceau',
       perBeam: 'Réglage par faisceau',
-      hintBeamMaster: 'Maître pour tous les faisceaux. Opacité = transparence ; Absorption = fondu de brume le long du trajet ; Dérive de teinte = dégradé de couleur le long du trajet (°/1000px).',
+      hintBeamMaster: 'Maître pour tous les faisceaux. Opacité = transparence ; Absorption = fondu de brume le long du trajet ; Dérive de teinte = dégradé de couleur le long du trajet, à l\'échelle de la taille de la salle.',
       hintBeamPerBeam: 'Choisissez un faisceau ci-dessus, puis réglez son Opacité (×), Absorption (×) et Dérive de teinte (+, ajoutée au maître). Les nouveaux faisceaux démarrent neutres.',
       beamOpacity: 'Opacité',
       beamAbsorb: 'Absorption',
@@ -13676,7 +13679,7 @@ void main() {
     generativeTitle: 'A gallery of original fullscreen shaders that stand in for beams/rings — pick a Style, then Speed/Scale/Colour tune it.',
     beamOpacity: 'Global beam transparency. Pairs beautifully with Additive blend mode — and it\'s a Modulation Matrix target, so audio can breathe it.',
     beamAbsorb: 'Beams fade with distance travelled, like light through haze — each beam gets a brightness gradient along its whole bounce path.',
-    beamHueDrift: 'Rotates the hue along the beam\'s path (°/1000px) — a colour gradient that runs continuously through every bounce.',
+    beamHueDrift: 'Rotates the hue along the beam\'s path, scaled to the room\'s own size so it feels the same regardless of window size — a colour gradient that runs continuously through every bounce.',
     segments: 'Slices each beam\'s length into a repeating cycle of coloured/transparent segments. 1 segment = a solid beam. Length sets the cycle size, Speed scrolls it. Click a segment in the strip to edit it.',
     segDrift: 'Detaches this segment from the shared cycle so it scrolls on its own Speed/Length — it drifts freely through the others for organic motion.',
     fieldFog: 'Lifts the calm regions of the field into a soft, slowly-drifting haze instead of black — waves glow through mist. Try it with the Prism colour mode.',
