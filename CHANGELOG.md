@@ -2,6 +2,18 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.46.0] - 2026-08-02
+
+### ✨ Viewer links — share a scene as just the animation, no menu
+Every scene tile in the gallery now has a small 🔗 icon that copies a link straight to that scene with the entire panel hidden — nothing to click, nothing to configure, just the animation filling the screen. For anyone who wants to send a scene to someone who'd rather watch than tinker.
+
+Reuses the existing hide-everything view (what pressing F then U already does) rather than building a new one, applied directly on load instead of through those shortcuts specifically so it doesn't need a real user gesture — the browser's native Fullscreen API requires one and would silently fail on page load, but the CSS that actually hides the panel and squares up the canvas doesn't need the native API at all, just the state. The branding splash is dismissed immediately instead of running its normal few-second intro, and the first-visit tutorial prompt is skipped so it can't cover the animation for someone opening the link cold. It's not a lockout, either — U and F still work once you're there, so anyone curious can still get to the full editor.
+
+Verified end-to-end: generated a link from a specific scene's tile, read it back off the real system clipboard, loaded it in a fresh browser context, and confirmed the exact scene data came back (not just "a" scene) with the panel genuinely hidden and the keyboard shortcuts still live.
+
+### 🩹 Dropped "Resonant Chaos"
+Removed as a subtitle everywhere it appeared — the browser tab title, the splash screen, and the SEO/social meta tags (description, keywords, Open Graph, Twitter card) and the PWA manifest. Just "Voidulator" now.
+
 ## [1.45.0] - 2026-08-02
 
 ### 🩹 Sticky panel nav: fixed a scroll-position gap, un-stuck the search bar

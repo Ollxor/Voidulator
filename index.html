@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="classic"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Voidulator – Resonant Chaos</title>
+<title>Voidulator</title>
 
 <!-- PWA Support -->
 <link rel="manifest" href="manifest.json">
@@ -16,15 +16,15 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 
 <!-- SEO & Social -->
-<meta name="description" content="Voidulator — Resonant Chaos. A mesmerizing WebGL laser room simulator with reflections, shapes, and visual effects.">
-<meta name="keywords" content="laser, visualizer, art, generative, WebGL, animation, screensaver, resonant chaos">
-<meta property="og:title" content="Voidulator – Resonant Chaos">
+<meta name="description" content="Voidulator — a mesmerizing WebGL laser room simulator with reflections, shapes, and visual effects.">
+<meta name="keywords" content="laser, visualizer, art, generative, WebGL, animation, screensaver">
+<meta property="og:title" content="Voidulator">
 <meta property="og:description" content="A mesmerizing WebGL laser room simulator. Create stunning visual art with bouncing beams, reflections, and hypnotic effects.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://voidulator.ollebjerkas.se">
 <meta property="og:image" content="https://voidulator.ollebjerkas.se/screenshot.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Voidulator – Resonant Chaos">
+<meta name="twitter:title" content="Voidulator">
 <meta name="twitter:description" content="A mesmerizing WebGL laser room simulator. Create stunning visual art with bouncing beams and hypnotic effects.">
 <meta name="twitter:image" content="https://voidulator.ollebjerkas.se/screenshot.png">
 
@@ -1560,24 +1560,16 @@
     color: #40d8a0;
     letter-spacing: 6px;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 34px;
     opacity: 0;
     animation: splashFadeIn 1s ease 0.6s forwards;
-  }
-  .splash-subtitle {
-    font: 400 13px/1.4 'Consolas', 'Monaco', 'Courier New', monospace;
-    color: #28846a;
-    letter-spacing: 4px;
-    margin-bottom: 32px;
-    opacity: 0;
-    animation: splashFadeIn 1s ease 0.8s forwards;
   }
   .splash-credit {
     font: 400 13px/1.6 'Consolas', 'Monaco', 'Courier New', monospace;
     color: #556060;
     text-align: center;
     opacity: 0;
-    animation: splashFadeIn 1s ease 1.2s forwards;
+    animation: splashFadeIn 1s ease 1s forwards;
   }
   .splash-hint {
     position: absolute;
@@ -1873,6 +1865,7 @@
     margin-bottom: 8px;
   }
   .scene-thumb {
+    position: relative;
     aspect-ratio: 4 / 3;
     background: #050608 center / cover no-repeat;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1886,6 +1879,29 @@
     overflow: hidden;
     color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
+  }
+  /* Copy-a-view-only-link icon, overlaid in the corner of each scene tile --
+     subtle by default (like .group-reset above) rather than invisible until
+     hover, so it's still discoverable at a glance across a dense grid. */
+  .scene-thumb-link {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    line-height: 1;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 3px;
+    opacity: 0.45;
+    transition: opacity 120ms ease, background 120ms ease;
+  }
+  .scene-thumb-link:hover, .scene-thumb-link.copied {
+    opacity: 1;
+    background: var(--accent);
   }
   .scene-thumb:hover { border-color: var(--accent); opacity: 1; }
 
@@ -1952,7 +1968,6 @@
     </g>
   </svg>
   <div class="splash-title">Voidulator</div>
-  <div class="splash-subtitle">RESONANT CHAOS</div>
   <div class="splash-credit">By Olle Bjerkås<br>2026</div>
   <div class="splash-hint">CLICK ANYWHERE TO ENTER</div>
 </div>
@@ -3010,7 +3025,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.45.0';
+  const APP_VERSION = 'v1.46.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -4933,6 +4948,15 @@
           if (!scene.thumb) { pendingThumbScene = scene; pendingThumbFrames = 0; }
           goToScene(scene.data);
         });
+        const linkBtn = document.createElement('div');
+        linkBtn.className = 'scene-thumb-link';
+        linkBtn.textContent = '🔗';
+        linkBtn.title = 'Copy a view-only link to this scene (no menu, just the animation)';
+        linkBtn.addEventListener('click', (e) => {
+          e.stopPropagation(); // don't also trigger the tile's own "go to this scene"
+          copyViewerLink(scene, linkBtn);
+        });
+        tile.appendChild(linkBtn);
         thumbs.appendChild(tile);
       });
     }
@@ -11210,7 +11234,40 @@ void main() {
       return window.location.href;
     }
   }
-  
+
+  // A "viewer" link: same base64-JSON-in-the-URL trick as the share link
+  // above, but under its own param (`scene=`, not `state=`) carrying a
+  // captureScene()-shaped payload (what scene tiles already store, not
+  // currentPreset()'s shape -- reused as-is, no conversion needed) plus
+  // `view=1`, which loadViewerFromUrl() uses to both pick the right
+  // restore function (applySceneInstant, not applyPreset) and to know it
+  // should land straight in the hide-everything view. See loadViewerFromUrl().
+  function generateViewerUrl(sceneData) {
+    const json = JSON.stringify(sceneData);
+    const encoded = btoa(encodeURIComponent(json));
+    return window.location.origin + window.location.pathname + '?scene=' + encoded + '&view=1';
+  }
+  function copyViewerLink(scene, btnEl) {
+    const url = generateViewerUrl(scene.data);
+    const feedback = () => {
+      if (!btnEl) return;
+      const orig = btnEl.textContent;
+      btnEl.textContent = '✓';
+      btnEl.classList.add('copied');
+      setTimeout(() => { btnEl.textContent = orig; btnEl.classList.remove('copied'); }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(feedback).catch(() => {
+        // No dedicated text field to fall back to select()+execCommand on
+        // here (unlike the share modal's #shareUrl input) -- a prompt at
+        // least lets the user copy it manually.
+        window.prompt('Copy this view-only link:', url);
+      });
+    } else {
+      window.prompt('Copy this view-only link:', url);
+    }
+  }
+
   function loadFromUrl() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -11228,7 +11285,31 @@ void main() {
     }
     return false;
   }
-  
+
+  // Set once a ?scene=...&view=1 viewer link has been applied -- init()
+  // checks this afterward to hide the panel and skip the intro/tutorial
+  // modals, since the whole point is to land straight on the animation.
+  let viewerMode = false;
+  function loadViewerFromUrl() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') !== '1') return false;
+      const sceneParam = params.get('scene');
+      if (!sceneParam) return false;
+      const json = decodeURIComponent(atob(sceneParam));
+      const scene = JSON.parse(json);
+      applySceneInstant(scene);
+      viewerMode = true;
+      // Deliberately NOT clearing the URL here (unlike loadFromUrl above):
+      // a viewer link is meant to be a stable, reloadable/bookmarkable
+      // pointer at one scene, not a one-shot state transfer.
+      return true;
+    } catch (e) {
+      console.warn('Failed to load viewer scene from URL:', e);
+    }
+    return false;
+  }
+
   function showShareModal() {
     const modal = document.getElementById('shareModal');
     const urlInput = document.getElementById('shareUrl');
@@ -13790,11 +13871,14 @@ void main() {
     // stored one before it had a chance to be read back.
     loadModConfig();
 
-    // Try to load from URL first, then autosave, then startup preset
-    if (!loadFromUrl()) {
-      if (!loadAutosave()) {
-        // First visit — apply the "Starting simple" startup preset
-        applySceneInstant(STARTUP_PRESET);
+    // Try a viewer link first (?scene=...&view=1 -- see loadViewerFromUrl),
+    // then a regular share link, then autosave, then the startup preset.
+    if (!loadViewerFromUrl()) {
+      if (!loadFromUrl()) {
+        if (!loadAutosave()) {
+          // First visit — apply the "Starting simple" startup preset
+          applySceneInstant(STARTUP_PRESET);
+        }
       }
     }
 
@@ -13851,10 +13935,23 @@ void main() {
     
     // Hide loading spinner
     hideLoadingSpinner();
-    
-    // Check for first visit (show welcome modal)
-    checkFirstVisit();
-    
+
+    if (viewerMode) {
+      // Land straight on the animation: the same hide-everything state as
+      // pressing F then U, applied directly (skipping requestFullscreen() --
+      // it throws without a user gesture, which a page load never has; the
+      // CSS this drives doesn't need the real Fullscreen API, just the
+      // classes). No welcome/tutorial modal either, and the branding splash
+      // is dismissed immediately instead of waiting out its normal 8s timer.
+      isFullscreen = true;
+      uiHidden = true;
+      document.body.classList.add('fullscreen-mode', 'hide-ui');
+      if (window.dismissSplash) window.dismissSplash();
+    } else {
+      // Check for first visit (show welcome modal)
+      checkFirstVisit();
+    }
+
     loopRafId = requestAnimationFrame(loop);
 
     // Debug/scripting handle (console access to the otherwise closure-scoped
