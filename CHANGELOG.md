@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.45.0] - 2026-08-02
+
+### 🩹 Sticky panel nav: fixed a scroll-position gap, un-stuck the search bar
+Two follow-ups to v1.43's sticky header.
+
+- **A sliver of scrolled-past content could show above the sticky bar.** The previous version wrapped title/icons/search/tabs in one sticky container; at some scroll positions a fragment of whatever had just scrolled past was visible above it. Root cause aside, the fix that closes it regardless of the exact mechanism: the header now cancels `.panel`'s own top padding with a negative margin, so its background reaches the panel's literal top edge with no seam. Verified by scripting the panel's scroll position through its *entire* range in 30px steps and confirming nothing ever renders above the header at any of them.
+- **The search bar no longer stays pinned while scrolling** — it wasn't needed once you're mid-scroll scanning a group's contents, unlike the title/tabs, so it now scrolls away normally between two independently-sticky pieces: the header up top, the tab bar stacking directly beneath it.
+- That stacking took a second pass to get right: two `position: sticky` siblings both at `top: 0` don't automatically queue up — they both try to stick at the same spot and overlap. The tab bar's offset is now kept in sync with the header's actual height via a `ResizeObserver` (rather than a guessed pixel value that a language switch or font change could quietly invalidate), so it always starts sticking exactly where the header ends.
+
 ## [1.44.0] - 2026-08-02
 
 ### ✨ Undo / Redo

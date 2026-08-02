@@ -834,29 +834,31 @@
   }
 
   /* === Panel header with buttons === */
-  /* Title/icons + search/collapse-all + tabs (wrapped into this by
-     initPanelTools()) stay pinned to the top of the panel's own scroll
-     while the group list below scrolls, so a long list (many saved scenes,
-     many segments...) never scrolls the navigation itself out of view.
-     Negative side margins + matching padding extend it edge-to-edge across
-     the panel's own padding, so its background fully covers what's
-     scrolling underneath instead of leaving the sides see-through. */
-  .panel-sticky-top {
+  /* Title/icons and the tab bar each stick independently to the top of the
+     panel's own scroll (the search/collapse-all row between them stays in
+     normal flow and scrolls away) so the group list below can be long
+     (many saved scenes, many segments...) without ever scrolling the
+     navigation itself out of view. Two separate `top: 0` sticky siblings of
+     `.panel` stack cleanly with no gap or overlap and no hardcoded offset
+     to keep in sync -- the browser stacks them in DOM order once both are
+     stuck, which is why panel-tabs doesn't need its own top-margin cancel,
+     only panel-header (the first one, flush against the panel's true top
+     edge) does. Negative side margins + matching padding extend each one
+     edge-to-edge across the panel's own padding, so their background fully
+     covers what's scrolling underneath instead of leaving the sides
+     see-through; panel-header's negative TOP margin does the same for the
+     panel's own top padding, so there's no gap above it either. */
+  .panel-header {
     position: sticky;
     top: 0;
     z-index: 20;
     background: var(--panel-top);
-    margin: 0 -14px;
-    padding: 14px 14px 8px;
+    margin: -14px -14px 12px;
+    padding: 14px 14px 12px;
     box-shadow: 0 8px 12px -8px rgba(0, 0, 0, 0.6);
-  }
-  .panel-sticky-top .panel-tabs { margin-bottom: 0; }
-
-  .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
   }
   .panel-header h2 {
     margin: 0;
@@ -1773,11 +1775,18 @@
   .panel-tools input:focus { outline: none; border-color: var(--accent); }
   .panel-tools .tool-mini { flex: none; padding: 2px 8px; font-size: 12px; }
 
-  /* Tab bar */
+  /* Tab bar -- sticky, stacks directly under .panel-header (see the comment
+     on .panel-header for why no manual offset is needed between them). */
   .panel-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 19;
+    background: var(--panel-top);
+    margin: 0 -14px 8px;
+    padding: 6px 14px 6px;
+    box-shadow: 0 8px 12px -8px rgba(0, 0, 0, 0.6);
     display: flex;
     gap: 2px;
-    margin-bottom: 8px;
     flex-wrap: wrap;
   }
   .panel-tabs button {
@@ -3001,7 +3010,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.44.0';
+  const APP_VERSION = 'v1.45.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -13645,16 +13654,28 @@ void main() {
       b.addEventListener('click', () => setTab(id));
       tabBar.appendChild(b);
     }
-    // Title/icons + search/collapse-all + tabs all pin to the top of the
-    // panel's own scroll (not the page's), so they stay visible while
-    // scrolling a long group list instead of scrolling away with it.
-    const stickyTop = document.createElement('div');
-    stickyTop.className = 'panel-sticky-top';
-    const header = panel.querySelector('.panel-header');
-    if (header) stickyTop.appendChild(header); // moves the existing node, doesn't clone it
-    stickyTop.appendChild(bar);
-    stickyTop.appendChild(tabBar);
-    panel.insertBefore(stickyTop, grid);
+    // .panel-header (already the panel's first child, unmoved) and .panel-tabs
+    // are independently sticky (see their CSS) so they stay visible while a
+    // long group list scrolls underneath. The search/collapse-all row sits
+    // between them in normal flow and scrolls away with the content -- it's
+    // not needed while scanning results, so it doesn't need to stay pinned.
+    panel.insertBefore(bar, grid);
+    panel.insertBefore(tabBar, grid);
+
+    // Sibling `position: sticky` elements both at `top: 0` do NOT
+    // auto-stack -- they both stick at the same y and overlap. panel-tabs
+    // needs `top` set to panel-header's actual rendered height so it starts
+    // sticking right where panel-header ends. A ResizeObserver (same
+    // pattern the stage canvas already uses below) keeps that in sync with
+    // zero maintenance if the header's height ever changes -- language
+    // switch wrapping the title/buttons to a second line, font load,
+    // whatever -- rather than a value that quietly goes stale.
+    const panelHeaderEl = panel.querySelector('.panel-header');
+    if (window.ResizeObserver && panelHeaderEl) {
+      const syncStickyOffset = () => { tabBar.style.top = panelHeaderEl.offsetHeight + 'px'; };
+      new ResizeObserver(syncStickyOffset).observe(panelHeaderEl);
+      syncStickyOffset();
+    }
 
     let activeTab = localStorage.getItem('voidulator-tab') || 'all';
     function applyTab() {
