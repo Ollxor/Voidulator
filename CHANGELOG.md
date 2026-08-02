@@ -2,6 +2,16 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.43.0] - 2026-08-02
+
+### 🩹 Long lists (Scenes especially) were silently cut off with no way to scroll to the rest
+Every collapsible group animates its expand/collapse with a CSS `max-height` transition, and that needed some finite pixel value to transition to/from (you can't animate to/from `none`). The old code guessed **500px** as a ceiling comfortably above any group's real content — except it wasn't, once a group's content actually grew past it. `overflow: hidden` then quietly clipped anything beyond that, with no scrollbar and no way to reach it: exactly what happened to **Scenes** once enough were saved (the curated 15 plus your own is well past 500px in a 4-column thumbnail grid).
+
+Fixed by measuring instead of guessing: `setGroupCollapsed()` reads the group's real `scrollHeight` at the moment it's toggled, animates to that measured value, then releases the cap to `max-height: none` once the transition settles — so it only constrains height *during* the animation, never at rest, and can't be invalidated by content that grows later (adding another scene, another segment, another beam's trim chip) while the group is already open. Verified against a 45-scene library built through the real Save button: content height comes out well past the old 500px ceiling, fully unclipped, and the last scene is reachable by scrolling the panel to the bottom. Collapse/expand animation itself is unchanged for every other group.
+
+### ✨ The panel's title, search, and tabs now stay pinned while you scroll
+Previously the whole panel — title, icon buttons, the filter box, the All/Beams/Effects/Room/Live/Scenes tabs, and every group — scrolled together as one column, so scrolling down a long group list (Scenes again, but also just a tall panel on a short window) scrolled your navigation out of view with it. `initPanelTools()` now wraps all three into one `.panel-sticky-top` block with `position: sticky; top: 0`, an opaque background, and a drop shadow, so it stays fixed at the top of the panel's own scroll regardless of how far down you go. Verified: the wrapper's on-screen position is pixel-identical before and after scrolling the panel 400px.
+
 ## [1.42.0] - 2026-08-02
 
 ### ✨ Trails: Smoothness, Style, and honest Hue shift/Saturation
