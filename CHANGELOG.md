@@ -2,6 +2,17 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.44.0] - 2026-08-02
+
+### ✨ Undo / Redo
+Fusion-style step back/forward — ↶/↷ at the front of the top toolbar, plus Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) from anywhere that isn't a text field.
+
+Reuses the same full-scene capture/restore pair that scene slots and transitions already use, so it's one proven serializer, not a second one. Any edit in the panel — a slider, a toggle, a color swap, a full slider drag (many rapid ticks collapse into one step, 500ms after you stop) — becomes a step; undoing past it snaps the whole scene back instantly, no animated transition.
+
+The tricky part turned out to be deciding what counts as "a change" at all: several scene fields are continuously-advancing animation phase rather than settings a user touched — per-beam rotation phase drifts every single frame by default, global rotation drifts whenever Global speed is on, and Drift motion/ring spin/wave-field phase drift whenever those are active. An early version compared snapshots for equality including those fields, which are essentially never equal a fraction of a second apart — so it looked fine on individual clicks but silently ate the redo branch moments after almost every undo, since a spurious "changed" snapshot got recorded from nothing but elapsed time. Fixed by excluding drifting fields from the *comparison* only — restoring a step still snaps them back faithfully, only the "did anything meaningful change" check ignores them now. Verified across discrete edits, coalesced drags, beam-count changes (rebuilds the per-beam UI correctly both ways), and multiple redo-then-new-edit branches, with the app's default per-beam rotation left running the whole time — the exact condition that exposed the bug.
+
+Not persisted across reloads — the history resets like most creative-tool undo stacks do, which is more predictable than a stale multi-day history silently reappearing.
+
 ## [1.43.0] - 2026-08-02
 
 ### 🩹 Long lists (Scenes especially) were silently cut off with no way to scroll to the rest

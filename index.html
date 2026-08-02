@@ -883,6 +883,11 @@
     background: var(--accent);
     color: #000;
   }
+  .toolbar-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    pointer-events: none;
+  }
 
   /* === Screensaver indicator === */
   .screensaver-indicator {
@@ -2081,6 +2086,8 @@
     <div class="panel-header">
       <h2>Voidulator</h2>
       <div class="header-buttons">
+        <button class="toolbar-btn" id="btnUndo" title="Undo (Ctrl+Z)" disabled>↶</button>
+        <button class="toolbar-btn" id="btnRedo" title="Redo (Ctrl+Shift+Z / Ctrl+Y)" disabled>↷</button>
         <button class="toolbar-btn" id="btnSettings" title="Settings">⚙️</button>
         <button class="toolbar-btn" id="btnTheme" title="Toggle Theme">🎨</button>
         <button class="toolbar-btn" id="btnFullscreen" title="Fullscreen (F)">⛶</button>
@@ -2994,7 +3001,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.43.0';
+  const APP_VERSION = 'v1.44.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -11076,10 +11083,110 @@ void main() {
   ['input', 'change', 'click'].forEach(evt => {
     document.addEventListener(evt, (e) => {
       // Only listen in the panel — ignore clicks on stage/modals
-      if (e.target.closest('.panel, .modal')) requestAutosave();
+      if (!e.target.closest('.panel, .modal')) return;
+      requestAutosave();
+      // Undo/Redo themselves are history NAVIGATION, not an edit -- excluded
+      // here so clicking them doesn't arm a new commit timer (restoreUndoState()
+      // already re-syncs autosave on its own). Without this, every undo/redo
+      // click would re-trigger requestUndoSnapshot() via this same delegated
+      // listener, and 500ms later re-evaluate "did anything change" -- which
+      // stripVolatile() below neutralizes for drifting fields but not for a
+      // genuine subsequent user edit made in that window, so it's cleaner to
+      // just not treat navigating history as an edit in the first place.
+      if (!e.target.closest('#btnUndo, #btnRedo')) requestUndoSnapshot();
     }, true);
   });
-  
+
+  // === UNDO / REDO ===
+  // A linear history of full-scene snapshots (captureScene()/applySceneInstant()
+  // -- the same capture/restore pair already used for scene-slot loading and
+  // transitions, so this reuses a proven, comprehensive serializer rather than
+  // inventing a second one). Snapshots are stored as JSON strings, not live
+  // objects: captureScene() returns several fields by direct reference
+  // (beamPalette, emittersNorm, ...), so storing its return value as-is would
+  // let a later in-place edit silently mutate an already-recorded history
+  // entry. `undoCursor` points at the entry matching the CURRENT live state;
+  // undo/redo move it and re-apply that entry.
+  const UNDO_MAX = 100;
+  let undoHistory = [];
+  let undoCursor = -1;
+  let undoRestoring = false; // true while we're applying a restore, so the delegated listener above doesn't record it as a new edit
+  let undoTimer = 0;
+  const btnUndo = _el('btnUndo'), btnRedo = _el('btnRedo');
+
+  function syncUndoRedoButtons() {
+    if (btnUndo) btnUndo.disabled = undoCursor <= 0;
+    if (btnRedo) btnRedo.disabled = undoCursor >= undoHistory.length - 1;
+  }
+
+  // Several captureScene() fields are continuously-advancing animation phase,
+  // not user-authored settings: per-beam rotation phase drifts every frame
+  // any beam has a nonzero speed (true by default), global angleDeg drifts
+  // whenever Global speed is nonzero, and Drift motion/ring spin/wave-field
+  // phase drift whenever those are active. Comparing two captureScene()
+  // snapshots byte-for-byte to decide "did anything change" would then
+  // ALWAYS say yes -- two snapshots taken even a frame apart already differ
+  // -- which defeats the point of the check (it exists specifically to
+  // avoid recording a new undo step when nothing the user did actually
+  // changed). Strip these before comparing; the STORED snapshot keeps the
+  // real values so restoring one is still faithful, only the equality check
+  // ignores them.
+  function stripVolatile(scene) {
+    const o = JSON.parse(JSON.stringify(scene));
+    delete o.angleDeg;
+    o.perBeamPhase = null;
+    if (o.trails) { delete o.trails.driftPX; delete o.trails.driftPY; delete o.trails.driftHeading; delete o.trails.driftPhase; delete o.trails.driftShapeRot; }
+    if (o.rings) delete o.rings.rot;
+    if (o.field) { delete o.field.rot; delete o.field.phase; delete o.field.pulsePhase; }
+    return o;
+  }
+
+  function pushUndoState() {
+    if (undoRestoring) return;
+    const scene = captureScene();
+    if (undoCursor >= 0 && JSON.stringify(stripVolatile(scene)) === JSON.stringify(stripVolatile(JSON.parse(undoHistory[undoCursor])))) return; // nothing MEANINGFUL changed
+    const snap = JSON.stringify(scene);
+    undoHistory = undoHistory.slice(0, undoCursor + 1); // discard the redo branch, if any
+    undoHistory.push(snap);
+    if (undoHistory.length > UNDO_MAX) undoHistory.shift();
+    undoCursor = undoHistory.length - 1;
+    syncUndoRedoButtons();
+  }
+
+  // Debounced like autosave, but on its own shorter timer: an entire slider
+  // drag (many rapid `input` events) should collapse into ONE undo step, not
+  // one per tick, but undo should still feel responsive right after you stop
+  // interacting rather than waiting for autosave's 2s.
+  function requestUndoSnapshot() {
+    if (undoRestoring) return;
+    if (undoTimer) clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => { undoTimer = 0; pushUndoState(); }, 500);
+  }
+
+  function restoreUndoState(idx) {
+    if (idx < 0 || idx >= undoHistory.length) return;
+    undoRestoring = true;
+    applySceneInstant(JSON.parse(undoHistory[idx])); // rebuilds geometry + syncs most of the panel itself
+    rebuildSegStrip(); // not covered by applySceneInstant's own rebuild/sync tail
+    syncSegmentsUI();
+    undoCursor = idx;
+    undoRestoring = false;
+    syncUndoRedoButtons();
+    requestAutosave();
+  }
+
+  function undo() { if (undoCursor > 0) restoreUndoState(undoCursor - 1); }
+  function redo() { if (undoCursor < undoHistory.length - 1) restoreUndoState(undoCursor + 1); }
+
+  _on(btnUndo, 'click', undo);
+  _on(btnRedo, 'click', redo);
+  document.addEventListener('keydown', (e) => {
+    if (isTypingInInput()) return;
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (e.key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+  });
+
   // === SHARE FUNCTIONALITY ===
   function generateShareUrl() {
     try {
@@ -13669,7 +13776,13 @@ void main() {
         applySceneInstant(STARTUP_PRESET);
       }
     }
-    
+
+    // Undo history starts here, once the actual starting state (URL/autosave/
+    // startup preset) has settled -- so the first Undo takes you back to
+    // exactly how the page looked on load, not to some earlier partial state.
+    pushUndoState();
+    syncUndoRedoButtons();
+
     // Seed scenes and slots from curated collection if none exist yet
     if (S.sceneSlots.every(s => s === null) && S.scenes.length === 0) {
       S.scenes = DEFAULT_SCENES_DB.scenes.map(s => ({ name: s.name, data: s.data }));
