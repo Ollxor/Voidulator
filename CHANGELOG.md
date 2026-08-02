@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.50.0] - 2026-08-03
+
+### 🩹 Two follow-ups to the rectangular stage: kaleidoscope squish, and a viewer mode that missed the memo
+v1.48 let the canvas become rectangular instead of a fixed square, but two spots downstream of that change still assumed square, and both broke in ways only visible once you actually looked with the shape non-square.
+
+Kaleidoscope's fold math converts each pixel to a radius and angle around the center and reconstructs the pattern from there — but it was doing that conversion in normalized 0–1 UV space, which is only geometrically square when the canvas itself is. On a wider-than-tall canvas, one UV unit sideways covers more real pixels than one UV unit vertically, so the "radius" the fold computed was quietly stretched — the whole pattern came out squished into an ellipse along the long axis. Fixed by converting to true pixel space before the fold and back to UV space after; on a square canvas the two conversions cancel out exactly, so nothing changes there. Verified by rendering the same kaleidoscope at a square, a wide, and a tall canvas and measuring the lit pattern's own bounding-box proportions each time — all three came back within a hair of perfectly round (aspect 0.99–1.0), where the old math would have tracked whatever shape the canvas itself was.
+
+Separately, the no-menu viewer mode (what scene links open straight into, and what F then U reaches manually) turned out to have its own square cap that v1.48 never touched — it lived in a more specific CSS rule fighting for the same property, so the base fix simply lost. That made it the one place still capping Trails' Zoom/Spin roam, which is exactly backwards, since it's the mode built specifically for just watching. Same fix as v1.48, applied to the rule that actually wins there. Verified the same way as v1.48's original check: with Trails, Zoom, and Spin running in that mode, pixels well outside the old square boundary came back lit.
+
 ## [1.49.0] - 2026-08-02
 
 ### 🩹 Old scenes were inheriting whatever the current session had on
