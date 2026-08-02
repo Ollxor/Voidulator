@@ -2,6 +2,13 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.47.0] - 2026-08-02
+
+### 🩹 Viewer links: fixed the F key, made fullscreen a real requirement
+v1.46's viewer links set the app's internal "fullscreen is on" state on load without ever actually requesting real browser fullscreen (can't — the API refuses without a click, and a page load never has one). That broke the F key: since it just flips that state, and it was already "on," pressing F the *first* time turned it back off and revealed the whole editor menu — the opposite of what viewer links are for.
+
+Turns out real fullscreen isn't skippable after all — it has to come from an actual click. The splash screen now leads with a **Fullscreen** button instead of the usual "click anywhere"; clicking it requests real fullscreen (a genuine gesture this time), and only once that's confirmed does a **Watch** button appear to reveal the animation. Denied or unsupported doesn't strand anyone — it still proceeds to Watch either way, same as before, just without the native fullscreen. The panel stays hidden throughout via CSS from the moment the link loads, so there's nothing to glimpse at any point in the sequence. U and F still work normally once you're watching.
+
 ## [1.46.0] - 2026-08-02
 
 ### ✨ Viewer links — share a scene as just the animation, no menu

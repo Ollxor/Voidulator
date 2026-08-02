@@ -1580,6 +1580,33 @@
     opacity: 0;
     animation: splashFadeIn 1s ease 2s forwards;
   }
+  /* Viewer-link flow only -- see the buttons' HTML comment. Hidden outside
+     body.viewer-mode; within it, Fullscreen shows first and Watch replaces
+     it once body.viewer-ready is added (enterViewerFullscreen() in the JS
+     section), and the normal click-anywhere hint is suppressed since
+     clicking anywhere doesn't do anything in this flow anymore. */
+  .splash-btn { display: none; }
+  body.viewer-mode .splash-hint { display: none; }
+  body.viewer-mode .splash-btn {
+    display: inline-block;
+    margin-top: 22px;
+    padding: 10px 26px;
+    background: transparent;
+    border: 1px solid #40d8a0;
+    color: #40d8a0;
+    font: 400 12px/1 'Consolas', 'Monaco', 'Courier New', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    animation: splashFadeIn 1s ease 1.4s forwards;
+    transition: background 0.2s, color 0.2s;
+  }
+  body.viewer-mode .splash-btn:hover { background: #40d8a0; color: #111318; }
+  body.viewer-mode #splashPlayBtn { display: none; }
+  body.viewer-mode.viewer-ready #splashFullscreenBtn { display: none; }
+  body.viewer-mode.viewer-ready #splashPlayBtn { display: inline-block; animation: splashFadeIn 0.6s ease forwards; }
   @keyframes splashFadeIn {
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
@@ -1970,6 +1997,11 @@
   <div class="splash-title">Voidulator</div>
   <div class="splash-credit">By Olle Bjerkås<br>2026</div>
   <div class="splash-hint">CLICK ANYWHERE TO ENTER</div>
+  <!-- Viewer-link-only flow (body.viewer-mode): fullscreen first, since it
+       needs a real click to succeed at all, then reveal Watch once it's
+       confirmed. Both stay display:none outside viewer mode. -->
+  <button type="button" class="splash-btn" id="splashFullscreenBtn" onclick="event.stopPropagation(); enterViewerFullscreen();">⛶ Fullscreen</button>
+  <button type="button" class="splash-btn" id="splashPlayBtn" onclick="event.stopPropagation(); window.dismissSplash();">▶ Watch</button>
 </div>
 
 <!-- Loading overlay -->
@@ -3025,7 +3057,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.46.0';
+  const APP_VERSION = 'v1.47.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -11464,16 +11496,51 @@ void main() {
   // === SPLASH SCREEN ===
   window.dismissSplash = function() {
     const splash = document.getElementById('splashOverlay');
-    if (splash && !splash.classList.contains('hidden')) {
-      splash.classList.add('hidden');
-      setTimeout(() => splash.remove(), 800);
-      // Show "drag the dot" hint on touch devices, once per browser
-      maybeShowTouchHint();
-    }
+    if (!splash || splash.classList.contains('hidden')) return;
+    // In viewer mode the splash only ever dismisses through the deliberate
+    // Fullscreen -> Watch flow (enterViewerFullscreen() below adds
+    // body.viewer-ready once fullscreen is confirmed, which is what reveals
+    // the Watch button that calls this). This guard is what stops the
+    // ordinary paths below -- click-anywhere (still wired unconditionally
+    // via the overlay's own onclick) and the 8s auto-dismiss timer -- from
+    // firing early and revealing the animation without real fullscreen ever
+    // having been requested.
+    if (document.body.classList.contains('viewer-mode') && !document.body.classList.contains('viewer-ready')) return;
+    splash.classList.add('hidden');
+    setTimeout(() => splash.remove(), 800);
+    // Show "drag the dot" hint on touch devices, once per browser
+    maybeShowTouchHint();
   };
-  // Auto-dismiss splash after 8 seconds if user hasn't clicked
+  // Auto-dismiss splash after 8 seconds if user hasn't clicked (no-ops in
+  // viewer mode until the Watch button has actually been reached -- see the
+  // guard above).
   setTimeout(window.dismissSplash, 8000);
-  
+
+  // Viewer-link flow, step 1: request real browser fullscreen (this is a
+  // genuine click, so unlike init()'s own attempt this one won't be silently
+  // refused for lacking a user gesture), then reveal the Watch button.
+  // Falls through to proceed() on failure/no-API/denial too -- degrading to
+  // the CSS-only hide-everything view rather than stranding the viewer with
+  // no way forward, since a lack of "real" fullscreen isn't worth blocking on.
+  window.enterViewerFullscreen = function() {
+    const proceed = () => {
+      isFullscreen = true;
+      uiHidden = true;
+      document.body.classList.add('fullscreen-mode', 'hide-ui', 'viewer-ready');
+    };
+    const el = document.documentElement;
+    const req = el.requestFullscreen ? () => el.requestFullscreen()
+      : el.webkitRequestFullscreen ? () => el.webkitRequestFullscreen()
+      : el.msRequestFullscreen ? () => el.msRequestFullscreen()
+      : null;
+    if (!req) { proceed(); return; }
+    try {
+      const p = req();
+      if (p && typeof p.then === 'function') p.then(proceed).catch(proceed);
+      else proceed(); // no promise returned (older WebKit) -- assume it went through
+    } catch (e) { proceed(); }
+  };
+
   function maybeShowTouchHint() {
     try {
       // Only on touch-capable viewports, and only if we haven't shown it before
@@ -13937,16 +14004,17 @@ void main() {
     hideLoadingSpinner();
 
     if (viewerMode) {
-      // Land straight on the animation: the same hide-everything state as
-      // pressing F then U, applied directly (skipping requestFullscreen() --
-      // it throws without a user gesture, which a page load never has; the
-      // CSS this drives doesn't need the real Fullscreen API, just the
-      // classes). No welcome/tutorial modal either, and the branding splash
-      // is dismissed immediately instead of waiting out its normal 8s timer.
-      isFullscreen = true;
-      uiHidden = true;
-      document.body.classList.add('fullscreen-mode', 'hide-ui');
-      if (window.dismissSplash) window.dismissSplash();
+      // Hide the panel via CSS immediately (belt-and-suspenders under the
+      // splash, which already covers everything) but do NOT set
+      // isFullscreen/uiHidden yet and do NOT dismiss the splash: real
+      // fullscreen has to come from an actual click, since
+      // requestFullscreen() throws without a user gesture and a page load
+      // never has one. body.viewer-mode swaps the splash's usual "click
+      // anywhere" hint for a Fullscreen button; enterViewerFullscreen()
+      // (wired to that button) requests fullscreen and only then reveals a
+      // Watch button that finally dismisses the splash — see that function
+      // and dismissSplash()'s guard. No welcome/tutorial modal either.
+      document.body.classList.add('fullscreen-mode', 'hide-ui', 'viewer-mode');
     } else {
       // Check for first visit (show welcome modal)
       checkFirstVisit();
