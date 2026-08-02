@@ -2,6 +2,21 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.41.0] - 2026-07-31
+
+### ✨ Drift motion is now a dot on an X/Y pad
+Reworked from v1.40's version, which only rotated the drift direction at a fixed distance from centre. The drift vector is now a **position on a normalised pad**, and the dot travels around it.
+
+Why the pad is the right model: with Zoom on, the feedback transform's fixed point — the tunnel's vanishing point — sits at `0.5 − drift/zoom`. So the drift vector *is* a position control for the tunnel. Moving the dot around the pad flies the tunnel around the screen.
+
+- **Orbit** — circles the pad edge at a fixed distance. Verified radius pinned at exactly 1.000 with a maximum 0.75° turn between frames.
+- **Wander** — now genuinely **roams the whole pad** instead of riding the rim: a steered particle with a smooth turn radius and slightly varying speed. Verified radius ranging 0.014→1.0 (mean 0.63) covering 62% of the pad, max 5.4° turn per frame (an arc, not a snap), step speed varying over a 2.4× range, and never escaping the pad.
+- **Shape** — new mode tracing a slowly rotating polygon, 2–12 sides. 2 is a straight sweep, 3 a triangle, 6 a hexagon. Verified geometrically: the traced radii match the polygon apothems exactly (hexagon 0.866 = cos 30°, triangle 0.5 = cos 60°, line passing through 0).
+
+Switching a mode on now picks up from wherever the manual drift vector already sits, so the tunnel doesn't jump across the screen.
+
+**On saving settings:** this already exists, two ways — the **Share** button builds a `?state=…` URL containing the whole scene, and **File Presets → Export** downloads it as JSON. No new feature needed.
+
 ## [1.40.0] - 2026-07-31
 
 ### ✨ Drift motion, and a Wander modulation source

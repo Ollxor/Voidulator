@@ -2585,11 +2585,18 @@
             <option value="off" data-i18n="driftOff">Off</option>
             <option value="orbit" data-i18n="driftOrbit">Orbit</option>
             <option value="wander" data-i18n="driftWander">Wander</option>
+            <option value="shape" data-i18n="driftShape">Shape</option>
           </select>
           <label class="clickable" id="lblDriftRate" data-reset="trailsDriftRate" data-i18n="driftRate">Motion rate</label>
           <input id="trailsDriftRate" type="range" min="0.01" max="1" step="0.01" value="0.15">
           <label class="clickable" id="lblDriftAmount" data-reset="trailsDriftAmount" data-i18n="driftAmount">Motion amount</label>
           <input id="trailsDriftAmount" type="range" min="0" max="0.02" step="0.0005" value="0.006">
+          <label id="lblDriftSides" data-i18n="driftSides">Shape sides</label>
+          <div class="stepper" id="driftSidesRow">
+            <button class="btn step-btn" id="driftSidesDown">&#9660;</button>
+            <span class="step-val" id="driftSidesVal">6</span>
+            <button class="btn step-btn" id="driftSidesUp">&#9650;</button>
+          </div>
           <label class="clickable" data-reset="trailsBeatEcho" data-i18n="trailBeatEcho">Beat echo</label>
           <input id="trailsBeatEcho" type="range" min="0" max="1" step="0.01" value="0">
           <label data-i18n="trailWallMode">Walls</label>
@@ -2950,7 +2957,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.40.0';
+  const APP_VERSION = 'v1.41.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -3028,6 +3035,9 @@
   const trailsDriftRateEl = _el('trailsDriftRate');
   const trailsDriftAmountEl = _el('trailsDriftAmount');
   const lblDriftXEl = _el('lblDriftX'), lblDriftYEl = _el('lblDriftY');
+  const driftSidesValEl = _el('driftSidesVal');
+  const driftSidesUpBtn = _el('driftSidesUp'), driftSidesDownBtn = _el('driftSidesDown');
+  const driftSidesRowEl = _el('driftSidesRow'), lblDriftSidesEl = _el('lblDriftSides');
   const wanderRateEl = _el('wanderRate'), wanderRateNumEl = _el('wanderRateNum');
   const trailsFilterBtn = _el('trailsFilter');
   const trailsCutoffEl = _el('trailsCutoff'), trailsCutoffNumEl = _el('trailsCutoffNum');
@@ -3244,13 +3254,19 @@
       // Keeping the magnitude fixed and moving only the angle is what reads
       // as a camera steering through the tunnel.
       //   'off'    — fbDriftX/Y are yours to set by hand
-      //   'orbit'  — direction turns at a steady rate
-      //   'wander' — direction random-walks (smooth noise), never repeating
+      //   'orbit'  — circles the pad edge at a steady rate
+      //   'wander' — roams the whole pad: a steered particle with a smooth
+      //              turn radius and slight speed variation
+      //   'shape'  — traces the perimeter of an N-gon, slowly rotating
       driftMode: 'off',
-      driftRate: 0.15,   // 0..1, how fast the direction turns / wanders
-      driftAmount: 0.006, // magnitude of the drift vector (UV/frame)
-      driftAngle: 0,     // runtime: current direction, degrees
-      driftPhase: 0,     // runtime: noise phase for 'wander'
+      driftRate: 0.15,    // 0..1, how fast the dot travels
+      driftAmount: 0.006, // pad radius in drift units (UV/frame)
+      driftSides: 6,      // 'shape' mode: polygon sides (2 = a line)
+      // Runtime: the dot's position on the pad, normalised to [-1,1].
+      driftPX: 1, driftPY: 0,
+      driftHeading: 0,   // radians, 'wander' travel direction
+      driftPhase: 0,     // noise phase
+      driftShapeRot: 0,  // 'shape' polygon rotation, radians
       // Wall handling: stops zoom/spin/drift feedback from smearing trail
       // content past the walls into the square canvas's corners (visible
       // once Kaleidoscope folds it back into the pattern, since kfold()
@@ -3519,31 +3535,86 @@
     return valueNoise1(t) * 0.65 + valueNoise1(t * 2.3 + 17.3) * 0.35;
   }
 
-  // Steers the trail drift vector — see S.trails.driftMode for why this is
-  // polar rather than per-axis. Writes fbDriftX/Y, so it must run before
-  // applyModulation() (see the call site in loopBody).
-  const DRIFT_ORBIT_DPS = 90;  // deg/sec at rate 1 — a full turn in 4s
-  const DRIFT_TURN_DPS  = 140; // deg/sec of *steering* at rate 1 for wander
+  // ---- Trail drift motion: a dot moving on a 2D pad ----
+  // The drift vector is treated as a POSITION on a normalised [-1,1] pad, and
+  // fbDriftX/Y are that position scaled by driftAmount. This is the useful
+  // mental model because of what drift actually does to the picture: the
+  // feedback transform's fixed point — the tunnel's vanishing point — sits at
+  // uv 0.5 - drift/fbZoom. So moving the dot around the pad moves the tunnel
+  // around the screen, and the pad is effectively a position control for it.
+  // (At fbZoom 0 there is no tunnel and drift is a plain translation.)
+  //
+  // Writes fbDriftX/Y, so it must run before applyModulation() — see the call
+  // site in loopBody.
+  const DRIFT_ORBIT_DPS  = 90;   // deg/sec at rate 1 — a full circle in 4s
+  const DRIFT_TURN_DPS   = 220;  // deg/sec of steering at rate 1 (turn radius)
+  const DRIFT_SPEED      = 0.55; // pad-units/sec at rate 1
+  const DRIFT_HOME_TURN  = 3.0;  // how hard the rim steers the dot back inward
+  const DRIFT_RIM        = 0.82; // radius at which that steering starts
+  const DRIFT_SHAPE_SPS  = 0.6;  // polygon edges traversed/sec at rate 1
+  const DRIFT_SHAPE_ROT  = 0.25; // polygon self-rotation, rad/sec at rate 1
+
   function updateTrailDrift(dtSec) {
     const T = S.trails;
-    if (!T || T.driftMode === 'off' || !T.driftMode) return;
+    if (!T || !T.driftMode || T.driftMode === 'off') return;
     const rate = clamp(T.driftRate ?? 0.15, 0, 1);
-    if (T.driftMode === 'wander') {
-      // The noise drives angular VELOCITY, not the angle itself. Driving the
-      // angle directly would only ever oscillate inside the noise's bounded
-      // range; steering lets the direction wander anywhere and gives the
-      // "holds a heading for a while, then eases into a new one" feel.
-      T.driftPhase = (T.driftPhase + rate * dtSec) % 100000;
-      const turn = (smoothNoise(T.driftPhase) * 2 - 1) * DRIFT_TURN_DPS * rate;
-      T.driftAngle += turn * dtSec;
-    } else { // orbit
-      T.driftAngle += DRIFT_ORBIT_DPS * rate * dtSec;
+    const dt = Math.min(dtSec, 0.1); // a tab-restore spike must not teleport the dot
+
+    if (T.driftMode === 'orbit') {
+      // Steady circle around the pad edge.
+      T.driftHeading += DRIFT_ORBIT_DPS * rate * dt * Math.PI / 180;
+      T.driftPX = Math.cos(T.driftHeading);
+      T.driftPY = Math.sin(T.driftHeading);
+
+    } else if (T.driftMode === 'shape') {
+      // Trace an N-gon's perimeter, interpolating along each edge, with the
+      // polygon slowly rotating so the figure never sits still. sides = 2
+      // degenerates to a line, which is a genuinely useful sweep.
+      const sides = Math.max(2, Math.round(T.driftSides ?? 6));
+      T.driftPhase += DRIFT_SHAPE_SPS * rate * dt;
+      T.driftShapeRot += DRIFT_SHAPE_ROT * rate * dt;
+      const u = ((T.driftPhase % sides) + sides) % sides;
+      const i = Math.floor(u), f = u - i;
+      const step = Math.PI * 2 / sides;
+      const a0 = i * step + T.driftShapeRot;
+      const a1 = (i + 1) * step + T.driftShapeRot;
+      T.driftPX = Math.cos(a0) + (Math.cos(a1) - Math.cos(a0)) * f;
+      T.driftPY = Math.sin(a0) + (Math.sin(a1) - Math.sin(a0)) * f;
+
+    } else { // 'wander' — a steered particle roaming the whole pad
+      T.driftPhase += rate * dt;
+      // Noise drives the TURN RATE, not the heading, which is what gives a
+      // smooth turn radius: the dot arcs into a new direction instead of
+      // snapping to one. Driving the heading directly would also confine it
+      // to the noise's bounded range rather than letting it go anywhere.
+      const turn = (smoothNoise(T.driftPhase) * 2 - 1) * DRIFT_TURN_DPS * rate * Math.PI / 180;
+      T.driftHeading += turn * dt;
+      // Slight speed variation from a separate, decorrelated noise stream, so
+      // it accelerates and coasts rather than gliding at one constant rate.
+      const spd = DRIFT_SPEED * rate * (0.55 + 0.9 * smoothNoise(T.driftPhase * 0.7 + 31.7));
+      // Containment: past the rim, ease the heading toward the centre. A
+      // gradual steer keeps the turn radius smooth — bouncing off the edge
+      // would put a hard corner in the path.
+      const r = Math.hypot(T.driftPX, T.driftPY);
+      if (r > DRIFT_RIM) {
+        const inward = Math.atan2(-T.driftPY, -T.driftPX);
+        let diff = inward - T.driftHeading;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const pull = clamp((r - DRIFT_RIM) / (1 - DRIFT_RIM), 0, 1);
+        T.driftHeading += diff * pull * DRIFT_HOME_TURN * dt;
+      }
+      T.driftPX += Math.cos(T.driftHeading) * spd * dt;
+      T.driftPY += Math.sin(T.driftHeading) * spd * dt;
+      // Backstop: the steering above should keep it in, but clamp so a huge
+      // dt or an extreme rate can never fling the dot off the pad.
+      const r2 = Math.hypot(T.driftPX, T.driftPY);
+      if (r2 > 1) { T.driftPX /= r2; T.driftPY /= r2; }
     }
-    T.driftAngle = ((T.driftAngle % 360) + 360) % 360;
-    const a = T.driftAngle * Math.PI / 180;
+
     const amt = clamp(T.driftAmount ?? 0, 0, 0.02);
-    T.fbDriftX = Math.cos(a) * amt;
-    T.fbDriftY = Math.sin(a) * amt;
+    T.fbDriftX = T.driftPX * amt;
+    T.fbDriftY = T.driftPY * amt;
   }
 
   // Logarithmic speed slider: first 50% = 0-0.02 (linear), last 50% = 0.02-2 (exponential)
@@ -3924,7 +3995,8 @@
         wallMode: S.trails.wallMode,
         driftMode: S.trails.driftMode,
         driftRate: S.trails.driftRate,
-        driftAmount: S.trails.driftAmount
+        driftAmount: S.trails.driftAmount,
+        driftSides: S.trails.driftSides
       },
       bloom: {
         enabled: S.bloom.enabled,
@@ -4127,6 +4199,7 @@
       S.trails.driftMode = scene.trails.driftMode ?? 'off';
       S.trails.driftRate = scene.trails.driftRate ?? 0.15;
       S.trails.driftAmount = scene.trails.driftAmount ?? 0.006;
+      S.trails.driftSides = scene.trails.driftSides ?? 6;
       S.trails.wallMode = readTrailWallMode(scene.trails);
     }
     if (scene.bloom) {
@@ -4439,6 +4512,7 @@
     S.trails.driftMode = (t > 0.5 ? toTrails : fromTrails).driftMode ?? 'off';
     S.trails.driftRate = lerp(fromTrails.driftRate ?? 0.15, toTrails.driftRate ?? 0.15, t);
     S.trails.driftAmount = lerp(fromTrails.driftAmount ?? 0.006, toTrails.driftAmount ?? 0.006, t);
+    S.trails.driftSides = Math.round(lerp(fromTrails.driftSides ?? 6, toTrails.driftSides ?? 6, t));
     S.trails.wallMode = readTrailWallMode(t > 0.5 ? toTrails : fromTrails);
 
     // Lerp widthWave (Shape)
@@ -8692,22 +8766,43 @@ void main() {
   // grey them out rather than leave them looking live (same treatment as the
   // Sensitivity slider under Auto gain).
   function syncDriftMotionUI() {
-    if (trailsDriftModeEl) trailsDriftModeEl.value = S.trails.driftMode ?? 'off';
+    const mode = S.trails.driftMode ?? 'off';
+    if (trailsDriftModeEl) trailsDriftModeEl.value = mode;
     if (trailsDriftRateEl) trailsDriftRateEl.value = S.trails.driftRate ?? 0.15;
     if (trailsDriftAmountEl) trailsDriftAmountEl.value = S.trails.driftAmount ?? 0.006;
-    const driven = (S.trails.driftMode ?? 'off') !== 'off';
+    if (driftSidesValEl) driftSidesValEl.textContent = S.trails.driftSides ?? 6;
+    const driven = mode !== 'off';
     if (trailsFbDriftXEl) trailsFbDriftXEl.classList.toggle('ctrl-disabled', driven);
     if (trailsFbDriftYEl) trailsFbDriftYEl.classList.toggle('ctrl-disabled', driven);
     if (lblDriftXEl) lblDriftXEl.classList.toggle('ctrl-disabled', driven);
     if (lblDriftYEl) lblDriftYEl.classList.toggle('ctrl-disabled', driven);
+    // Sides only means anything in Shape mode.
+    const shape = mode === 'shape';
+    if (driftSidesRowEl) driftSidesRowEl.classList.toggle('ctrl-disabled', !shape);
+    if (lblDriftSidesEl) lblDriftSidesEl.classList.toggle('ctrl-disabled', !shape);
   }
+  function setDriftSides(n) {
+    S.trails.driftSides = clamp(Math.round(n), 2, 12);
+    syncDriftMotionUI();
+  }
+  _on(driftSidesUpBtn, 'click', () => setDriftSides((S.trails.driftSides ?? 6) + 1));
+  _on(driftSidesDownBtn, 'click', () => setDriftSides((S.trails.driftSides ?? 6) - 1));
   _on(trailsDriftModeEl, 'change', () => {
     S.trails.driftMode = trailsDriftModeEl.value;
-    // Start steering from wherever the manual vector already points, so
-    // switching the mode on doesn't snap the image sideways.
+    // Start from wherever the manual vector already sits, so switching the
+    // mode on doesn't snap the tunnel across the screen.
     if (S.trails.driftMode !== 'off') {
-      const x = S.trails.fbDriftX || 0, y = S.trails.fbDriftY || 0;
-      if (x || y) S.trails.driftAngle = Math.atan2(y, x) * 180 / Math.PI;
+      const amt = clamp(S.trails.driftAmount ?? 0.006, 0.0001, 0.02);
+      const x = (S.trails.fbDriftX || 0) / amt, y = (S.trails.fbDriftY || 0) / amt;
+      const r = Math.hypot(x, y);
+      if (r > 0.0001) {
+        // Orbit rides the rim, so normalise onto it; the other modes can
+        // start anywhere inside the pad.
+        const k = (S.trails.driftMode === 'orbit' || r > 1) ? 1 / r : 1;
+        S.trails.driftPX = x * k;
+        S.trails.driftPY = y * k;
+        S.trails.driftHeading = Math.atan2(y, x);
+      }
     }
     syncDriftMotionUI();
   });
@@ -8786,7 +8881,7 @@ void main() {
       beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
       perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
-      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, wallMode: S.trails.wallMode, driftMode: S.trails.driftMode, driftRate: S.trails.driftRate, driftAmount: S.trails.driftAmount },
+      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, wallMode: S.trails.wallMode, driftMode: S.trails.driftMode, driftRate: S.trails.driftRate, driftAmount: S.trails.driftAmount, driftSides: S.trails.driftSides },
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
@@ -8851,6 +8946,7 @@ void main() {
       S.trails.driftMode = P.trails.driftMode ?? 'off';
       S.trails.driftRate = P.trails.driftRate ?? 0.15;
       S.trails.driftAmount = P.trails.driftAmount ?? 0.006;
+      S.trails.driftSides = P.trails.driftSides ?? 6;
       S.trails.wallMode = readTrailWallMode(P.trails);
     }
     if (P.widthWave) {
@@ -11614,6 +11710,8 @@ void main() {
       driftOff: 'Off',
       driftOrbit: 'Orbit',
       driftWander: 'Wander',
+      driftShape: 'Shape',
+      driftSides: 'Shape sides',
       driftRate: 'Motion rate',
       driftAmount: 'Motion amount',
       wanderRate: 'Wander rate',
@@ -11885,6 +11983,8 @@ void main() {
       driftOff: 'Apagado',
       driftOrbit: 'Órbita',
       driftWander: 'Errante',
+      driftShape: 'Figura',
+      driftSides: 'Lados de figura',
       driftRate: 'Velocidad mov.',
       driftAmount: 'Cantidad mov.',
       wanderRate: 'Velocidad errante',
@@ -12155,6 +12255,8 @@ void main() {
       driftOff: 'Desligado',
       driftOrbit: 'Órbita',
       driftWander: 'Errante',
+      driftShape: 'Figura',
+      driftSides: 'Lados da figura',
       driftRate: 'Velocidade mov.',
       driftAmount: 'Quantidade mov.',
       wanderRate: 'Velocidade errante',
@@ -12425,6 +12527,8 @@ void main() {
       driftOff: 'Désactivé',
       driftOrbit: 'Orbite',
       driftWander: 'Errance',
+      driftShape: 'Figure',
+      driftSides: 'Côtés de figure',
       driftRate: 'Vitesse mouv.',
       driftAmount: 'Ampleur mouv.',
       wanderRate: 'Vitesse errance',
@@ -13096,9 +13200,10 @@ void main() {
     trailDriftY: 'Feedback: shifts the fading trail up/down a little each frame — combine with Drift X for a diagonal wind. Needs Trails on and some Length.',
     trailBeatEcho: 'On each detected beat, briefly holds the trail near-frozen instead of continuously fading, so a rhythmic ghost stamps and then decays before the next beat. Needs Beat Detection on (and audio active) to do anything; decay pace follows Beat Detection\'s own Decay control.',
     trailWallMode: 'Off: Zoom/Spin/Drift feedback can smear trail content past the walls into the corners (visible once Kaleidoscope folds it back in). Clip: content outside the room just goes black. Reflect: it bounces off the nearest wall instead, like beams and the wave field — an approximation, most accurate on simple/convex room shapes.',
-    driftMotion: 'Steers the drift automatically. Drift X/Y are really one 2D "wind" vector, so this moves its DIRECTION and keeps the length fixed — the parallax stays at a steady speed instead of surging and stalling. Orbit turns steadily; Wander drifts to a new heading every so often and never repeats. Pairs with a little Zoom for the 3D tunnel look. Takes over Drift X/Y while on.',
-    driftRate: 'How fast the drift direction turns (Orbit) or how often it changes its mind (Wander). Low is cinematic; high gets frantic.',
-    driftAmount: 'How hard the drift pushes — the parallax speed. This is the length of the drift vector, held constant while the direction moves.',
+    driftMotion: 'Moves the drift automatically, as a dot travelling on an X/Y pad. With some Zoom on, drift shifts the tunnel\'s vanishing point, so this is really a way to fly the tunnel around the screen. Orbit circles the edge at a fixed distance; Wander roams the whole pad with a smooth turn radius and slightly varying speed; Shape traces a slowly rotating polygon. Takes over Drift X/Y while on.',
+    driftRate: 'How fast the dot travels. Low is cinematic drifting; high gets frantic.',
+    driftAmount: 'The pad\'s radius — how far from centre the dot can get, so how far across the screen the tunnel roams. 0 parks it dead centre.',
+    driftSides: 'Shape mode only: how many sides the traced polygon has. 2 is a straight sweep back and forth, 3 a triangle, 6 a hexagon. The polygon also rotates slowly, so the figure never sits still.',
     wanderRate: 'How fast the Wander source drifts to new values. Unlike the LFOs it is smooth randomness rather than a repeating cycle, so it never loops — good for Trail spin, zoom, hue or anything that feels too mechanical on an LFO.',
     phosphorWalls: 'Beams paint decaying glow onto the walls where they strike.',
     ringsTitle: 'Expanding circular wavefronts from their own emitters that fold and reflect off the walls.',
