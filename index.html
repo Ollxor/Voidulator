@@ -2576,10 +2576,20 @@
           <input id="trailsFbZoom" type="range" min="-0.05" max="0.05" step="0.001" value="0">
           <label class="clickable" data-reset="trailsFbSpin" data-i18n="trailSpin">Spin</label>
           <input id="trailsFbSpin" type="range" min="-3" max="3" step="0.05" value="0">
-          <label class="clickable" data-reset="trailsFbDriftX" data-i18n="trailDriftX">Drift X</label>
+          <label class="clickable" id="lblDriftX" data-reset="trailsFbDriftX" data-i18n="trailDriftX">Drift X</label>
           <input id="trailsFbDriftX" type="range" min="-0.02" max="0.02" step="0.0005" value="0">
-          <label class="clickable" data-reset="trailsFbDriftY" data-i18n="trailDriftY">Drift Y</label>
+          <label class="clickable" id="lblDriftY" data-reset="trailsFbDriftY" data-i18n="trailDriftY">Drift Y</label>
           <input id="trailsFbDriftY" type="range" min="-0.02" max="0.02" step="0.0005" value="0">
+          <label data-i18n="driftMotion">Drift motion</label>
+          <select id="trailsDriftMode">
+            <option value="off" data-i18n="driftOff">Off</option>
+            <option value="orbit" data-i18n="driftOrbit">Orbit</option>
+            <option value="wander" data-i18n="driftWander">Wander</option>
+          </select>
+          <label class="clickable" id="lblDriftRate" data-reset="trailsDriftRate" data-i18n="driftRate">Motion rate</label>
+          <input id="trailsDriftRate" type="range" min="0.01" max="1" step="0.01" value="0.15">
+          <label class="clickable" id="lblDriftAmount" data-reset="trailsDriftAmount" data-i18n="driftAmount">Motion amount</label>
+          <input id="trailsDriftAmount" type="range" min="0" max="0.02" step="0.0005" value="0.006">
           <label class="clickable" data-reset="trailsBeatEcho" data-i18n="trailBeatEcho">Beat echo</label>
           <input id="trailsBeatEcho" type="range" min="0" max="1" step="0.01" value="0">
           <label data-i18n="trailWallMode">Walls</label>
@@ -2788,8 +2798,13 @@
             <input id="lfoRate2" type="range" min="0.01" max="4" step="0.01" value="0.05">
             <input id="lfoRate2Num" type="number" min="0.01" max="4" step="0.01" value="0.05">
           </div>
+          <label class="clickable" data-reset="wanderRate" data-i18n="wanderRate">Wander rate</label>
+          <div class="ctrl-row">
+            <input id="wanderRate" type="range" min="0.01" max="2" step="0.01" value="0.15">
+            <input id="wanderRateNum" type="number" min="0.01" max="2" step="0.01" value="0.15">
+          </div>
         </div>
-        <div class="hint" data-i18n="hintMatrix">Routes sources to parameters. Amount is bipolar &mdash; negative inverts. Audio sources need mic listening; LFOs always run.</div>
+        <div class="hint" data-i18n="hintMatrix">Routes sources to parameters. Amount is bipolar &mdash; negative inverts. Audio sources need mic listening; LFOs and Wander always run. Wander is smooth randomness rather than a repeating cycle &mdash; good where an LFO feels too mechanical.</div>
       </div>
     </div>
 
@@ -2935,7 +2950,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.39.0';
+  const APP_VERSION = 'v1.40.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -3009,6 +3024,11 @@
   const trailsFbDriftYEl = _el('trailsFbDriftY');
   const trailsBeatEchoEl = _el('trailsBeatEcho');
   const trailsWallModeEl = _el('trailsWallMode');
+  const trailsDriftModeEl = _el('trailsDriftMode');
+  const trailsDriftRateEl = _el('trailsDriftRate');
+  const trailsDriftAmountEl = _el('trailsDriftAmount');
+  const lblDriftXEl = _el('lblDriftX'), lblDriftYEl = _el('lblDriftY');
+  const wanderRateEl = _el('wanderRate'), wanderRateNumEl = _el('wanderRateNum');
   const trailsFilterBtn = _el('trailsFilter');
   const trailsCutoffEl = _el('trailsCutoff'), trailsCutoffNumEl = _el('trailsCutoffNum');
   // Thickness pulse
@@ -3216,6 +3236,21 @@
       fbSpin: 0,        // per-frame rotation in degrees: spirals the trail (~±3)
       fbDriftX: 0,      // per-frame horizontal shift, UV/frame — "wind" pushing trails sideways (~±0.02)
       fbDriftY: 0,      // per-frame vertical shift, UV/frame (~±0.02)
+      // Drift motion: drives fbDriftX/Y as a POLAR vector (direction +
+      // magnitude) rather than two independent values. Drift is physically
+      // one 2D "wind" vector, and the tunnel/parallax look depends on which
+      // way it points; automating X and Y separately would let the magnitude
+      // wobble, so the parallax speed would randomly surge and stall.
+      // Keeping the magnitude fixed and moving only the angle is what reads
+      // as a camera steering through the tunnel.
+      //   'off'    — fbDriftX/Y are yours to set by hand
+      //   'orbit'  — direction turns at a steady rate
+      //   'wander' — direction random-walks (smooth noise), never repeating
+      driftMode: 'off',
+      driftRate: 0.15,   // 0..1, how fast the direction turns / wanders
+      driftAmount: 0.006, // magnitude of the drift vector (UV/frame)
+      driftAngle: 0,     // runtime: current direction, degrees
+      driftPhase: 0,     // runtime: noise phase for 'wander'
       // Wall handling: stops zoom/spin/drift feedback from smearing trail
       // content past the walls into the square canvas's corners (visible
       // once Kaleidoscope folds it back into the pattern, since kfold()
@@ -3380,6 +3415,10 @@
     // Free-running LFOs: modulation sources that need no audio input.
     // sync = 'off' (use rateN in Hz) or beats-per-cycle ('16' = 4 bars … '0.5' = 1/8)
     lfo: { rate1: 0.25, rate2: 0.05, p1: 0, p2: 0, sync1: 'off', sync2: 'off' },
+    // Wander: a modulation source like the LFOs, but smooth *random* motion
+    // instead of a sine, so it never repeats. rate = how fast it drifts
+    // (roughly: new direction every 1/rate seconds); t is the phase.
+    wander: { rate: 0.15, t: 0 },
     // Global tempo for BPM-synced LFOs (set numerically or by tap)
     bpm: 120,
     // Segment scroll accumulators — runtime only, never persisted. segScroll is
@@ -3457,7 +3496,56 @@
 
   // Utils
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  
+
+  // ---- Smooth randomness (value noise) ----
+  // Shared by the "Wander" modulation source and the Trails drift motion.
+  // An LFO is a pure sine, so it repeats identically forever and reads as
+  // mechanical; this instead interpolates smoothly between random targets, so
+  // it never loops. Two octaves, weighted to sum to exactly 1, keep the
+  // output in [0,1) while making the motion less obviously periodic than a
+  // single octave would be.
+  // Deterministic: the same phase always gives the same value, so nothing
+  // needs per-frame state beyond the advancing phase itself.
+  function hash01(n) {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+  function valueNoise1(t) {
+    const i = Math.floor(t), f = t - i;
+    const a = hash01(i), b = hash01(i + 1);
+    return a + (b - a) * (f * f * (3 - 2 * f)); // smoothstep between knots
+  }
+  function smoothNoise(t) {
+    return valueNoise1(t) * 0.65 + valueNoise1(t * 2.3 + 17.3) * 0.35;
+  }
+
+  // Steers the trail drift vector — see S.trails.driftMode for why this is
+  // polar rather than per-axis. Writes fbDriftX/Y, so it must run before
+  // applyModulation() (see the call site in loopBody).
+  const DRIFT_ORBIT_DPS = 90;  // deg/sec at rate 1 — a full turn in 4s
+  const DRIFT_TURN_DPS  = 140; // deg/sec of *steering* at rate 1 for wander
+  function updateTrailDrift(dtSec) {
+    const T = S.trails;
+    if (!T || T.driftMode === 'off' || !T.driftMode) return;
+    const rate = clamp(T.driftRate ?? 0.15, 0, 1);
+    if (T.driftMode === 'wander') {
+      // The noise drives angular VELOCITY, not the angle itself. Driving the
+      // angle directly would only ever oscillate inside the noise's bounded
+      // range; steering lets the direction wander anywhere and gives the
+      // "holds a heading for a while, then eases into a new one" feel.
+      T.driftPhase = (T.driftPhase + rate * dtSec) % 100000;
+      const turn = (smoothNoise(T.driftPhase) * 2 - 1) * DRIFT_TURN_DPS * rate;
+      T.driftAngle += turn * dtSec;
+    } else { // orbit
+      T.driftAngle += DRIFT_ORBIT_DPS * rate * dtSec;
+    }
+    T.driftAngle = ((T.driftAngle % 360) + 360) % 360;
+    const a = T.driftAngle * Math.PI / 180;
+    const amt = clamp(T.driftAmount ?? 0, 0, 0.02);
+    T.fbDriftX = Math.cos(a) * amt;
+    T.fbDriftY = Math.sin(a) * amt;
+  }
+
   // Logarithmic speed slider: first 50% = 0-0.02 (linear), last 50% = 0.02-2 (exponential)
   function sliderToSpeed(pos) {
     pos = clamp(pos, 0, 1);
@@ -3833,7 +3921,10 @@
         fbDriftX: S.trails.fbDriftX,
         fbDriftY: S.trails.fbDriftY,
         beatEcho: S.trails.beatEcho,
-        wallMode: S.trails.wallMode
+        wallMode: S.trails.wallMode,
+        driftMode: S.trails.driftMode,
+        driftRate: S.trails.driftRate,
+        driftAmount: S.trails.driftAmount
       },
       bloom: {
         enabled: S.bloom.enabled,
@@ -4033,6 +4124,9 @@
       S.trails.fbDriftX = scene.trails.fbDriftX ?? 0;
       S.trails.fbDriftY = scene.trails.fbDriftY ?? 0;
       S.trails.beatEcho = scene.trails.beatEcho ?? 0;
+      S.trails.driftMode = scene.trails.driftMode ?? 'off';
+      S.trails.driftRate = scene.trails.driftRate ?? 0.15;
+      S.trails.driftAmount = scene.trails.driftAmount ?? 0.006;
       S.trails.wallMode = readTrailWallMode(scene.trails);
     }
     if (scene.bloom) {
@@ -4196,6 +4290,7 @@
     if (trailsFbDriftYEl) trailsFbDriftYEl.value = S.trails.fbDriftY ?? 0;
     if (trailsBeatEchoEl) trailsBeatEchoEl.value = S.trails.beatEcho ?? 0;
     if (trailsWallModeEl) trailsWallModeEl.value = S.trails.wallMode ?? 'off';
+    if (typeof syncDriftMotionUI === 'function') syncDriftMotionUI();
     if (trailsFilterBtn) trailsFilterBtn.textContent = S.trails.filter === 'crisp' ? 'Crisp' : 'Smooth';
     if (trailsCutoffEl) trailsCutoffEl.value = trailsCutoffNumEl.value = S.trails.cutoff;
     // Shape (widthWave)
@@ -4339,6 +4434,11 @@
     S.trails.fbDriftX = lerp(fromTrails.fbDriftX ?? 0, toTrails.fbDriftX ?? 0, t);
     S.trails.fbDriftY = lerp(fromTrails.fbDriftY ?? 0, toTrails.fbDriftY ?? 0, t);
     S.trails.beatEcho = lerp(fromTrails.beatEcho ?? 0, toTrails.beatEcho ?? 0, t);
+    // Mode is an enum — snap at the midpoint like the other enum fields; the
+    // two numeric parts interpolate normally.
+    S.trails.driftMode = (t > 0.5 ? toTrails : fromTrails).driftMode ?? 'off';
+    S.trails.driftRate = lerp(fromTrails.driftRate ?? 0.15, toTrails.driftRate ?? 0.15, t);
+    S.trails.driftAmount = lerp(fromTrails.driftAmount ?? 0.006, toTrails.driftAmount ?? 0.006, t);
     S.trails.wallMode = readTrailWallMode(t > 0.5 ? toTrails : fromTrails);
 
     // Lerp widthWave (Shape)
@@ -8588,6 +8688,33 @@ void main() {
   _on(trailsFbDriftYEl, 'input', () => { S.trails.fbDriftY = parseFloat(trailsFbDriftYEl.value) || 0; });
   _on(trailsBeatEchoEl, 'input', () => { S.trails.beatEcho = clamp(parseFloat(trailsBeatEchoEl.value) || 0, 0, 1); });
   _on(trailsWallModeEl, 'change', () => { S.trails.wallMode = trailsWallModeEl.value; });
+  // While Drift motion drives the vector, the manual X/Y sliders are inert —
+  // grey them out rather than leave them looking live (same treatment as the
+  // Sensitivity slider under Auto gain).
+  function syncDriftMotionUI() {
+    if (trailsDriftModeEl) trailsDriftModeEl.value = S.trails.driftMode ?? 'off';
+    if (trailsDriftRateEl) trailsDriftRateEl.value = S.trails.driftRate ?? 0.15;
+    if (trailsDriftAmountEl) trailsDriftAmountEl.value = S.trails.driftAmount ?? 0.006;
+    const driven = (S.trails.driftMode ?? 'off') !== 'off';
+    if (trailsFbDriftXEl) trailsFbDriftXEl.classList.toggle('ctrl-disabled', driven);
+    if (trailsFbDriftYEl) trailsFbDriftYEl.classList.toggle('ctrl-disabled', driven);
+    if (lblDriftXEl) lblDriftXEl.classList.toggle('ctrl-disabled', driven);
+    if (lblDriftYEl) lblDriftYEl.classList.toggle('ctrl-disabled', driven);
+  }
+  _on(trailsDriftModeEl, 'change', () => {
+    S.trails.driftMode = trailsDriftModeEl.value;
+    // Start steering from wherever the manual vector already points, so
+    // switching the mode on doesn't snap the image sideways.
+    if (S.trails.driftMode !== 'off') {
+      const x = S.trails.fbDriftX || 0, y = S.trails.fbDriftY || 0;
+      if (x || y) S.trails.driftAngle = Math.atan2(y, x) * 180 / Math.PI;
+    }
+    syncDriftMotionUI();
+  });
+  _on(trailsDriftRateEl, 'input', () => { S.trails.driftRate = clamp(parseFloat(trailsDriftRateEl.value) || 0, 0, 1); });
+  _on(trailsDriftAmountEl, 'input', () => { S.trails.driftAmount = clamp(parseFloat(trailsDriftAmountEl.value) || 0, 0, 0.02); });
+  _on(wanderRateEl, 'input', () => { S.wander.rate = clamp(parseFloat(wanderRateEl.value) || 0.15, 0.01, 2); wanderRateNumEl.value = S.wander.rate; saveModConfig(); });
+  _on(wanderRateNumEl, 'input', () => { S.wander.rate = clamp(parseFloat(wanderRateNumEl.value) || 0.15, 0.01, 2); wanderRateEl.value = S.wander.rate; saveModConfig(); });
 
   // Blend mode handler
   _on(blendModeEl, 'change', () => {
@@ -8659,7 +8786,7 @@ void main() {
       beamPalette: S.beamPalette, emitterPalettes: S.emitterPalettes,
       perBeamSpeed: S.perBeamSpeed, perBeamPhase: S.perBeamPhase,
       speedPattern: S.speedPattern, patternBase: S.patternBase,
-      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, wallMode: S.trails.wallMode },
+      trails: { enabled: S.trails.enabled, length: S.trails.length, opacity: S.trails.opacity, hueShift: S.trails.hueShift, filter: S.trails.filter, cutoff: S.trails.cutoff, fbZoom: S.trails.fbZoom, fbSpin: S.trails.fbSpin, fbDriftX: S.trails.fbDriftX, fbDriftY: S.trails.fbDriftY, beatEcho: S.trails.beatEcho, wallMode: S.trails.wallMode, driftMode: S.trails.driftMode, driftRate: S.trails.driftRate, driftAmount: S.trails.driftAmount },
       widthWave: { enabled: S.widthWave.enabled, shape: S.widthWave.shape, freq: S.widthWave.freq, speed: S.widthWave.speed, duty: S.widthWave.duty, rotation: S.widthWave.rotation },
       motion: { mode: S.motion.mode, speed: S.motion.speed, range: S.motion.range, ratio: S.motion.ratio, phaseOffset: S.motion.phaseOffset },
       blendMode: S.blendMode,
@@ -8721,6 +8848,9 @@ void main() {
       S.trails.fbDriftX = P.trails.fbDriftX ?? 0;
       S.trails.fbDriftY = P.trails.fbDriftY ?? 0;
       S.trails.beatEcho = P.trails.beatEcho ?? 0;
+      S.trails.driftMode = P.trails.driftMode ?? 'off';
+      S.trails.driftRate = P.trails.driftRate ?? 0.15;
+      S.trails.driftAmount = P.trails.driftAmount ?? 0.006;
       S.trails.wallMode = readTrailWallMode(P.trails);
     }
     if (P.widthWave) {
@@ -9804,7 +9934,8 @@ void main() {
     high: 'Audio (highs)',
     beat: 'Beat envelope',
     lfo1: 'LFO 1',
-    lfo2: 'LFO 2'
+    lfo2: 'LFO 2',
+    wander: 'Wander (smooth random)'
   };
 
   // ---- Modulation Matrix ----
@@ -9823,7 +9954,8 @@ void main() {
       high: S.audio.bands.high,
       beat: S.beat.env,
       lfo1: 0.5 + 0.5 * Math.sin(S.lfo.p1),
-      lfo2: 0.5 + 0.5 * Math.sin(S.lfo.p2)
+      lfo2: 0.5 + 0.5 * Math.sin(S.lfo.p2),
+      wander: smoothNoise(S.wander.t)
     };
     const offsets = {};
     for (const r of S.modRoutes) {
@@ -9878,6 +10010,7 @@ void main() {
           autoGain: S.audio.autoGain
         },
         lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2, sync1: S.lfo.sync1, sync2: S.lfo.sync2 },
+        wanderRate: S.wander.rate,
         bpm: S.bpm
       }));
     } catch (e) { console.warn('Mod config save failed:', e); }
@@ -9915,6 +10048,7 @@ void main() {
         S.lfo.sync1 = cfg.lfo.sync1 ?? 'off';
         S.lfo.sync2 = cfg.lfo.sync2 ?? 'off';
       }
+      S.wander.rate = clamp(cfg.wanderRate ?? 0.15, 0.01, 2);
       S.bpm = cfg.bpm ?? 120;
     } catch (e) { console.warn('Mod config load failed:', e); }
   }
@@ -10410,6 +10544,14 @@ void main() {
     const lfoHz2 = S.lfo.sync2 !== 'off' ? S.bpm / 60 / parseFloat(S.lfo.sync2) : S.lfo.rate2;
     S.lfo.p1 = (S.lfo.p1 + Math.PI * 2 * lfoHz1 * dtSec) % (Math.PI * 2);
     S.lfo.p2 = (S.lfo.p2 + Math.PI * 2 * lfoHz2 * dtSec) % (Math.PI * 2);
+    // Wander phase. Not wrapped to a period — it is noise, not a cycle, so
+    // wrapping would make it repeat, which is the whole thing it avoids.
+    // Bounded anyway so it can't lose float precision in a long session.
+    S.wander.t = (S.wander.t + S.wander.rate * dtSec) % 100000;
+    // Trail drift motion writes fbDriftX/Y, and must run BEFORE
+    // applyModulation() so those become the base values that any matrix
+    // route then adds to (and that restoreModulation() puts back afterwards).
+    updateTrailDrift(dtSec);
     applyModulation();
 
     // Center motion (before WASD so WASD overrides when active)
@@ -11468,6 +11610,13 @@ void main() {
       trailWallOff: 'Off',
       trailWallClip: 'Clip',
       trailWallReflect: 'Reflect',
+      driftMotion: 'Drift motion',
+      driftOff: 'Off',
+      driftOrbit: 'Orbit',
+      driftWander: 'Wander',
+      driftRate: 'Motion rate',
+      driftAmount: 'Motion amount',
+      wanderRate: 'Wander rate',
       trailBrightness: 'Brightness',
       mirrorLabel: 'Mirror',
       emittersLabel: 'Emitters',
@@ -11666,7 +11815,7 @@ void main() {
       persistenceS: 'Persistence (s)',
       intensity: 'Intensity',
       widthPx: 'Width (px)',
-      hintMatrix: 'Routes sources to parameters. Amount is bipolar — negative inverts. Audio sources need mic listening; LFOs always run.',
+      hintMatrix: 'Routes sources to parameters. Amount is bipolar — negative inverts. Audio sources need mic listening; LFOs and Wander always run. Wander is smooth randomness rather than a repeating cycle — good where an LFO feels too mechanical.',
       hintBeat: 'Needs mic listening. Tracks a narrow kick band (40–120 Hz), so it locks onto the kick rather than the whole mix, and it ignores the Sensitivity slider above — retuning levels won\'t break it. Lower Sensitivity here = more beats; raise it if snares or hats trigger. The beat envelope is also a source in the Modulation Matrix.',
       hintMidi: 'Click Learn, then move a knob or fader on your controller to bind it.',
       hintRecord: 'Exports WebM at the chosen height; width follows the window aspect. Keep the tab visible while recording. 4K is GPU-heavy.',
@@ -11732,6 +11881,13 @@ void main() {
       trailWallOff: 'Apagado',
       trailWallClip: 'Recorte',
       trailWallReflect: 'Reflejo',
+      driftMotion: 'Movimiento de deriva',
+      driftOff: 'Apagado',
+      driftOrbit: 'Órbita',
+      driftWander: 'Errante',
+      driftRate: 'Velocidad mov.',
+      driftAmount: 'Cantidad mov.',
+      wanderRate: 'Velocidad errante',
       trailBrightness: 'Brillo',
       mirrorLabel: 'Espejo',
       emittersLabel: 'Emisores',
@@ -11929,7 +12085,7 @@ void main() {
       persistenceS: 'Persistencia (s)',
       intensity: 'Intensidad',
       widthPx: 'Ancho (px)',
-      hintMatrix: 'Conecta fuentes a parámetros. La cantidad es bipolar: negativo invierte. Las fuentes de audio requieren micrófono; los LFO siempre funcionan.',
+      hintMatrix: 'Conecta fuentes a parámetros. La cantidad es bipolar: negativo invierte. Las fuentes de audio requieren micrófono; los LFO y Errante siempre funcionan. Errante es aleatoriedad suave en vez de un ciclo repetido: útil cuando un LFO resulta demasiado mecánico.',
       hintBeat: 'Requiere micrófono. Sigue una banda estrecha de bombo (40–120 Hz), así se engancha al bombo y no a toda la mezcla, e ignora el deslizador de Sensibilidad de arriba: recalibrar niveles no lo romperá. Menos Sensibilidad aquí = más golpes; súbela si disparan las cajas o los charles. La envolvente de ritmo también es una fuente en la matriz de modulación.',
       hintMidi: 'Haz clic en Aprender y mueve un control de tu controlador para asignarlo.',
       hintRecord: 'Exporta WebM a la altura elegida; el ancho sigue la ventana. Mantén la pestaña visible al grabar. 4K exige mucha GPU.',
@@ -11995,6 +12151,13 @@ void main() {
       trailWallOff: 'Desligado',
       trailWallClip: 'Recorte',
       trailWallReflect: 'Reflexo',
+      driftMotion: 'Movimento de deriva',
+      driftOff: 'Desligado',
+      driftOrbit: 'Órbita',
+      driftWander: 'Errante',
+      driftRate: 'Velocidade mov.',
+      driftAmount: 'Quantidade mov.',
+      wanderRate: 'Velocidade errante',
       trailBrightness: 'Brilho',
       mirrorLabel: 'Espelho',
       emittersLabel: 'Emissores',
@@ -12192,7 +12355,7 @@ void main() {
       persistenceS: 'Persistência (s)',
       intensity: 'Intensidade',
       widthPx: 'Largura (px)',
-      hintMatrix: 'Liga fontes a parâmetros. A quantidade é bipolar — negativo inverte. Fontes de áudio precisam de microfone; os LFO funcionam sempre.',
+      hintMatrix: 'Liga fontes a parâmetros. A quantidade é bipolar — negativo inverte. Fontes de áudio precisam de microfone; os LFO e Errante funcionam sempre. Errante é aleatoriedade suave em vez de um ciclo repetido — útil quando um LFO parece demasiado mecânico.',
       hintBeat: 'Precisa de microfone. Segue uma banda estreita de bombo (40–120 Hz), por isso agarra-se ao bombo e não à mistura toda, e ignora o deslizador de Sensibilidade acima: recalibrar níveis não o vai partir. Menos Sensibilidade aqui = mais batidas; aumente-a se as tarolas ou os pratos dispararem. O envelope de batida também é uma fonte na matriz de modulação.',
       hintMidi: 'Clique em Aprender e mova um controle do seu controlador para vinculá-lo.',
       hintRecord: 'Exporta WebM na altura escolhida; a largura segue a janela. Mantenha a aba visível ao gravar. 4K exige muito da GPU.',
@@ -12258,6 +12421,13 @@ void main() {
       trailWallOff: 'Désactivé',
       trailWallClip: 'Découpe',
       trailWallReflect: 'Réflexion',
+      driftMotion: 'Mouvement de dérive',
+      driftOff: 'Désactivé',
+      driftOrbit: 'Orbite',
+      driftWander: 'Errance',
+      driftRate: 'Vitesse mouv.',
+      driftAmount: 'Ampleur mouv.',
+      wanderRate: 'Vitesse errance',
       trailBrightness: 'Luminosité',
       mirrorLabel: 'Miroir',
       emittersLabel: 'Émetteurs',
@@ -12455,7 +12625,7 @@ void main() {
       persistenceS: 'Persistance (s)',
       intensity: 'Intensité',
       widthPx: 'Largeur (px)',
-      hintMatrix: 'Relie des sources aux paramètres. La quantité est bipolaire — négatif inverse. Les sources audio nécessitent le micro ; les LFO tournent toujours.',
+      hintMatrix: 'Relie des sources aux paramètres. La quantité est bipolaire — négatif inverse. Les sources audio nécessitent le micro ; les LFO et Errance tournent toujours. Errance est un aléatoire doux plutôt que des cycles répétés — utile quand un LFO paraît trop mécanique.',
       hintBeat: 'Nécessite le micro. Suit une bande étroite de grosse caisse (40–120 Hz), donc il s\'accroche au kick et non à tout le mixage, et il ignore le curseur de Sensibilité ci-dessus : refaire les niveaux ne le cassera pas. Moins de Sensibilité ici = plus de battements ; augmentez-la si les caisses claires ou les charlestons déclenchent. L\'enveloppe de rythme est aussi une source dans la matrice de modulation.',
       hintMidi: 'Cliquez sur Apprendre puis bougez un bouton de votre contrôleur pour l\'assigner.',
       hintRecord: 'Exporte en WebM à la hauteur choisie ; la largeur suit la fenêtre. Gardez l\'onglet visible pendant l\'enregistrement. La 4K sollicite le GPU.',
@@ -12818,6 +12988,9 @@ void main() {
     trailsFbDriftX: () => FACTORY.trails.fbDriftX,
     trailsFbDriftY: () => FACTORY.trails.fbDriftY,
     trailsBeatEcho: () => FACTORY.trails.beatEcho,
+    trailsDriftRate: () => FACTORY.trails.driftRate,
+    trailsDriftAmount: () => FACTORY.trails.driftAmount,
+    wanderRate: () => 0.15,
     trailsCutoff: () => FACTORY.trails.cutoff,
     // Glow (bloom)
     bloomStrength: () => FACTORY.bloom.strength,
@@ -12923,6 +13096,10 @@ void main() {
     trailDriftY: 'Feedback: shifts the fading trail up/down a little each frame — combine with Drift X for a diagonal wind. Needs Trails on and some Length.',
     trailBeatEcho: 'On each detected beat, briefly holds the trail near-frozen instead of continuously fading, so a rhythmic ghost stamps and then decays before the next beat. Needs Beat Detection on (and audio active) to do anything; decay pace follows Beat Detection\'s own Decay control.',
     trailWallMode: 'Off: Zoom/Spin/Drift feedback can smear trail content past the walls into the corners (visible once Kaleidoscope folds it back in). Clip: content outside the room just goes black. Reflect: it bounces off the nearest wall instead, like beams and the wave field — an approximation, most accurate on simple/convex room shapes.',
+    driftMotion: 'Steers the drift automatically. Drift X/Y are really one 2D "wind" vector, so this moves its DIRECTION and keeps the length fixed — the parallax stays at a steady speed instead of surging and stalling. Orbit turns steadily; Wander drifts to a new heading every so often and never repeats. Pairs with a little Zoom for the 3D tunnel look. Takes over Drift X/Y while on.',
+    driftRate: 'How fast the drift direction turns (Orbit) or how often it changes its mind (Wander). Low is cinematic; high gets frantic.',
+    driftAmount: 'How hard the drift pushes — the parallax speed. This is the length of the drift vector, held constant while the direction moves.',
+    wanderRate: 'How fast the Wander source drifts to new values. Unlike the LFOs it is smooth randomness rather than a repeating cycle, so it never loops — good for Trail spin, zoom, hue or anything that feels too mechanical on an LFO.',
     phosphorWalls: 'Beams paint decaying glow onto the walls where they strike.',
     ringsTitle: 'Expanding circular wavefronts from their own emitters that fold and reflect off the walls.',
     autoSpawn: 'Off = rings appear only when you press Activate. On = a randomized scheduler keeps spawning them.',
@@ -13178,6 +13355,7 @@ void main() {
     syncAutoGainUI();
     lfoRate1El.value = lfoRate1NumEl.value = S.lfo.rate1;
     lfoRate2El.value = lfoRate2NumEl.value = S.lfo.rate2;
+    if (wanderRateEl) wanderRateEl.value = wanderRateNumEl.value = S.wander.rate;
     lfoSync1El.value = S.lfo.sync1;
     lfoSync2El.value = S.lfo.sync2;
     bpmNumEl.value = S.bpm;

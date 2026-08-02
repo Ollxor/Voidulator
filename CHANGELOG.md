@@ -2,6 +2,25 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.40.0] - 2026-07-31
+
+### ✨ Drift motion, and a Wander modulation source
+Automating trail drift to get that 3D-tunnel steering, without having to wire it up in the matrix every time.
+
+**Trails → Drift motion** (`Off` / `Orbit` / `Wander`, plus Motion rate and Motion amount). The insight that shaped this: Drift X and Y aren't two independent parameters, they're **one 2D "wind" vector**, and the parallax look depends on which way it points. Automating the two axes separately would let the vector's *length* wobble, so the parallax would randomly surge and stall. So this drives the vector in polar form — it moves the **direction** and holds the **magnitude** fixed, which is what reads as a camera steering through the tunnel.
+
+- **Orbit** turns the direction at a steady rate. Verified: sweeps 179.3° in 4 s at rate 0.5 (expected 180°), with magnitude constant to the last decimal.
+- **Wander** random-walks the direction using smooth value noise, so it holds a heading for a while then eases into a new one — and never repeats. Verified: 7 direction reversals in 30 s, magnitude still exactly constant.
+- Switching a mode on picks up from wherever your manual drift vector already points, so the image doesn't snap sideways.
+- While active it takes over Drift X/Y, which grey out rather than sitting there looking live but inert (same treatment as the Auto gain toggle).
+- With mode `Off`, manual Drift X/Y behave exactly as before — verified untouched.
+
+**Modulation Matrix → "Wander (smooth random)" source**, alongside LFO 1/2, with its own rate. Both LFOs are pure sines, so they loop identically forever and read as mechanical; Wander is smooth randomness that never repeats. This is the piece to route to **Trail spin** (a scalar, so per-slider automation genuinely suits it), or to zoom, hue, beam width, anything.
+
+Measured on the generator: stays inside 0–1, largest frame-to-frame change 0.013 (smooth, no visible stepping), changes direction roughly every 1.2 s at rate 0.5, and the closest any later 60-second window comes to matching the first is 0.178 — nowhere near the 0 that would mean it loops.
+
+Drift motion runs *before* the modulation matrix each frame, so it sets the base value and any matrix route stacks on top rather than fighting it — verified by instrumenting the parameter setter (drift X range widened from 0.00506 to 0.01906 with a route added). Worth recording for future testing: modulation is non-destructive, so reading state after a frame shows the *restored* base, not what was rendered; you have to capture during the frame.
+
 ## [1.39.0] - 2026-07-31
 
 ### ✨ Per-band meters, Auto gain, and audio settings that actually persist
