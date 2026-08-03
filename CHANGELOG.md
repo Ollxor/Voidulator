@@ -2,6 +2,20 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.51.0] - 2026-08-03
+
+### ✨ Overlap only moved into Bonus
+Relocated from the main Physics controls into the Bonus section with the rest of the emitter-arrangement extras — it's a niche rendering mode, not something that needs top-level real estate.
+
+### 🩹 Viewer links no longer show the emitter dot
+Sharing a scene link (see v1.46) is meant to be "just watch," but the draggable emitter marker — an editing affordance — still showed up if you happened to have it visible when you copied the link. It isn't part of a saved scene's own data, so nothing ever reset it back off. Now forced off unconditionally the moment a viewer link loads, regardless of what its author had showing.
+
+### 🩹 F/U/N shortcuts stopped working after touching any slider
+The keyboard handler blocked its shortcuts for *any* focused `<input>`, which was meant to stop "f" from getting typed into a text field — but it just as happily caught range sliders, which don't accept typed text at all. Since almost every control in the menu is a slider, dragging one and then pressing F did nothing until you clicked back onto the canvas first to clear focus. Switched to the same typing-detection helper already used elsewhere (undo/redo, WASD) that only excludes actual text/number fields, so the shortcuts now fire straight out of the menu.
+
+### 🩹 Mobile's tap-to-see-a-description tooltip stopped clearing
+That tooltip has always been the desktop hover-help popup underneath — mobile just gets it for free, since a tap fires a synthetic hover event for compatibility. But there's no touch equivalent of "mouse left the area" to hide it again afterward, so it sat there until the next tap happened to land elsewhere. Now clears on the first scroll, which is the natural "done reading, moving on" moment on a phone.
+
 ## [1.50.0] - 2026-08-03
 
 ### 🩹 Two follow-ups to the rectangular stage: kaleidoscope squish, and a viewer mode that missed the memo

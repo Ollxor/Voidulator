@@ -2206,18 +2206,6 @@
         </select>
       </div>
 
-      <div class="row advanced-only" data-emit="beamring"><label data-i18n="overlapOnly">Overlap only</label>
-        <button class="btn" id="overlapToggle">Off</button>
-      </div>
-
-      <div class="row advanced-only" data-emit="beamring"><label data-i18n="overlapMinCount">Min overlap</label>
-        <div class="stepper">
-          <button class="btn step-btn" id="overlapMinDown">&#9660;</button>
-          <span class="step-val" id="overlapMinVal">2</span>
-          <button class="btn step-btn" id="overlapMinUp">&#9650;</button>
-        </div>
-      </div>
-
       <div class="row" data-emit="beam"><label data-i18n="beamCount">Beam count</label>
         <div class="stepper">
           <button class="btn step-btn" id="beamCountDown">▼</button>
@@ -3063,6 +3051,16 @@
             <option value="720">Fast</option>
             <option value="1440">Ultra fast</option>
           </select>
+
+          <label data-i18n="overlapOnly" data-emit="beamring">Overlap only</label>
+          <button class="btn" id="overlapToggle" data-emit="beamring">Off</button>
+
+          <label data-i18n="overlapMinCount" data-emit="beamring">Min overlap</label>
+          <div class="stepper" data-emit="beamring">
+            <button class="btn step-btn" id="overlapMinDown">&#9660;</button>
+            <span class="step-val" id="overlapMinVal">2</span>
+            <button class="btn step-btn" id="overlapMinUp">&#9650;</button>
+          </div>
         </div>
       </div>
     </div>
@@ -3075,7 +3073,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.50.0';
+  const APP_VERSION = 'v1.51.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -11120,9 +11118,14 @@ void main() {
 
   // === KEYBOARD SHORTCUTS ===
   document.addEventListener('keydown', (e) => {
-    // Don't trigger if typing in input
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    
+    // Was `e.target.tagName === 'INPUT'`, which also caught range sliders --
+    // meaning F/U/N stopped working the instant you dragged any slider in
+    // the menu, until you clicked back onto the canvas to shift focus off
+    // it. isTypingInInput() (used by the WASD handler above) only excludes
+    // fields typing would actually land in -- text/number inputs, textareas,
+    // contenteditable -- so sliders/buttons/selects no longer trap focus.
+    if (isTypingInInput()) return;
+
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
       toggleFullscreen();
@@ -11366,6 +11369,12 @@ void main() {
       const scene = JSON.parse(json);
       applySceneInstant(scene);
       viewerMode = true;
+      // Emitter dot(s) are an editing affordance (drag to move the source) --
+      // not part of captureScene()'s output, so applySceneInstant() leaves
+      // S.showEmitter untouched at whatever it was (true by default). A
+      // viewer link is "just watch," so force it off regardless of what the
+      // scene's author happened to have showing when they copied the link.
+      S.showEmitter = false;
       // Deliberately NOT clearing the URL here (unlike loadFromUrl above):
       // a viewer link is meant to be a stable, reloadable/bookmarkable
       // pointer at one scene, not a one-shot state transfer.
@@ -13773,6 +13782,13 @@ void main() {
       if (t) showTip(t, e.clientX, e.clientY); else hideTip();
     });
     panel.addEventListener('mouseleave', hideTip);
+    // Mobile has no hover, but a tap still fires a synthetic mousemove (for
+    // hover-emulation compatibility), so tapping a label shows its tip the
+    // same way. There's no touch equivalent of mouseleave to clear it,
+    // though, so it stayed stuck on screen until the next tap re-triggered
+    // this same mousemove path. Scrolling is the natural "done reading,
+    // moving on" signal on mobile — dismiss on the first scroll tick.
+    panel.addEventListener('scroll', hideTip, { passive: true });
   }
 
   // Eccentricity only matters for the ellipse — hide its row otherwise
