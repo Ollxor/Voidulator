@@ -2,6 +2,14 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.52.0] - 2026-08-03
+
+### 🩹 Wave field: beam-mode emitter dots no longer show alongside it
+The orange beam-mode emitter dots were still drawn on top of Wave field's own magenta ones — leftover controls for a mode that wasn't even rendering, since beams and Field are mutually exclusive. Now hidden whenever Field is active, same as they already are in Generative.
+
+### ✨ Wave field: Upright now toggles instead of only ever landing one way
+A 2-emitter pair could only ever be arranged vertically — pressing Upright again did nothing new. It's now a genuine toggle: a second press (with no drag in between) flips to a second, distinct orientation — horizontal for a pair, point-down for a triangle or pentagon, the next 60° position for a hexagon. Any other state, including a manual drag, still snaps back to the plain upright first.
+
 ## [1.51.0] - 2026-08-03
 
 ### ✨ Overlap only moved into Bonus

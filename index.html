@@ -3073,7 +3073,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.51.0';
+  const APP_VERSION = 'v1.52.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -6763,16 +6763,36 @@ void main() {
     const rc = roomCenter(), c = centroid(px);
     for (let i = 0; i < px.length; i++) writeNormFromPx(emittersNorm, i, { x: px[i].x + rc.x - c.x, y: px[i].y + rc.y - c.y });
   }
-  // Rotate the formation so the anchor dot points straight up from centre
+  // Rotate the formation so the anchor dot points straight up from centre.
+  // A regular n-gon formation looks identical under any multiple of its own
+  // 360/n rotation, so "upright" only has ONE distinct look for most counts
+  // -- except a rotation that ISN'T a multiple of 360/n does look genuinely
+  // different, and pressing the button again to reach that second look is
+  // useful (a pair flipped from vertical to horizontal; a triangle/pentagon
+  // flipped point-up to point-down). Toggle amount per count, degrees;
+  // absent counts (1, or anything past 6) just stay at the single upright.
+  const UPRIGHT_TOGGLE_DEG = { 2: 90, 3: 180, 4: 90, 5: 180, 6: 60 };
+  function angleDelta(a, b) {
+    let d = Math.abs(a - b) % (Math.PI * 2);
+    return d > Math.PI ? Math.PI * 2 - d : d;
+  }
   function uprightFormation(emittersNorm, anchorIdx) {
     const n = emittersNorm.length;
     const px = normToRoomPx(emittersNorm);
     const c = roomCenter();
-    const anchor = px[anchorIdx < n ? anchorIdx : 0] || { x: c.x, y: c.y - 50 };
+    const idx = anchorIdx < n ? anchorIdx : 0;
+    const anchor = px[idx] || { x: c.x, y: c.y - 50 };
     let radius = Math.hypot(anchor.x - c.x, anchor.y - c.y);
     if (radius < 20) radius = defaultFormationRadius();
+    const baseAngle = -Math.PI / 2;
+    const curAngle = Math.atan2(anchor.y - c.y, anchor.x - c.x);
+    const stepDeg = UPRIGHT_TOGGLE_DEG[n] || 0;
+    // Already sitting at the base upright angle (e.g. a second press with no
+    // drag in between) -- jump to the alternate look instead of no-op'ing.
+    const atBase = angleDelta(curAngle, baseAngle) < 0.02;
+    const targetAngle = atBase ? baseAngle + stepDeg * Math.PI / 180 : baseAngle;
     for (let i = 0; i < n; i++) {
-      const ang = -Math.PI / 2 + i * 2 * Math.PI / Math.max(1, n);
+      const ang = targetAngle + i * 2 * Math.PI / Math.max(1, n);
       writeNormFromPx(emittersNorm, i, { x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
     }
   }
@@ -8583,8 +8603,13 @@ void main() {
     }
 
     // Emitters (only if visible; hidden entirely in Generative mode, where
-    // the emitter dots have no meaning — the fullscreen shader ignores them)
-    if (S.showEmitter && !S.generative.enabled) {
+    // the emitter dots have no meaning — the fullscreen shader ignores them.
+    // Also hidden in Wave field mode: these are the beam-mode emitters —
+    // S.emitters, a completely separate array from S.field.emittersNorm —
+    // and beams aren't even rendering while Field is active, so showing
+    // their dots alongside the field's own magenta ones was just confusing
+    // leftover controls for a different mode.)
+    if (S.showEmitter && !S.generative.enabled && !S.field.enabled) {
       overlayHasContent = true;
       for (const e of S.emitters) {
         octx.fillStyle = '#ff9f1c';
