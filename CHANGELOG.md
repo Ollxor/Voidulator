@@ -2,6 +2,14 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.53.0] - 2026-08-03
+
+### ✨ Wave field: Radial pulse — emitters can now breathe in and out
+A new motion to go with Spin: each emitter moves along its own line from the room's centre instead of around it, following Sine (smooth ease at both ends), Triangle (constant speed, sharp turnaround), or Square (snaps between the two ends and dwells at each — Pulse duty sets how the dwell time splits). Pulse rate sets how fast it cycles, Pulse depth sets how close to the centre it reaches. Spin and Radial pulse are independent — angle from one, radius from the other — so running both together traces a breathing spiral for free.
+
+### 🩹 Wave field settings had a scene-loading gap Kaleidoscope's fix (v1.49) missed
+Same root cause, same symptom: an old scene missing a setting Wave field gained later would inherit whatever was currently live instead of resetting to default. It slipped through v1.49's sweep because Wave field's loader used a shallow merge over live state rather than the `if (scene.X) {...}` guard that sweep was looking for — same bug, different shape. Fixed the same way: every field now falls back to its own default independently.
+
 ## [1.52.0] - 2026-08-03
 
 ### 🩹 Wave field: beam-mode emitter dots no longer show alongside it

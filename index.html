@@ -2579,6 +2579,28 @@
             <input id="fieldSpin" type="range" min="-180" max="180" step="1" value="0">
             <input id="fieldSpinNum" type="number" min="-180" max="180" step="1" value="0">
           </div>
+          <label data-i18n="fieldRadialMode">Radial pulse</label>
+          <select id="fieldRadialMode">
+            <option value="off" selected data-i18n="off">Off</option>
+            <option value="sine" data-i18n="sine">Sine</option>
+            <option value="triangle" data-i18n="triangle">Triangle</option>
+            <option value="square" data-i18n="square">Square</option>
+          </select>
+          <label class="clickable" data-reset="fieldRadialRate" data-i18n="fieldRadialRate">Pulse rate</label>
+          <div class="ctrl-row">
+            <input id="fieldRadialRate" type="range" min="0.02" max="2" step="0.02" value="0.2">
+            <input id="fieldRadialRateNum" type="number" min="0.02" max="2" step="0.02" value="0.2">
+          </div>
+          <label class="clickable" data-reset="fieldRadialDepth" data-i18n="fieldRadialDepth">Pulse depth</label>
+          <div class="ctrl-row">
+            <input id="fieldRadialDepth" type="range" min="0" max="1" step="0.01" value="1">
+            <input id="fieldRadialDepthNum" type="number" min="0" max="1" step="0.01" value="1">
+          </div>
+          <label id="lblFieldRadialDuty" class="clickable" data-reset="fieldRadialDuty" data-i18n="fieldRadialDuty">Pulse duty</label>
+          <div class="ctrl-row" id="fieldRadialDutyRow">
+            <input id="fieldRadialDuty" type="range" min="0.05" max="0.95" step="0.01" value="0.5">
+            <input id="fieldRadialDutyNum" type="number" min="0.05" max="0.95" step="0.01" value="0.5">
+          </div>
           <label class="clickable" data-reset="fieldFreq" data-i18n="fieldFreq">Frequency</label>
           <div class="ctrl-row">
             <input id="fieldFreq" type="range" min="0.05" max="4" step="0.05" value="0.6">
@@ -3073,7 +3095,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.52.0';
+  const APP_VERSION = 'v1.53.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -3469,7 +3491,15 @@
       emittersNorm: [{ nx: 0.5, ny: 0.5 }],
       geometric: true,
       rot: 0,           // cluster rotation tracker (deg) for the slider
-      spin: 0           // auto cluster rotation (deg/s)
+      spin: 0,          // auto cluster rotation (deg/s)
+      // Radial pulse: moves each emitter in/out along its own current angle
+      // from spin, an orthogonal polar component -- combines into a
+      // breathing spiral for free, no interaction needed between the two.
+      radialMode: 'off',   // off | sine | triangle | square
+      radialRate: 0.2,     // cycles per second
+      radialDepth: 1,      // 0..1, how far toward centre the pulse reaches (1 = all the way in)
+      radialDuty: 0.5,     // 0..1, square only: fraction of the cycle spent at the outer edge
+      radialPhase: 0        // runtime cycle-phase accumulator, 0..1, wraps
     },
     // Generative: a fifth emission mode, a curated gallery of original
     // fullscreen shaders (no room/emitter geometry involved) — mutually
@@ -4404,14 +4434,39 @@
       // does below (rendering is fully gated on enabled either way).
       S.rings.enabled = false;
     }
-    if (scene.field) {
-      S.field = Object.assign({}, S.field, scene.field);
-      S.field.phase = 0;
-      S.field.rot = S.field.rot ?? 0; S.field.spin = S.field.spin ?? 0;
-      if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }];
-    } else {
-      S.field.enabled = false;
-    }
+    // v1.53 fix: was `if (scene.field) { S.field = Object.assign({}, S.field, scene.field); ... }`
+    // -- a shallow merge over the CURRENT live S.field, so any key an older
+    // scene didn't have (including everything added after that scene was
+    // saved) kept whatever was already live instead of falling back to a
+    // default. Same bug class as v1.49's fix, just missed for field back
+    // then. Per-field ?? default now, like every other block.
+    S.field.enabled = scene.field?.enabled ?? false;
+    S.field.speed = scene.field?.speed ?? 0.45;
+    S.field.damping = scene.field?.damping ?? 0.02;
+    S.field.freq = scene.field?.freq ?? 0.6;
+    S.field.amp = scene.field?.amp ?? 0.4;
+    S.field.substeps = scene.field?.substeps ?? 2;
+    S.field.res = scene.field?.res ?? 320;
+    S.field.gain = scene.field?.gain ?? 2.5;
+    S.field.colorMode = scene.field?.colorMode ?? 'spectral';
+    S.field.fog = scene.field?.fog ?? 0;
+    S.field.boundary = scene.field?.boundary ?? 'reflect';
+    S.field.continuous = scene.field?.continuous ?? true;
+    S.field.waveform = scene.field?.waveform ?? 'continuous';
+    S.field.pulseRate = scene.field?.pulseRate ?? 1.2;
+    S.field.pulseWidth = scene.field?.pulseWidth ?? 0.16;
+    S.field.pulsePhase = 0;
+    S.field.phase = 0;
+    S.field.emittersNorm = (Array.isArray(scene.field?.emittersNorm) && scene.field.emittersNorm.length)
+      ? JSON.parse(JSON.stringify(scene.field.emittersNorm)) : [{ nx: 0.5, ny: 0.5 }];
+    S.field.geometric = scene.field?.geometric ?? true;
+    S.field.rot = scene.field?.rot ?? 0;
+    S.field.spin = scene.field?.spin ?? 0;
+    S.field.radialMode = scene.field?.radialMode ?? 'off';
+    S.field.radialRate = scene.field?.radialRate ?? 0.2;
+    S.field.radialDepth = scene.field?.radialDepth ?? 1;
+    S.field.radialDuty = scene.field?.radialDuty ?? 0.5;
+    S.field.radialPhase = 0;
 
     // Shape (widthWave)
     S.widthWave.enabled = scene.widthWave?.enabled ?? false;
@@ -9315,8 +9370,34 @@ void main() {
     } else {
       S.rings.enabled = false;
     }
-    if (P.field) { S.field = Object.assign({}, S.field, P.field); S.field.phase = 0; S.field.rot = S.field.rot ?? 0; S.field.spin = S.field.spin ?? 0; if (!Array.isArray(S.field.emittersNorm) || !S.field.emittersNorm.length) S.field.emittersNorm = [{ nx: 0.5, ny: 0.5 }]; }
-    else S.field.enabled = false;
+    // v1.53 fix: same shallow-merge leak as applySceneInstant's field block -- see its comment.
+    S.field.enabled = P.field?.enabled ?? false;
+    S.field.speed = P.field?.speed ?? 0.45;
+    S.field.damping = P.field?.damping ?? 0.02;
+    S.field.freq = P.field?.freq ?? 0.6;
+    S.field.amp = P.field?.amp ?? 0.4;
+    S.field.substeps = P.field?.substeps ?? 2;
+    S.field.res = P.field?.res ?? 320;
+    S.field.gain = P.field?.gain ?? 2.5;
+    S.field.colorMode = P.field?.colorMode ?? 'spectral';
+    S.field.fog = P.field?.fog ?? 0;
+    S.field.boundary = P.field?.boundary ?? 'reflect';
+    S.field.continuous = P.field?.continuous ?? true;
+    S.field.waveform = P.field?.waveform ?? 'continuous';
+    S.field.pulseRate = P.field?.pulseRate ?? 1.2;
+    S.field.pulseWidth = P.field?.pulseWidth ?? 0.16;
+    S.field.pulsePhase = 0;
+    S.field.phase = 0;
+    S.field.emittersNorm = (Array.isArray(P.field?.emittersNorm) && P.field.emittersNorm.length)
+      ? JSON.parse(JSON.stringify(P.field.emittersNorm)) : [{ nx: 0.5, ny: 0.5 }];
+    S.field.geometric = P.field?.geometric ?? true;
+    S.field.rot = P.field?.rot ?? 0;
+    S.field.spin = P.field?.spin ?? 0;
+    S.field.radialMode = P.field?.radialMode ?? 'off';
+    S.field.radialRate = P.field?.radialRate ?? 0.2;
+    S.field.radialDepth = P.field?.radialDepth ?? 1;
+    S.field.radialDuty = P.field?.radialDuty ?? 0.5;
+    S.field.radialPhase = 0;
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
       renderModRoutes();
@@ -9709,6 +9790,11 @@ void main() {
   const fieldDampingEl = _el('fieldDamping'), fieldGainEl = _el('fieldGain');
   const fieldSubValEl = _el('fieldSubVal');
   const fieldBoundaryEl = _el('fieldBoundary'), fieldColorModeEl = _el('fieldColorMode'), fieldResEl = _el('fieldRes');
+  const fieldRadialModeEl = _el('fieldRadialMode');
+  const fieldRadialRateEl = _el('fieldRadialRate'), fieldRadialRateNumEl = _el('fieldRadialRateNum');
+  const fieldRadialDepthEl = _el('fieldRadialDepth'), fieldRadialDepthNumEl = _el('fieldRadialDepthNum');
+  const fieldRadialDutyEl = _el('fieldRadialDuty'), fieldRadialDutyNumEl = _el('fieldRadialDutyNum');
+  const fieldRadialDutyRowEl = _el('fieldRadialDutyRow'), lblFieldRadialDutyEl = _el('lblFieldRadialDuty');
   function syncFieldUI() {
     if (!fieldToggleBtn) return;
     fieldToggleBtn.textContent = S.field.enabled ? 'On' : 'Off';
@@ -9730,6 +9816,16 @@ void main() {
     const gt = _el('fieldGeoToggle'); if (gt) gt.textContent = S.field.geometric ? 'On' : 'Off';
     const fr = _el('fieldRot'), frn = _el('fieldRotNum'); if (fr) fr.value = frn.value = Math.round(S.field.rot || 0);
     const fs = _el('fieldSpin'), fsn = _el('fieldSpinNum'); if (fs) fs.value = fsn.value = S.field.spin || 0;
+    if (fieldRadialModeEl) fieldRadialModeEl.value = S.field.radialMode || 'off';
+    if (fieldRadialRateEl) fieldRadialRateEl.value = fieldRadialRateNumEl.value = S.field.radialRate ?? 0.2;
+    if (fieldRadialDepthEl) fieldRadialDepthEl.value = fieldRadialDepthNumEl.value = S.field.radialDepth ?? 1;
+    if (fieldRadialDutyEl) fieldRadialDutyEl.value = fieldRadialDutyNumEl.value = S.field.radialDuty ?? 0.5;
+    syncFieldRadialDutyVisibility();
+  }
+  function syncFieldRadialDutyVisibility() {
+    const square = (S.field.radialMode || 'off') === 'square';
+    if (fieldRadialDutyRowEl) fieldRadialDutyRowEl.classList.toggle('ctrl-disabled', !square);
+    if (lblFieldRadialDutyEl) lblFieldRadialDutyEl.classList.toggle('ctrl-disabled', !square);
   }
   // Field cluster manual rotation + auto spin
   const fieldRotEl = _el('fieldRot'), fieldRotNumEl = _el('fieldRotNum');
@@ -9743,6 +9839,17 @@ void main() {
   _on(fieldRotNumEl, 'input', () => { fieldRotateTo(parseFloat(fieldRotNumEl.value) || 0); fieldRotEl.value = S.field.rot; });
   _on(fieldSpinEl, 'input', () => { S.field.spin = parseFloat(fieldSpinEl.value) || 0; fieldSpinNumEl.value = S.field.spin; });
   _on(fieldSpinNumEl, 'input', () => { S.field.spin = clamp(parseFloat(fieldSpinNumEl.value) || 0, -180, 180); fieldSpinEl.value = S.field.spin; });
+  _on(fieldRadialModeEl, 'change', () => {
+    S.field.radialMode = fieldRadialModeEl.value;
+    S.field.radialPhase = 0; // restart the cycle cleanly on a mode switch
+    syncFieldRadialDutyVisibility();
+  });
+  _on(fieldRadialRateEl, 'input', () => { S.field.radialRate = parseFloat(fieldRadialRateEl.value) || 0; fieldRadialRateNumEl.value = S.field.radialRate; });
+  _on(fieldRadialRateNumEl, 'input', () => { S.field.radialRate = clamp(parseFloat(fieldRadialRateNumEl.value) || 0, 0.02, 2); fieldRadialRateEl.value = S.field.radialRate; });
+  _on(fieldRadialDepthEl, 'input', () => { S.field.radialDepth = parseFloat(fieldRadialDepthEl.value) || 0; fieldRadialDepthNumEl.value = S.field.radialDepth; });
+  _on(fieldRadialDepthNumEl, 'input', () => { S.field.radialDepth = clamp(parseFloat(fieldRadialDepthNumEl.value) || 0, 0, 1); fieldRadialDepthEl.value = S.field.radialDepth; });
+  _on(fieldRadialDutyEl, 'input', () => { S.field.radialDuty = parseFloat(fieldRadialDutyEl.value) || 0.5; fieldRadialDutyNumEl.value = S.field.radialDuty; });
+  _on(fieldRadialDutyNumEl, 'input', () => { S.field.radialDuty = clamp(parseFloat(fieldRadialDutyNumEl.value) || 0.5, 0.05, 0.95); fieldRadialDutyEl.value = S.field.radialDuty; });
   _on(fieldToggleBtn, 'click', () => {
     S.field.enabled = !S.field.enabled;
     if (S.field.enabled) { S.showBeams = false; S.rings.enabled = false; clearLiveRings(); clearField(); }
@@ -11030,6 +11137,35 @@ void main() {
     if (S.field.enabled && S.field.spin && S.field.emittersNorm.length > 1) {
       rotateFormationBy(S.field.emittersNorm, S.field.spin * dtSec);
       S.field.rot = ((S.field.rot + S.field.spin * dtSec) % 360 + 360) % 360;
+    }
+    // Radial pulse: an orthogonal polar component to Spin above -- Spin
+    // rotates each emitter's angle, this rewrites each emitter's radius
+    // (read from wherever Spin just left it), so the two combine into a
+    // breathing spiral with no special-casing needed between them.
+    if (S.field.enabled && S.field.radialMode && S.field.radialMode !== 'off' && S.field.emittersNorm.length >= 1) {
+      S.field.radialPhase = (S.field.radialPhase + S.field.radialRate * dtSec) % 1;
+      const t = S.field.radialPhase;
+      let shapeVal; // 1 = outer edge, 0 = centre
+      if (S.field.radialMode === 'sine') {
+        shapeVal = 0.5 + 0.5 * Math.cos(2 * Math.PI * t);
+      } else if (S.field.radialMode === 'triangle') {
+        shapeVal = t < 0.5 ? 1 - 2 * t : 2 * t - 1;
+      } else { // square: dwells at the edge for `duty` of the cycle (split
+        // across the wrap point), centre the rest -- an instant step, not a
+        // ramp, same "hard edge by default" convention as Segments/Pulse.
+        const half = clamp(S.field.radialDuty ?? 0.5, 0.02, 0.98) / 2;
+        shapeVal = (t < half || t > 1 - half) ? 1 : 0;
+      }
+      const depth = clamp(S.field.radialDepth ?? 1, 0, 1);
+      const c = roomCenter();
+      const bounds = getRoomBounds();
+      const maxR = Math.min(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2;
+      const radius = maxR * (1 - depth * (1 - shapeVal));
+      const px = normToRoomPx(S.field.emittersNorm);
+      for (let i = 0; i < px.length; i++) {
+        const ang = Math.atan2(px[i].y - c.y, px[i].x - c.x);
+        writeNormFromPx(S.field.emittersNorm, i, { x: c.x + radius * Math.cos(ang), y: c.y + radius * Math.sin(ang) });
+      }
     }
     if (S.kaleido.enabled && S.kaleido.spin) {
       S.kaleido.rot = ((S.kaleido.rot + S.kaleido.spin * dtSec) % 360 + 360) % 360;
@@ -12382,6 +12518,14 @@ void main() {
       alignNow: 'Align',
       clusterRotation: 'Rotation (°)',
       clusterSpin: 'Spin (°/s)',
+      fieldRadialMode: 'Radial pulse',
+      off: 'Off',
+      sine: 'Sine',
+      triangle: 'Triangle',
+      square: 'Square',
+      fieldRadialRate: 'Pulse rate',
+      fieldRadialDepth: 'Pulse depth',
+      fieldRadialDuty: 'Pulse duty',
       tabAll: 'All',
       tabBeams: 'Beams',
       tabFx: 'Effects',
@@ -12660,6 +12804,14 @@ void main() {
       alignNow: 'Alinear',
       clusterRotation: 'Rotación (°)',
       clusterSpin: 'Giro (°/s)',
+      fieldRadialMode: 'Pulso radial',
+      off: 'Apagado',
+      sine: 'Seno',
+      triangle: 'Triángulo',
+      square: 'Cuadrada',
+      fieldRadialRate: 'Ritmo del pulso',
+      fieldRadialDepth: 'Profundidad del pulso',
+      fieldRadialDuty: 'Ciclo del pulso',
       tabAll: 'Todo',
       tabBeams: 'Haces',
       tabFx: 'Efectos',
@@ -12938,6 +13090,14 @@ void main() {
       alignNow: 'Alinhar',
       clusterRotation: 'Rotação (°)',
       clusterSpin: 'Giro (°/s)',
+      fieldRadialMode: 'Pulso radial',
+      off: 'Desligado',
+      sine: 'Seno',
+      triangle: 'Triângulo',
+      square: 'Quadrada',
+      fieldRadialRate: 'Ritmo do pulso',
+      fieldRadialDepth: 'Profundidade do pulso',
+      fieldRadialDuty: 'Ciclo do pulso',
       tabAll: 'Tudo',
       tabBeams: 'Feixes',
       tabFx: 'Efeitos',
@@ -13216,6 +13376,14 @@ void main() {
       alignNow: 'Aligner',
       clusterRotation: 'Rotation (°)',
       clusterSpin: 'Rotation auto (°/s)',
+      fieldRadialMode: 'Pulsation radiale',
+      off: 'Désactivé',
+      sine: 'Sinus',
+      triangle: 'Triangle',
+      square: 'Carré',
+      fieldRadialRate: 'Vitesse de pulsation',
+      fieldRadialDepth: 'Profondeur de pulsation',
+      fieldRadialDuty: 'Cycle de pulsation',
       tabAll: 'Tout',
       tabBeams: 'Faisceaux',
       tabFx: 'Effets',
@@ -13626,6 +13794,9 @@ void main() {
     fieldDamping: () => FACTORY.field.damping,
     fieldGain: () => FACTORY.field.gain,
     fieldFog: () => FACTORY.field.fog,
+    fieldRadialRate: () => FACTORY.field.radialRate,
+    fieldRadialDepth: () => FACTORY.field.radialDepth,
+    fieldRadialDuty: () => FACTORY.field.radialDuty,
     // Generative
     generativeSpeed: () => FACTORY.generative.speed,
     generativeScale: () => FACTORY.generative.scale,
@@ -13776,7 +13947,11 @@ void main() {
     alignLabel: 'Arrange emitters as a regular shape: 2 = line, 3 = triangle, 4 = square. Dragging one keeps the rest aligned.',
     alignNow: 'Snap the emitters into a regular polygon around the room centre.',
     clusterRotation: 'Rotate the whole emitter cluster (0° = first emitter straight up).',
-    clusterSpin: 'Spin the cluster automatically — negative = counter-clockwise, positive = clockwise.'
+    clusterSpin: 'Spin the cluster automatically — negative = counter-clockwise, positive = clockwise.',
+    fieldRadialMode: 'Moves each emitter in and out along its own angle from the room centre — an independent axis from Spin, so the two combine into a breathing spiral. Sine eases smoothly at both ends; Triangle moves at a constant speed with a sharp turnaround; Square snaps between the two ends and dwells at each (see Pulse duty).',
+    fieldRadialRate: 'How fast the radial pulse cycles — one full out-and-back trip per 1/rate seconds.',
+    fieldRadialDepth: 'How far toward the centre the pulse reaches. 1 = all the way to dead centre; lower values keep it nearer the outer edge.',
+    fieldRadialDuty: 'Square only: how much of each cycle is spent dwelling at the outer edge versus the centre. 0.5 splits it evenly.'
   };
   let tipEl = null;
   function showTip(text, x, y) {
