@@ -2,6 +2,17 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.58.0] - 2026-08-07
+
+### 🩹 The panel behaves on a phone now
+Three fixes, all found by a new automated check rather than by noticing them:
+
+The panel scrolled sideways on narrow screens — 82px of it at 320px wide. Two causes: the row of toolbar buttons in the header refused to wrap onto a second line, and the MIDI Learn picker was sized to its longest parameter name and shoved everything else out. Both now fit.
+
+Sliders, number boxes, swatches, tabs and the small glyph buttons were all under the minimum size a finger can reliably hit — 60 sliders were 20px tall. On phones and tablets their tap area is now comfortably bigger, while the sliders, tracks and spacing look exactly the same as before.
+
+Scene tiles that haven't captured a thumbnail yet show two letters instead, and those letters were too dim to read against the tile. Same for the small link icon in each tile's corner.
+
 ## [1.57.0] - 2026-08-07
 
 ### 🩹 Wave field: emitters now actually emit from where their dot is

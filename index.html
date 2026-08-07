@@ -273,7 +273,11 @@
   /* Control row: slider + number */
   .ctrl-row {
     display: grid;
-    grid-template-columns: 1fr 44px;
+    /* minmax(0,1fr), not 1fr — same trap .subgrid documents above. A plain
+       1fr floors at the child's min-content width, and a <select> takes its
+       min-content from its longest OPTION, so the MIDI Learn picker (filled
+       with parameter names) forced the whole panel 82px wide at 320px. */
+    grid-template-columns: minmax(0, 1fr) 44px;
     gap: 6px;
     align-items: center;
   }
@@ -877,13 +881,22 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* Wrap rather than overflow: 7 toolbar buttons plus the title don't fit
+       a 320px panel on one line. .panel-tabs' sticky offset already tracks
+       this element's measured height via ResizeObserver (v1.45), so a
+       two-line header positions itself correctly with no extra work. */
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .panel-header h2 {
     margin: 0;
+    min-width: 0; /* let the title shrink instead of pushing the buttons out */
   }
   .header-buttons {
     display: flex;
     gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .toolbar-btn {
     background: var(--input-bg);
@@ -1634,6 +1647,28 @@
     .splash-title { font-size: 24px; letter-spacing: 4px; }
   }
 
+  /* Touch targets. WCAG 2.2 AA "Target Size (Minimum)" is 24×24 CSS px; the
+     desktop panel is deliberately dense (20px rows) and fell under it on
+     every slider, number box, swatch and tab. This grows the HIT AREA only —
+     track thickness, thumb size and the visual rhythm are untouched, so the
+     panel doesn't look different on a phone, it's just reliably tappable.
+     Enforced by gate 4 in tests/ui-gates.mjs at 375px. */
+  @media (max-width: 800px) {
+    .panel input[type="range"] { height: 28px; }
+    .panel input[type="number"],
+    .panel input[type="text"],
+    .panel select { min-height: 28px; }
+    .panel input[type="color"] { min-height: 26px; min-width: 26px; }
+    .panel .btn,
+    .panel .step-btn,
+    .panel .perbeam-chip,
+    .panel-tabs button { min-height: 28px; }
+    /* Narrow glyph buttons need width too, not just height. mod-del is the
+       "remove this modulation route" ×, so a mis-tap destroys a route — the
+       one control here where an undersized target actually costs something. */
+    .panel .mod-del { min-width: 28px; }
+  }
+
   /* Audio level meter */
   .audio-level-track {
     height: 8px;
@@ -1922,7 +1957,10 @@
     font-size: 10px;
     opacity: 0.85;
     overflow: hidden;
-    color: rgba(255, 255, 255, 0.4);
+    /* 0.4 measured 3.72:1 against the tile's own #050608 — below AA. These
+       two-letter fallbacks are what every scene shows until its thumbnail
+       has been captured, so they are real reading material, not decoration. */
+    color: rgba(255, 255, 255, 0.72);
     text-transform: uppercase;
   }
   /* Copy-a-view-only-link icon, overlaid in the corner of each scene tile --
@@ -1941,7 +1979,8 @@
     line-height: 1;
     background: rgba(0, 0, 0, 0.55);
     border-radius: 3px;
-    opacity: 0.45;
+    color: #fff;
+    opacity: 0.7;
     transition: opacity 120ms ease, background 120ms ease;
   }
   .scene-thumb-link:hover, .scene-thumb-link.copied {
@@ -3095,7 +3134,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.57.0';
+  const APP_VERSION = 'v1.58.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control
