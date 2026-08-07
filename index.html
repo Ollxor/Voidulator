@@ -3095,8 +3095,15 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.55.0';
-  
+  const APP_VERSION = 'v1.56.0';
+  // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
+  // Supabase table for everyone using the app, no login -- the anon key below
+  // is Supabase's public key, meant to be exposed client-side; access control
+  // is via the table's RLS policies (public read/write/delete), not secrecy.
+  // See CLAUDE.md's "Shared scene gallery" section before touching this.
+  const SUPABASE_URL = 'https://znalxfujhihrkwcutqsc.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_X6sHHR60diQKwz52CVOQ6Q_eI-q96lP';
+
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
 
@@ -4977,10 +4984,62 @@
           S.sceneSlots = data.slots || [null, null, null, null, null, null, null, null];
         }
       }
-    } catch (e) { 
+    } catch (e) {
       console.warn('Failed to load scenes:', e);
     }
     updateSceneUI();
+  }
+
+  // Shared scene gallery (Supabase). loadScenes() above already gave S.scenes
+  // an instant local value (last-synced cache, or DEFAULT_SCENES_DB on a
+  // genuinely first visit) so the UI never shows empty/loading -- this then
+  // fetches the current shared table in the background and, on success,
+  // replaces S.scenes and refreshes the local cache to match. On failure
+  // (offline, Supabase down) it just leaves whatever loadScenes() already
+  // set, so the gallery still works, just possibly stale. Scene *slots*
+  // (S.sceneSlots) are deliberately NOT part of this -- they stay
+  // per-browser, since two people sharing slot 3 would just fight over it.
+  async function syncScenesFromSupabase() {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/scenes?select=id,name,data&order=created_at.asc`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      if (!res.ok) throw new Error('status ' + res.status);
+      const rows = await res.json();
+      S.scenes = rows.map(r => ({ id: r.id, name: r.name, data: r.data }));
+      saveScenes(); // refresh the offline cache (slots untouched, come along via S.sceneSlots as-is)
+      updateSceneUI();
+    } catch (e) {
+      console.warn('Shared scene sync failed, using local cache:', e);
+    }
+  }
+
+  // POST a newly-saved scene to the shared table (fire-and-forget: the local
+  // save already succeeded via saveSceneToList() regardless of network).
+  // scene.id is generated client-side by the caller *before* this runs, not
+  // assigned from the server response -- if it waited for the round trip,
+  // deleting a scene in the second or two before that POST resolves would
+  // find no id yet, silently skip deleteSceneFromSupabase(), and the scene
+  // would reappear from Supabase on the next sync despite being "deleted"
+  // locally. Generating it up front closes that window entirely: a delete
+  // fired at any point, even before this request lands, always has the
+  // right id to target.
+  function shareSceneToSupabase(scene) {
+    fetch(`${SUPABASE_URL}/rest/v1/scenes`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: scene.id, name: scene.name, data: scene.data })
+    })
+      .then(r => { if (!r.ok) throw new Error('status ' + r.status); })
+      .catch(e => console.warn('Failed to share scene:', e));
+  }
+
+  function deleteSceneFromSupabase(id) {
+    if (!id) return;
+    fetch(`${SUPABASE_URL}/rest/v1/scenes?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    }).catch(e => console.warn('Failed to delete shared scene:', e));
   }
 
   function factoryResetScenes() {
@@ -5073,11 +5132,14 @@
   }
 
   function saveSceneToList(name) {
-    const scene = { name, data: captureScene(), thumb: captureSceneThumb() };
+    // id generated up front, not assigned from Supabase's response -- see
+    // shareSceneToSupabase()'s comment for why that matters.
+    const scene = { id: crypto.randomUUID(), name, data: captureScene(), thumb: captureSceneThumb() };
     S.scenes.push(scene);
     saveScenes();
     updateSceneUI();
     sceneSelectEl.value = S.scenes.length - 1;
+    shareSceneToSupabase(scene); // everyone else's gallery picks this up on their next load
   }
 
   function saveSceneToSlot(slotIndex, name) {
@@ -10117,7 +10179,8 @@ void main() {
   _on(deleteSceneBtn, 'click', () => {
     const idx = parseInt(sceneSelectEl.value);
     if (isNaN(idx) || !S.scenes[idx]) return;
-    if (confirm(`Delete "${S.scenes[idx].name}"?`)) {
+    const scene = S.scenes[idx];
+    if (confirm(`Delete "${scene.name}"?`)) {
       S.scenes.splice(idx, 1);
       saveScenes();
       updateSceneUI();
@@ -10125,6 +10188,7 @@ void main() {
       if (S.scenes.length > 0) {
         sceneSelectEl.value = Math.min(idx, S.scenes.length - 1);
       }
+      deleteSceneFromSupabase(scene.id); // shared for everyone -- no-op if this scene never made it there
     }
   });
 
@@ -14182,7 +14246,8 @@ void main() {
     rebuildPerBeamEditor();
     syncSegmentsUI();
     loadScenes();
-    
+    syncScenesFromSupabase(); // background refresh from the shared gallery -- see its own comment
+
     // Initialize wander seeds with random phases
     for (let i = 0; i < 4; i++) {
       S.motion.wanderSeedsX[i] = Math.random() * 100;

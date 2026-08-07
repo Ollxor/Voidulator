@@ -2,6 +2,13 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.56.0] - 2026-08-07
+
+### ✨ Scenes are now shared live across everyone using the app — no login
+Saving a scene now shares it with everyone, and everyone's gallery picks up new scenes the next time they open the app. No accounts, no sign-in — just a small shared database behind the scenes, since it's still just a couple of people using this together. Deleting a scene removes it for everyone too. The 8 quick-recall slots stay personal and don't sync, since two people sharing one slot would just fight over it.
+
+If the shared connection is ever unreachable, the app quietly falls back to whatever it last saw, so a flaky connection never means an empty gallery.
+
 ## [1.55.0] - 2026-08-03
 
 ### ✨ Default scene gallery refreshed
