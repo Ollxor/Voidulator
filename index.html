@@ -3095,7 +3095,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.56.0';
+  const APP_VERSION = 'v1.57.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control
@@ -7571,7 +7571,13 @@ void main() {
     cx2.fillStyle = '#000';
     cx2.fillRect(0, 0, res, res);
     cx2.fillStyle = '#fff';
-    const toG = (x, y) => ({ gx: (x - ox) / span * res, gy: (y - oy) / span * res });
+    // gy is flipped for the same reason fieldPxToUV's v is -- see its comment.
+    // This 2D canvas uploads row 0 -> v=0, and v=0 is the BOTTOM of the
+    // rendered viewport, so the room has to be drawn upside-down here to come
+    // out the right way up on screen and stay aligned with the sources.
+    // A centred circle looks identical either way, so only non-circular rooms
+    // (or an off-centre source) ever reveal a mismatch here.
+    const toG = (x, y) => ({ gx: (x - ox) / span * res, gy: res - (y - oy) / span * res });
     cx2.beginPath();
     if (S.isCircle) {
       const c = toG(S.circle.cx, S.circle.cy);
@@ -7595,9 +7601,20 @@ void main() {
   let fieldMaskMap = null;
 
   // Convert a room-px point to grid UV (y flipped: canvas y-down → texture)
+  // Room-px -> simulation-grid UV. The `1 -` on v is load-bearing (v1.57 fix):
+  // room px are y-DOWN (screen convention), but this UV is compared against
+  // the shaders' `v_uv`, which comes off the fullscreen quad in GL's y-UP
+  // convention -- v=0 is the BOTTOM of the viewport the colorize pass draws
+  // into. Without the flip, a source near the top of the room got stamped
+  // near the bottom of the screen: the emitter dot (drawn straight from
+  // screen-space px on the 2D overlay, no conversion) and the actual wave
+  // origin ended up mirrored about the room's horizontal centreline, which
+  // also reverses which way the pattern appears to turn when you drag an
+  // emitter around. Invisible on a centred circular room until you look at
+  // an off-centre source, which is exactly how it survived so long.
   function fieldPxToUV(x, y) {
     if (!fieldMaskMap) return null;
-    return { u: (x - fieldMaskMap.ox) / fieldMaskMap.span, v: (y - fieldMaskMap.oy) / fieldMaskMap.span };
+    return { u: (x - fieldMaskMap.ox) / fieldMaskMap.span, v: 1 - (y - fieldMaskMap.oy) / fieldMaskMap.span };
   }
 
   // Room-shape mask for trail wall handling (S.trails.wallMode), same

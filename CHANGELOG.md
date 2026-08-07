@@ -2,6 +2,13 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.57.0] - 2026-08-07
+
+### 🩹 Wave field: emitters now actually emit from where their dot is
+The waves were coming out of the vertical mirror image of each emitter's dot — a source near the top of the room emitted from near the bottom, and vice versa. Because mirroring also flips handedness, dragging an emitter one way around the room made the pattern appear to turn the other way. Only a source sitting exactly on the room's horizontal centreline looked right, which is why a single centred emitter never showed it.
+
+The room's own boundary was being handled the same flipped way, so the two stayed consistent with each other and the room still looked correct — the mismatch only ever showed up between an emitter's dot and its waves. Both now use the same orientation. Click-to-ripple and the Drop button are fixed by the same change.
+
 ## [1.56.0] - 2026-08-07
 
 ### ✨ Scenes are now shared live across everyone using the app — no login
