@@ -2,6 +2,11 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.55.0] - 2026-08-03
+
+### ✨ Default scene gallery refreshed
+Every device seeds its Scenes gallery once, the first time it's ever opened with nothing saved yet — after that it's yours to edit, so a scene made on one device was never going to show up on another automatically. Updated the built-in starting set to the current, larger collection so any new device (including a fresh install) starts from the same place going forward.
+
 ## [1.54.0] - 2026-08-03
 
 ### 🩹 Wave field's own emitter dots have been invisible since v1.52
