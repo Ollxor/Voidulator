@@ -2,6 +2,13 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.54.0] - 2026-08-03
+
+### 🩹 Wave field's own emitter dots have been invisible since v1.52
+The fix that stopped beam-mode's orange dots from showing alongside Field's own accidentally took Field's dots down with it — they lived inside the same block that fix gated shut whenever Field was active, so the two conditions could never both be satisfied at once. Field's dots now have their own independent check, unaffected by what hides the beam/ring markers.
+
+This also explains a report that looked like a coordinate bug at first: with the dot gone, the only marker left near the wave was an ellipse room's own focus-point crosses — a separate, unrelated feature marking the room's geometry, not the emitter. Compared against those, the visible wave understandably looked like it was coming from somewhere else. Re-verified with the dot actually visible again: it lines up with the wave's real origin to within a few pixels, circle or ellipse room alike.
+
 ## [1.53.0] - 2026-08-03
 
 ### ✨ Wave field: Radial pulse — emitters can now breathe in and out

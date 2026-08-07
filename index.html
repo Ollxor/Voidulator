@@ -3095,7 +3095,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.53.0';
+  const APP_VERSION = 'v1.54.0';
   
   // Startup preset shown to first-time visitors (simple, single white beam)
   const STARTUP_PRESET = {"polygonType":"circle","sides":5,"beamWidth":1.4,"reflectSlider":0.442,"maxBounces":192,"beamCount":1,"spreadDeg":0.4368058247914843,"angleDeg":107.05096878686207,"rotationSpeed":0,"speedMax":5,"speedMultiplier":0.01644,"emittersNorm":[{"nx":0.3148632747318592,"ny":0.04092550391359258}],"beamScheme":"custom","beamPalette":[{"h":0,"s":0,"l":100}],"emitterPalettes":[[{"h":0,"s":0,"l":100}]],"perBeamSpeed":[2],"perBeamPhase":[318.9247697817464],"speedPattern":"linear","patternBase":2,"blendMode":"normal","pulseOn":false,"pulseShape":"sine","pulseAmp":1,"pulseFreqCP100":2.6,"pulseSpeed":17,"pulseSoft":0.12,"pulseDuty":0.5,"trails":{"enabled":false,"length":20,"opacity":1,"hueShift":0},"widthWave":{"enabled":false,"shape":"circle","freq":0.5,"speed":0,"duty":0.5,"rotation":0},"motion":{"mode":"off","speed":0.15,"range":0.2,"ratio":1.5,"phaseOffset":90}};
@@ -8658,12 +8658,17 @@ void main() {
     }
 
     // Emitters (only if visible; hidden entirely in Generative mode, where
-    // the emitter dots have no meaning — the fullscreen shader ignores them.
-    // Also hidden in Wave field mode: these are the beam-mode emitters —
-    // S.emitters, a completely separate array from S.field.emittersNorm —
-    // and beams aren't even rendering while Field is active, so showing
-    // their dots alongside the field's own magenta ones was just confusing
-    // leftover controls for a different mode.)
+    // the emitter dots have no meaning — the fullscreen shader ignores them).
+    // Beam-mode dots (S.emitters, orange) and Ring dots additionally hide
+    // whenever Field is active: beams/rings aren't even rendering then, so
+    // their dots alongside Field's own magenta ones were just confusing
+    // leftover controls for a different mode. v1.53 bug: that Field
+    // exclusion got put on this whole block's own condition, which also
+    // wrapped Field's own dot-drawing below -- making Field's dots
+    // permanently unreachable (S.field.enabled and !S.field.enabled can
+    // never both be true) the entire time Field has ever been active.
+    // Field's block now has its own independent condition instead of living
+    // inside this one.
     if (S.showEmitter && !S.generative.enabled && !S.field.enabled) {
       overlayHasContent = true;
       for (const e of S.emitters) {
@@ -8687,17 +8692,20 @@ void main() {
           octx.stroke();
         }
       }
-      // Field wave-source emitters in magenta (with a ring halo so they read
-      // against the bright field)
-      if (S.field.enabled) {
-        updateFieldEmitters();
-        for (const e of fieldEmitters) {
-          octx.strokeStyle = '#0a0b0e';
-          octx.lineWidth = 2.5;
-          octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.stroke();
-          octx.fillStyle = '#ff4fd8';
-          octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.fill();
-        }
+    }
+    // Field wave-source emitters in magenta (with a ring halo so they read
+    // against the bright field) — independent of S.showEmitter's beam/ring
+    // block above, so Field is never accidentally caught by a guard meant
+    // for a different mode's markers.
+    if (S.showEmitter && S.field.enabled) {
+      overlayHasContent = true;
+      updateFieldEmitters();
+      for (const e of fieldEmitters) {
+        octx.strokeStyle = '#0a0b0e';
+        octx.lineWidth = 2.5;
+        octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.stroke();
+        octx.fillStyle = '#ff4fd8';
+        octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.fill();
       }
     }
   }
