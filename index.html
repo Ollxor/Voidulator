@@ -180,10 +180,11 @@
   .grid {
     display: grid;
     /* Same reasoning as .subgrid: fixed label column + wrapping labels.
-       100px is measured, not chosen: at 10.5px monospace only 2 of 121
-       English labels exceed it, against 22/23/24 in es/pt/fr — those wrap
-       to two lines rather than truncating, which is what gate 2 requires. */
-    grid-template-columns: 112px minmax(0, 1fr);
+       112px is measured, not chosen: at 12px only a handful of English
+       labels exceed it, and translations wrap to two lines rather than
+       truncating, which is what gate 2 requires. Third column is the value
+       readout — see "Value column" below. */
+    grid-template-columns: 112px minmax(0, 1fr) var(--value-col);
     gap: 3px 8px;
     align-items: center;
   }
@@ -402,13 +403,81 @@
   /* Subgrid for groups */
   .subgrid {
     display: grid;
-    /* 105px comfortably fits the common English labels on one line; anything
+    /* 112px comfortably fits the common English labels on one line; anything
        longer (or any translation) wraps instead of overflowing — see the
        `label` rule. minmax(0,1fr) lets the control column shrink properly
        rather than forcing overflow when a slider has a min-content width. */
-    grid-template-columns: 112px minmax(0, 1fr);
+    grid-template-columns: 112px minmax(0, 1fr) var(--value-col);
     gap: 3px 8px;
     align-items: center;
+  }
+
+  /* ---- Value column (v1.61) --------------------------------------------
+     Third grid column: every slider shows its live value in a fixed gutter,
+     so values line up down the whole panel instead of being invisible.
+
+     Controls come in three shapes and each needs its own column behaviour:
+
+       1. bare <input type=range>  -> slider in col 2, injected .val in col 3
+       2. .ctrl-row (range+number) -> `display: contents` dissolves the
+          wrapper so its two children become grid items directly, landing the
+          number input in the SAME col 3 as .val. Without this the number
+          would sit inside col 2 and the two readout styles wouldn't align.
+       3. everything else (select, button, stepper, dual-range, colour rows)
+          -> no value to show, so it spans cols 2-3 and keeps its old width.
+
+     `display: contents` does NOT change selector matching: `.subgrid > input`
+     still won't match an input inside .ctrl-row, which is why the paired
+     children need their own explicit grid-column rules below. */
+  :root { --value-col: 46px; }
+
+  /* Default: a control with no readout spans the control + value columns.
+     Wrapped in :where() so it contributes ZERO specificity — otherwise the
+     `:not(.val)` alone would outweigh plain single-class rules and silently
+     steal `grid-column` from every full-width block that already sets it
+     (.speed-control, .two). As a zero-specificity default, any class rule
+     wins over it automatically, which is exactly the intent. */
+  /* `.row` is itself `display: contents`, so ITS children are grid items of
+     the enclosing .grid too, and need the same treatment — they are not
+     matched by `.grid > *`, because display:contents changes layout, never
+     selector matching. */
+  :where(.grid, .subgrid, .row) > :where(:not(label):not(.val)) { grid-column: 2 / 4; }
+
+  /* A slider that got a readout gives the value column back. */
+  .grid > input[type="range"].has-val,
+  .subgrid > input[type="range"].has-val,
+  .row > input[type="range"].has-val { grid-column: 2 / 3; }
+
+  /* Paired slider+number: wrapper dissolves, children take a column each. */
+  .ctrl-row.paired { display: contents; }
+  .ctrl-row.paired > input[type="range"] { grid-column: 2 / 3; }
+  .ctrl-row.paired > input[type="number"] { grid-column: 3 / 4; }
+
+  .val {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-dim);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* The 31 pre-existing number inputs share the column with .val, so they're
+     quieted to match it and only reveal their box on hover/focus — the
+     column reads as one thing, and they stay editable as they always were. */
+  .ctrl-row.paired > input[type="number"] {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-dim);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .ctrl-row.paired > input[type="number"]:hover,
+  .ctrl-row.paired > input[type="number"]:focus {
+    background: var(--input-bg);
+    border-color: var(--control-edge);
+    color: var(--text);
   }
 
   /* Color swatches - compact */
@@ -591,9 +660,10 @@
     box-shadow: 0 0 10px var(--accent-glow);
   }
 
-  /* Two column buttons */
+  /* Two column buttons. `1 / -1`, not `span 2` — it means "full width", and
+     `span 2` stopped being that when the value column landed (v1.61). */
   .two {
-    grid-column: span 2;
+    grid-column: 1 / -1;
     display: flex;
     gap: 6px;
   }
@@ -1925,6 +1995,8 @@
 
   /* Tab/search filtering */
   .tab-hidden { display: none !important; }
+  /* A tab button with nothing behind it in the current mode. */
+  .tab-empty { display: none !important; }
   .search-hidden { display: none !important; }
   /* Emission-mode filtering: hide controls that don't apply to the active
      emission mode (e.g. beam-only rows while Wave field / Generative is on). */
@@ -1965,6 +2037,70 @@
     z-index: 2;
   }
   .group-reset:hover { opacity: 1; color: var(--accent); }
+
+  /* ---- Group header on/off switch (v1.61) -------------------------------
+     Turns a section on or off without expanding it. It is a PROXY, not a
+     second source of truth: clicking it clicks the group's real toggle
+     button (see GROUP_TOGGLES), so every side effect, autosave and undo
+     entry happens exactly as if you'd opened the group and clicked it.
+
+     Sits at right:40px, left of the ↺ reset (right:20px) and the ▾ chevron
+     (right:2px). It's a SIBLING of .group-title, like .group-reset — both
+     because applyTranslations() rewrites the title's textContent and would
+     destroy a child, and because the collapse handler is bound to the title
+     itself, so a sibling's click can't accidentally toggle the group open.
+
+     The button is 34x24 with a transparent hit area and the pill drawn in
+     ::before — the visible switch is 26x14, which on its own would fail the
+     24px touch-target gate. */
+  .group-toggle {
+    position: absolute;
+    top: 1px;
+    right: 40px;
+    width: 34px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .group-toggle::before {
+    content: '';
+    position: absolute;
+    left: 4px; top: 5px;
+    width: 26px; height: 14px;
+    box-sizing: border-box;
+    border-radius: 7px;
+    background: var(--slider-track);
+    border: 1px solid var(--control-edge);
+    transition: background 130ms ease, border-color 130ms ease;
+  }
+  .group-toggle::after {
+    content: '';
+    position: absolute;
+    left: 8px; top: 9px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    transition: transform 130ms ease, background 130ms ease;
+  }
+  .group-toggle[aria-pressed="true"]::before {
+    background: rgba(255, 159, 28, 0.22);
+    border-color: var(--accent);
+  }
+  .group-toggle[aria-pressed="true"]::after {
+    transform: translateX(14px);
+    background: var(--accent);
+  }
+  .group-toggle:hover::before { border-color: var(--accent); }
+  .group-toggle:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+  /* A collapsed section whose feature is off dims its own title, so the
+     panel shows at a glance what's actually running without needing a
+     per-group value summary. Only when collapsed — an expanded group is
+     already showing you its controls. */
+  .group.collapsed.has-toggle-off .group-title { opacity: 0.55; }
 
   /* Per-beam material editor */
   .perbeam-head { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); opacity: 0.9; }
@@ -3177,7 +3313,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.60.0';
+  const APP_VERSION = 'v1.61.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control
@@ -4601,7 +4737,107 @@
     el.style.setProperty('--fill', Math.max(0, Math.min(100, pct)).toFixed(2) + '%');
   }
   function refreshSliderFills(root) {
-    (root || document).querySelectorAll('input[type="range"]').forEach(setSliderFill);
+    (root || document).querySelectorAll('input[type="range"]').forEach(el => {
+      setSliderFill(el);
+      setSliderReadout(el);
+    });
+    syncGroupToggles();
+  }
+
+  /* ---- Value column -----------------------------------------------------
+     Sliders that already had a paired number input keep it (it's editable,
+     and that's existing functionality). The rest get a read-only <span> so
+     every slider in the panel shows its value in the same gutter.
+
+     Injected at init rather than written into ~46 rows of markup, same
+     reasoning as the per-group reset buttons. The span carries NO data-i18n
+     and is never a child of a translated element, so applyTranslations()
+     can't destroy it — the trap that already dictates the reset button's
+     placement as a sibling of its title. */
+
+  /* Decimals come from the RANGE, not the value: a fixed count keeps the
+     column from twitching between "0.8" and "0.75" as you drag. An integer
+     step always means an integer control (bounces, counts) regardless of
+     span, which is why that's checked before the span buckets. */
+  function readoutDecimals(el) {
+    const step = parseFloat(el.step);
+    if (isFinite(step) && step >= 1 && Number.isInteger(step)) return 0;
+    const span = Math.abs((parseFloat(el.max) || 0) - (parseFloat(el.min) || 0));
+    if (span >= 100) return 0;
+    if (span >= 20) return 1;
+    return 2;
+  }
+
+  /* The decimal separator has to be DETECTED, not derived.
+
+     <input type="number"> renders its value in the browser's own UI locale,
+     which is not exposed to JS: on this machine an input shows "0,85" even
+     when navigator.language is en-US and toLocaleString() returns "0.85".
+     Since the 31 paired number inputs share the value column with these
+     spans, guessing wrong puts "0,85" directly above "0.30".
+
+     So: ask a real number input what it renders. Selecting its contents
+     returns the DISPLAYED text rather than the canonical `.value`, which is
+     the only way to read the browser's choice. Falls back to "." — today's
+     behaviour — if anything about the probe fails. */
+  let decimalSep = null;
+  function getDecimalSeparator() {
+    if (decimalSep !== null) return decimalSep;
+    decimalSep = '.';
+    const active = document.activeElement;
+    const probe = document.createElement('input');
+    probe.type = 'number';
+    probe.step = '0.1';
+    probe.value = '1.5';
+    // Off-screen but rendered — focus() on a display:none element is a no-op.
+    probe.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none';
+    document.body.appendChild(probe);
+    try {
+      probe.focus({ preventScroll: true });
+      probe.select();
+      const m = String(document.getSelection() || '').trim().match(/1(\D)5/);
+      if (m && m[1]) decimalSep = m[1];
+    } catch (e) { /* keep the '.' fallback */ }
+    probe.remove();
+    try { if (active && active.focus) active.focus({ preventScroll: true }); } catch (e) {}
+    return decimalSep;
+  }
+
+  function setSliderReadout(el) {
+    const out = el._valOut;
+    if (!out) return;
+    const v = parseFloat(el.value);
+    if (!isFinite(v)) { out.textContent = el.value; return; }
+    const s = v.toFixed(readoutDecimals(el));
+    const sep = getDecimalSeparator();
+    out.textContent = sep === '.' ? s : s.replace('.', sep);
+  }
+
+  function initValueReadouts() {
+    // Paired slider+number rows: dissolve the wrapper so the number input
+    // lands in the shared value column. Only the range+number shape — the
+    // four odd ctrl-rows (colour picker, select+button) have no value to
+    // show and must keep spanning, so they're left untagged.
+    document.querySelectorAll('.panel .ctrl-row').forEach(cr => {
+      const kids = cr.children;
+      if (kids.length === 2 && kids[0].type === 'range' && kids[1].type === 'number') {
+        cr.classList.add('paired');
+      }
+    });
+
+    // Bare sliders that are grid items get a read-only readout. `.row` counts:
+    // it's display:contents, so its children are grid items of the enclosing
+    // .grid even though they aren't its DOM children.
+    document.querySelectorAll('.panel .grid > input[type="range"], .panel .subgrid > input[type="range"], .panel .row > input[type="range"]')
+      .forEach(el => {
+        if (el._valOut) return;
+        const out = document.createElement('span');
+        out.className = 'val';
+        el.classList.add('has-val');
+        el.after(out);
+        el._valOut = out;
+        setSliderReadout(el);
+      });
   }
 
   function syncUIFromState() {
@@ -11538,7 +11774,13 @@ void main() {
     document.addEventListener(evt, (e) => {
       // Only listen in the panel — ignore clicks on stage/modals
       if (!e.target.closest('.panel, .modal')) return;
-      if (e.target.type === 'range') setSliderFill(e.target);
+      if (e.target.type === 'range') { setSliderFill(e.target); setSliderReadout(e.target); }
+      // This listener is CAPTURE phase (see the `true` at the bottom), so it
+      // runs BEFORE the clicked control's own handler has updated S. Slider
+      // fill/readout are fine read here — they use e.target.value, which the
+      // browser commits before dispatch — but anything reading S must wait
+      // for the handlers to run, or it repaints one click behind.
+      if (e.type === 'click' || e.type === 'change') requestAnimationFrame(syncGroupToggles);
       requestAutosave();
       // Undo/Redo themselves are history NAVIGATION, not an edit -- excluded
       // here so clicking them doesn't arm a new commit timer (restoreUndoState()
@@ -12028,6 +12270,10 @@ void main() {
     } catch (e) { }
   }
   
+  /* Set by initPanelTools(). applyMode() needs to re-run the tab filter
+     because Simple/Advanced changes which tabs have any content. */
+  let panelApplyTab = null;
+
   function applyMode(mode) {
     currentMode = mode;
     if (mode === 'simple') {
@@ -12038,6 +12284,7 @@ void main() {
       document.body.classList.add('mode-advanced');
     }
     updateSettingsUI();
+    if (panelApplyTab) panelApplyTab();
   }
   
   function setMode(mode) {
@@ -13862,6 +14109,49 @@ void main() {
 
   // Per-group reset actions, keyed by the group title's data-i18n key.
   // Groups without an entry (Scenes, File Presets) get no reset button.
+  /* Groups that get an on/off switch in their header (v1.61).
+
+     Curated, not detected: several groups hold more than one toggle button
+     and a heuristic picks the wrong one (Rings has ringsToggle, but also
+     ringsAutoToggle / ringGeoToggle / ringRainbowToggle). `btn` is the real
+     control the switch proxies; `on` reads the live state.
+
+     State is read from S, never from the button's label — the labels are
+     translated ("On"/"Off" become "Activado"/"Desactivado"), so matching on
+     text would work in English and quietly break in the other three.
+
+     Deliberately absent: Audio Reactive and MIDI. Neither is a plain on/off
+     — both request a browser permission on a user gesture ("Start listening"
+     / "Enable MIDI"), so a mis-tap in a collapsed header would fire a
+     permission prompt rather than toggle a setting. Beam Shapes and Beam
+     glow are absent too: their buttons (widthWaveToggle, edgeTintToggle) are
+     sub-features, not a master switch for the group. */
+  const GROUP_TOGGLES = {
+    segments:        { btn: 'segToggle',        on: () => !!S.segments.on },
+    ringsTitle:      { btn: 'ringsToggle',      on: () => !!S.rings.enabled },
+    fieldTitle:      { btn: 'fieldToggle',      on: () => !!S.field.enabled },
+    generativeTitle: { btn: 'generativeToggle', on: () => !!S.generative.enabled },
+    trails:          { btn: 'trailsToggle',     on: () => !!S.trails.enabled },
+    glow:            { btn: 'bloomToggle',      on: () => !!S.bloom.enabled },
+    kaleido:         { btn: 'kaleidoToggle',    on: () => !!S.kaleido.enabled },
+    phosphorWalls:   { btn: 'phosToggle',       on: () => !!S.phosphor.enabled },
+    beatDetection:   { btn: 'beatToggle',       on: () => !!S.beat.enabled },
+  };
+
+  /* Repaint every header switch from S. Called after any panel interaction
+     and from syncUIFromState(), so the switches track scene loads, undo and
+     presets too — not just their own clicks. */
+  function syncGroupToggles() {
+    document.querySelectorAll('.group-toggle').forEach(sw => {
+      const tg = GROUP_TOGGLES[sw.dataset.groupToggle];
+      if (!tg) return;
+      let on = false;
+      try { on = tg.on(); } catch (e) { return; }
+      sw.setAttribute('aria-pressed', on ? 'true' : 'false');
+      sw.closest('.group')?.classList.toggle('has-toggle-off', !on);
+    });
+  }
+
   const GROUP_RESETS = {
     colors: () => {
       S.beamScheme = FACTORY.beamScheme;
@@ -14272,7 +14562,7 @@ void main() {
       const ttl = g.querySelector('.group-title');
       const key = ttl ? (ttl.getAttribute('data-i18n') || '') : '';
       g.dataset.groupKey = key;
-      g.dataset.tab = TAB_OF_GROUP[key] || 'all';
+      g.dataset.tab = TAB_OF_GROUP[key] || 'source';  // 'all' is gone; an unmapped group must still appear somewhere
       // Per-group reset button — sibling of the title (translations rewrite
       // the title's textContent, which would destroy a child span)
       if (ttl && GROUP_RESETS[key]) {
@@ -14287,6 +14577,25 @@ void main() {
           requestAutosave();
         });
         g.insertBefore(rb, ttl.nextSibling);
+      }
+
+      // Per-group on/off switch in the header — proxies the group's own
+      // toggle button so there is exactly one place that owns the state.
+      const tg = GROUP_TOGGLES[key];
+      if (ttl && tg && _el(tg.btn)) {
+        const sw = document.createElement('button');
+        sw.type = 'button';
+        sw.className = 'group-toggle';
+        sw.dataset.groupToggle = key;
+        sw.setAttribute('aria-label', (ttl.textContent || key).trim());
+        // No stopPropagation here on purpose. The autosave/undo listener is
+        // delegated on `document` in the BUBBLE phase, so stopping the click
+        // would silently drop this control out of both — the same trap any
+        // non-bubbling control falls into. Nothing needs stopping anyway:
+        // the collapse handler is bound to .group-title, and this is its
+        // sibling, so the click never reaches it.
+        sw.addEventListener('click', () => { _el(tg.btn).click(); });
+        g.insertBefore(sw, ttl.nextSibling);
       }
     }
 
@@ -14362,13 +14671,48 @@ void main() {
 
     let activeTab = localStorage.getItem('voidulator-tab') || 'source';
     if (activeTab === 'all' || activeTab === 'beams') activeTab = 'source'; // pre-v1.60 values
+    /* Would this tab show anything right now? A tab's groups can also be
+       hidden by simple mode (.advanced-only) or by the emission mode
+       (.mode-hidden), independently of which tab is active — so "has a group
+       assigned" is not the same as "has something to show". Checking the
+       other hiding conditions directly avoids having to switch tabs and
+       measure, which would flicker. */
+    function tabHasContent(id) {
+      const simple = document.body.classList.contains('mode-simple');
+      const usable = el => el
+        && !el.classList.contains('mode-hidden')
+        && !(simple && el.classList.contains('advanced-only'));
+      if (id === 'source' && usable(grid)) return true;
+      return groups.some(g => g.dataset.tab === id && usable(g));
+    }
+
     function applyTab() {
       const searching = search.value.trim().length > 0;
-      for (const g of groups) {
-        g.classList.toggle('tab-hidden', !searching && activeTab !== 'all' && g.dataset.tab !== activeTab);
+      // Don't strand the user on a tab that has nothing in it — switching
+      // Advanced -> Simple empties three of the five.
+      if (!searching && !tabHasContent(activeTab)) {
+        const fallback = PANEL_TABS.map(t => t[0]).find(tabHasContent);
+        if (fallback) activeTab = fallback;
       }
-      tabBar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab));
+      for (const g of groups) {
+        g.classList.toggle('tab-hidden', !searching && g.dataset.tab !== activeTab);
+      }
+      // The ungrouped top block holds the active emission mode's own controls,
+      // so it belongs to Source. It carries no .group class, so the loop above
+      // never touched it and it rendered on every tab — beam sliders sitting
+      // above the scene gallery.
+      if (grid) grid.classList.toggle('tab-hidden', !searching && activeTab !== 'source');
+      tabBar.querySelectorAll('button').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === activeTab);
+        // A tab with nothing behind it is worse than no tab at all.
+        b.classList.toggle('tab-empty', !searching && !tabHasContent(b.dataset.tab));
+      });
+      // No sticky-offset recalc needed here: the tab bar is the BOTTOM sticky
+      // layer, so its own height feeds no other element's `top`. (The header
+      // and mode bar, which do, are watched by the ResizeObserver above.)
     }
+    // Simple/Advanced changes which tabs have anything in them.
+    panelApplyTab = applyTab;
     function setTab(id) {
       activeTab = id;
       try { localStorage.setItem('voidulator-tab', id); } catch (e) {}
@@ -14527,6 +14871,8 @@ void main() {
     // Panel tabs, search, per-group reset, collapse-all (before translations
     // so the tab buttons pick up the language)
     initPanelTools();
+    initValueReadouts();   // must follow initPanelTools: both write into the grids
+    syncGroupToggles();    // first paint of the header switches
     initTooltips();
     initClickableResets();
     updateEccentricityVisibility();

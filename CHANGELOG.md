@@ -2,6 +2,21 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.61.0] - 2026-08-08
+
+### ✨ Every slider shows its value
+A third column down the right side of the panel gives each slider a live readout, aligned all the way down so values can be compared at a glance. The sliders that already had a number box keep it — still editable, just quieted so the column reads as one thing.
+
+### ✨ On/off switches on section headers
+Trails, Glow, Kaleidoscope, Phosphor Walls, Rings, Wave Field, Generative, Segments and Beat Detection can each be switched on or off from their header, without expanding the section. A collapsed section that's switched off dims its own title, so the panel shows what's actually running at a glance.
+
+Audio Reactive and MIDI deliberately don't get one: both ask the browser for a permission rather than just flipping a setting, and a mis-tap shouldn't trigger that.
+
+### 🩹 Tabs now only show what's actually there
+The beam controls at the top of the panel appeared on every tab, including Scenes. They belong to Source and now stay there.
+
+In Simple mode, Effects, Live and Scenes had nothing in them at all — every section they hold is Advanced-only. Those tabs are now hidden while Simple mode is on and come back with Advanced, instead of leading to an empty panel. Switching to Simple while on one of them lands you somewhere real rather than nowhere.
+
 ## [1.60.0] - 2026-08-07
 
 ### ✨ Emission mode is now the main menu

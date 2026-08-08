@@ -378,17 +378,31 @@ async function gate9(browser) {
 /* ── selftest: inject a fault, demand the gate notices ───────────────── */
 
 async function selftest(browser) {
+  /* Gates 2 and 3 inject into a VISIBLE label — they only ever examine
+     rendered elements, so a fault planted on a hidden one is invisible to
+     them and the gate reports MISSED with nothing actually wrong with it.
+     `.panel label` (first in DOM order) stopped being visible when v1.60
+     removed the "All" tab — the same trap that had gate 1 measuring a hidden
+     .subgrid and silently false-passing. Throws rather than no-ops if it
+     can't find one: a selftest that quietly injects nothing is worthless. */
+  const pickLabel = () => {
+    const l = [...document.querySelectorAll('.panel label')]
+      .find(e => e.getBoundingClientRect().width > 0);
+    if (!l) throw new Error('selftest: no visible .panel label to inject into');
+    return l;
+  };
+
   const checks = [
     {
       gate: 2, what: 'a label too narrow for its text',
       async run() {
         const { ctx, page } = await open(browser);
         const before = (await measureClipping(page)).length;
-        await page.evaluate(() => {
-          const l = document.querySelector('.panel label');
+        await page.evaluate(pick => {
+          const l = new Function('return (' + pick + ')()')();
           l.textContent = 'A deliberately overlong label that cannot possibly fit';
           l.style.cssText = 'width:30px;white-space:nowrap;overflow:hidden;display:block';
-        });
+        }, pickLabel.toString());
         const after = (await measureClipping(page)).length;
         await ctx.close();
         return after > before;
@@ -399,11 +413,11 @@ async function selftest(browser) {
       async run() {
         const { ctx, page } = await open(browser);
         const before = (await measureContrast(page)).length;
-        await page.evaluate(() => {
-          const l = document.querySelector('.panel label');
+        await page.evaluate(pick => {
+          const l = new Function('return (' + pick + ')()')();
           l.className = 'gatefault';
           l.style.color = getComputedStyle(document.querySelector('.panel')).backgroundColor;
-        });
+        }, pickLabel.toString());
         const after = (await measureContrast(page)).length;
         await ctx.close();
         return after > before;
