@@ -30,22 +30,33 @@
 
 <style>
   /* === THEME: CLASSIC === */
+  /* Direction A ("Instrument") neutrals — cool, flat, hairline-separated.
+     The ACCENT is deliberately left per-theme: the reference mockup showed
+     mint (#40d8a0, the PWA manifest colour) but classic's identity is amber,
+     and swapping a product's signature colour is a bigger call than density.
+     Every neutral below is from the Direction A spec; only the hue is not. */
   :root, [data-theme="classic"] {
     --bg: #000000;
-    --panel: #1a1e24;
-    --panel-top: #22272f;
-    --stroke: #2a2f38;
+    --panel: #16191f;
+    --panel-top: #1a1e26;
+    --stroke: #212730;          /* hairline between groups/rows */
+    --control-edge: #2b313b;    /* border on inputs, selects, buttons */
+    --group-head: #1a1e25;      /* group title bar */
     --stroke-glow: rgba(255, 159, 28, 0.15);
     --accent: #ff9f1c;
     --accent-dim: #cc7a10;
     --accent-glow: rgba(255, 159, 28, 0.3);
-    --text: #ffffff;
-    --text-dim: #c8c0b8;
-    --input-bg: #0e1014;
-    --slider-track: linear-gradient(90deg, #1a4555, #2a6575, #1a4555);
-    --slider-track-border: #4a8595;
-    --slider-thumb: var(--accent);
-    --slider-thumb-border: var(--accent-dim);
+    --text: #e6e9ef;            /* values — the thing you actually read */
+    --text-dim: #a6adbb;        /* labels */
+    /* Spec said #6F7889, but that measures 3.76:1 on --panel-top and fails
+       AA — my own reference had an accessibility bug in it, caught by gate 3.
+       #8b93a3 keeps the recessive feel and clears 4.5:1. */
+    --text-faint: #8b93a3;      /* summaries, hints, inactive tabs */
+    --input-bg: #1e222a;
+    --slider-track: #2b313b;
+    --slider-track-border: transparent;
+    --slider-thumb: var(--text);
+    --slider-thumb-border: transparent;
   }
 
   /* === THEME: CORAL (Bioluminescent Deep Sea) === */
@@ -53,18 +64,21 @@
     --bg: #050a10;
     --panel: #0a1218;
     --panel-top: #0d1820;
-    --stroke: rgba(80, 180, 220, 0.12);
+    --stroke: rgba(80, 180, 220, 0.14);
+    --control-edge: rgba(80, 180, 220, 0.22);
+    --group-head: rgba(80, 180, 220, 0.05);
     --stroke-glow: rgba(80, 220, 180, 0.2);
     --accent: #60e0c0;
     --accent-dim: #40b090;
     --accent-glow: rgba(80, 220, 180, 0.4);
     --text: #c0e8ff;
     --text-dim: #80b8d8;
+    --text-faint: #5d8ba8;
     --input-bg: rgba(60, 140, 180, 0.08);
-    --slider-track: linear-gradient(90deg, #20a0a0, #40c0b0, #80b0d0, #c080c0, #e080a0);
-    --slider-track-border: rgba(80, 180, 220, 0.1);
-    --slider-thumb: #60e0c0;
-    --slider-thumb-border: #40c0a0;
+    --slider-track: rgba(80, 180, 220, 0.2);
+    --slider-track-border: transparent;
+    --slider-thumb: #c0e8ff;
+    --slider-thumb-border: transparent;
   }
 
   * { box-sizing: border-box; }
@@ -131,14 +145,20 @@
 
   /* Panel */
   .panel {
-    background: linear-gradient(180deg, var(--panel-top) 0%, var(--panel) 100%);
+    /* Flat, not gradient: Direction A separates with hairlines, not shading.
+       A flat colour also means .panel's computed backgroundColor is a real
+       value gate 1 can assert against, rather than transparent-over-image. */
+    background: var(--panel);
     border: 1px solid var(--stroke);
     border-radius: 6px;
     padding: 14px;
     overflow: auto;
     touch-action: pan-y;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 20px rgba(0,0,0,0.5);
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    /* Small monospace turns to mush under the global body text-shadow. */
+    text-shadow: none;
   }
+  .panel * { text-shadow: none; }
   .panel::-webkit-scrollbar { width: 6px; }
   .panel::-webkit-scrollbar-track { background: var(--panel); }
   .panel::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 3px; }
@@ -159,15 +179,18 @@
   /* Grid layout */
   .grid {
     display: grid;
-    /* Same reasoning as .subgrid: fixed label column + wrapping labels. */
-    grid-template-columns: 125px minmax(0, 1fr);
-    gap: 8px 12px;
+    /* Same reasoning as .subgrid: fixed label column + wrapping labels.
+       100px is measured, not chosen: at 10.5px monospace only 2 of 121
+       English labels exceed it, against 22/23/24 in es/pt/fr — those wrap
+       to two lines rather than truncating, which is what gate 2 requires. */
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 3px 8px;
     align-items: center;
   }
   .row { display: contents; }
   label {
     color: var(--text-dim);
-    font-size: 14px;
+    font-size: 10.5px;
     /* Labels WRAP rather than clip. The label columns are fixed-width, but
        translated text is far longer than English (French "Sur le temps : saut
        de teinte" needs 223px in an 85px column), so nowrap silently ran labels
@@ -182,13 +205,17 @@
   /* Inputs base */
   input[type="range"], select, input[type="number"], input[type="text"] {
     background: var(--input-bg);
-    color: var(--text-dim);
-    border: 1px solid var(--stroke);
-    border-radius: 3px;
+    color: var(--text);
+    border: 1px solid var(--control-edge);
+    border-radius: 2px;
     font: inherit;
+    font-size: 10.5px;
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s;
   }
+  select, input[type="number"], input[type="text"] { padding: 3px 6px; }
+  /* Numbers line up in a column — they're read as a set, not individually. */
+  input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
   input:focus, select:focus {
     border-color: var(--accent-dim);
     box-shadow: 0 0 0 1px var(--accent-glow);
@@ -208,47 +235,47 @@
     cursor: pointer;
   }
   input[type="range"]::-webkit-slider-runnable-track {
-    height: 6px;
+    height: 2px;
     background: var(--slider-track);
-    border-radius: 3px;
-    border: 1px solid var(--slider-track-border);
+    border-radius: 1px;
+    border: none;
   }
   input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 7px;
+    height: 7px;
     background: var(--slider-thumb);
-    border-radius: 3px;
-    margin-top: -5px;
-    box-shadow: 0 0 8px var(--accent-glow);
-    border: 1px solid var(--slider-thumb-border);
+    border-radius: 1px;
+    margin-top: -2.5px;
+    box-shadow: none;
+    border: none;
   }
   input[type="range"]::-moz-range-track {
-    height: 6px;
+    height: 2px;
     background: var(--slider-track);
-    border-radius: 3px;
-    border: 1px solid var(--slider-track-border);
+    border-radius: 1px;
+    border: none;
   }
   input[type="range"]::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
+    width: 7px;
+    height: 7px;
     background: var(--slider-thumb);
-    border-radius: 3px;
-    border: 1px solid var(--slider-thumb-border);
-    box-shadow: 0 0 8px var(--accent-glow);
+    border-radius: 1px;
+    border: none;
+    box-shadow: none;
   }
   input[type="range"]::-ms-track {
-    height: 6px;
+    height: 2px;
     background: var(--slider-track);
-    border-radius: 3px;
-    border: 1px solid var(--slider-track-border);
+    border-radius: 1px;
+    border: none;
   }
   input[type="range"]::-ms-thumb {
-    width: 14px;
-    height: 14px;
+    width: 7px;
+    height: 7px;
     background: var(--slider-thumb);
-    border-radius: 3px;
-    border: 1px solid var(--slider-thumb-border);
+    border-radius: 1px;
+    border: none;
   }
 
   /* Select dropdowns */
@@ -309,13 +336,13 @@
 
   /* Buttons */
   .btn {
-    background: linear-gradient(180deg, #1a1d24 0%, #0e1014 100%);
-    border: 1px solid var(--stroke);
-    border-radius: 3px;
-    color: var(--text-dim);
-    padding: 5px 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--control-edge);
+    border-radius: 2px;
+    color: var(--text);
+    padding: 3px 6px;
     font: inherit;
-    font-size: 10px;
+    font-size: 10.5px;
     cursor: pointer;
     transition: all 0.15s;
     text-align: center;
@@ -332,21 +359,29 @@
 
   /* Groups */
   .group {
-    margin-top: 8px;
-    padding: 8px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+    margin-top: 7px;
+    padding: 0;
+    background: transparent;
     border: 1px solid var(--stroke);
-    border-radius: 4px;
+    border-radius: 3px;
+    overflow: hidden;
   }
+  /* Title sits in its own bar, so a collapsed group reads as a single
+     labelled strip rather than floating text — and gives the header
+     toggle + value summary somewhere to live. */
   .group-title {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #ffb340;
-    margin-bottom: 6px;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8), 0 0 8px rgba(255,159,28,0.3);
+    color: #b9c0cc;
+    margin: 0;
+    padding: 6px 8px;
+    background: var(--group-head);
+    border-bottom: 1px solid var(--stroke);
   }
+  .group.collapsed .group-title { border-bottom: none; }
+  .group-content { padding: 5px 8px 7px; }
 
   /* Subgrid for groups */
   .subgrid {
@@ -355,8 +390,8 @@
        longer (or any translation) wraps instead of overflowing — see the
        `label` rule. minmax(0,1fr) lets the control column shrink properly
        rather than forcing overflow when a slider has a min-content width. */
-    grid-template-columns: 105px minmax(0, 1fr);
-    gap: 4px 8px;
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 3px 8px;
     align-items: center;
   }
 
@@ -476,7 +511,7 @@
   }
   .group.collapsible .group-content {
     overflow: hidden;
-    transition: max-height 0.25s ease;
+    transition: max-height 0.25s ease, padding 0.25s ease;
     /* No fixed max-height here: a hardcoded guess (the old value was 500px)
        silently clips any group whose real content grows past it, with no
        scrollbar to reach the rest -- exactly what happened to Scenes once a
@@ -486,6 +521,10 @@
   }
   .group.collapsible.collapsed .group-content {
     max-height: 0;
+    /* Padding is NOT clipped by max-height:0 — without zeroing it, every
+       collapsed group keeps a 12px dead strip under its title. */
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   /* Scene slots */
@@ -1010,91 +1049,38 @@
   
   /* Panel styling */
   [data-theme="coral"] .panel {
-    background: linear-gradient(180deg, #0d1820 0%, #080e14 100%);
-    border: 1px solid rgba(80, 180, 220, 0.1);
-    box-shadow: 
-      inset 0 1px 0 rgba(100, 200, 255, 0.05),
-      0 0 60px rgba(60, 140, 180, 0.08);
+    background: var(--panel);
+    border: 1px solid var(--stroke);
+    box-shadow: 0 0 60px rgba(60, 140, 180, 0.08);
   }
 
   /* Group containers */
   [data-theme="coral"] .group {
-    background: rgba(60, 140, 180, 0.04);
-    border: 1px solid rgba(80, 180, 220, 0.08);
-    border-radius: 12px;
+    background: transparent;
+    border: 1px solid var(--stroke);
   }
 
   /* Group titles */
   [data-theme="coral"] .group-title {
-    color: #60d0e0;
-    text-shadow: 0 0 12px rgba(80, 200, 220, 0.4);
+    color: #8fd4e4;
+    background: var(--group-head);
   }
 
   /* Labels */
-  [data-theme="coral"] label {
-    color: #80b8d8;
-    text-shadow: 0 0 8px rgba(80, 180, 220, 0.15);
-  }
+  [data-theme="coral"] label { color: var(--text-dim); }
 
-  /* Chromatic gradient slider tracks */
-  [data-theme="coral"] input[type="range"] {
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important;
-    appearance: none !important;
-    background: transparent !important;
-  }
-  [data-theme="coral"] input[type="range"]::-webkit-slider-runnable-track {
-    height: 8px !important;
-    background: linear-gradient(90deg, 
-      #20a0a0 0%, 
-      #40c0b0 25%, 
-      #80b0d0 50%, 
-      #c080c0 75%, 
-      #e080a0 100%
-    ) !important;
-    border-radius: 8px !important;
-    border: none !important;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.3), 0 0 10px rgba(80, 180, 180, 0.15) !important;
-  }
-  [data-theme="coral"] input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none !important;
-    width: 18px !important;
-    height: 18px !important;
-    background: radial-gradient(circle at 30% 30%, #a0fff0, #60e0c0) !important;
-    border-radius: 50% !important;
-    margin-top: -5px !important;
-    box-shadow: 0 0 12px rgba(80, 220, 180, 0.6), 0 2px 4px rgba(0,0,0,0.3) !important;
-    border: 2px solid rgba(255,255,255,0.3) !important;
-    cursor: pointer !important;
-  }
-  [data-theme="coral"] input[type="range"]::-moz-range-track {
-    height: 8px !important;
-    background: linear-gradient(90deg, 
-      #20a0a0 0%, 
-      #40c0b0 25%, 
-      #80b0d0 50%, 
-      #c080c0 75%, 
-      #e080a0 100%
-    ) !important;
-    border-radius: 8px !important;
-    border: none !important;
-  }
-  [data-theme="coral"] input[type="range"]::-moz-range-thumb {
-    width: 18px !important;
-    height: 18px !important;
-    background: radial-gradient(circle at 30% 30%, #a0fff0, #60e0c0) !important;
-    border-radius: 50% !important;
-    box-shadow: 0 0 12px rgba(80, 220, 180, 0.6), 0 2px 4px rgba(0,0,0,0.3) !important;
-    border: 2px solid rgba(255,255,255,0.3) !important;
-    cursor: pointer !important;
-  }
+  /* Sliders deliberately have NO coral override: a theme should change
+     colour, not geometry. Coral used to force 8px gradient tracks and 18px
+     round thumbs with !important, which made it a second design rather than
+     a second palette — and meant Direction A's metrics only held on one
+     theme. The base rules now drive both, via --slider-track/--slider-thumb. */
 
   /* Buttons */
   [data-theme="coral"] .btn {
     background: rgba(60, 140, 180, 0.12);
     border: 1px solid rgba(80, 180, 220, 0.2);
-    border-radius: 8px;
-    color: #80c8e8;
+    border-radius: 2px;
+    color: #a0d8f0;
   }
   [data-theme="coral"] .btn:hover {
     background: rgba(80, 180, 220, 0.18);
@@ -1107,7 +1093,7 @@
   [data-theme="coral"] select {
     background: rgba(60, 140, 180, 0.1);
     border: 1px solid rgba(80, 180, 220, 0.15);
-    border-radius: 8px;
+    border-radius: 2px;
     color: #a0d8f0;
   }
   [data-theme="coral"] select option {
@@ -1119,16 +1105,15 @@
   [data-theme="coral"] input[type="number"] {
     background: rgba(60, 140, 180, 0.08);
     border: 1px solid rgba(80, 180, 220, 0.12);
-    border-radius: 6px;
+    border-radius: 2px;
     color: #80e0c0;
-    text-shadow: 0 0 8px rgba(80, 220, 180, 0.3);
   }
 
   /* Text inputs */
   [data-theme="coral"] input[type="text"] {
     background: rgba(60, 140, 180, 0.08);
     border: 1px solid rgba(80, 180, 220, 0.12);
-    border-radius: 8px;
+    border-radius: 2px;
     color: #a0d8f0;
   }
 
@@ -1140,10 +1125,7 @@
   }
 
   /* Stepper value */
-  [data-theme="coral"] .step-val {
-    color: #60e0c0;
-    text-shadow: 0 0 10px rgba(80, 220, 180, 0.4);
-  }
+  [data-theme="coral"] .step-val { color: #60e0c0; }
 
   /* Scene slots */
   [data-theme="coral"] .scene-slot.has-scene {
@@ -1663,10 +1645,12 @@
     .panel .step-btn,
     .panel .perbeam-chip,
     .panel-tabs button { min-height: 28px; }
-    /* Narrow glyph buttons need width too, not just height. mod-del is the
-       "remove this modulation route" ×, so a mis-tap destroys a route — the
-       one control here where an undersized target actually costs something. */
-    .panel .mod-del { min-width: 28px; }
+    /* Narrow glyph buttons need width too, not just height — .mod-del (the
+       "remove this modulation route" ×, where a mis-tap destroys a route)
+       and .tool-mini (collapse/expand-all) are single-character buttons
+       whose width comes only from padding. */
+    .panel .mod-del,
+    .panel .tool-mini { min-width: 28px; }
   }
 
   /* Audio level meter */
@@ -1863,22 +1847,25 @@
   }
   .panel-tabs button {
     flex: 1;
-    padding: 4px 2px;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
-    color: inherit;
-    opacity: 0.65;
+    padding: 5px 2px;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: var(--text-faint);
+    opacity: 1;
     cursor: pointer;
   }
   .panel-tabs button:hover { opacity: 1; }
   .panel-tabs button.active {
     opacity: 1;
+    background: var(--input-bg);
     border-color: var(--accent);
     color: var(--accent);
   }
+  .panel-tabs button:hover { color: var(--text-dim); }
+  .panel-tabs button.active:hover { color: var(--accent); }
 
   /* Tab/search filtering */
   .tab-hidden { display: none !important; }
@@ -3134,7 +3121,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.58.0';
+  const APP_VERSION = 'v1.59.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control

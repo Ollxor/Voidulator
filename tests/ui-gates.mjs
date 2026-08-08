@@ -110,15 +110,34 @@ const COLOR_UTILS = `
 
 /* ── measurements (shared by gates and --selftest) ──────────────────── */
 
+/**
+ * Measures the RENDERED TEXT, not the box. scrollWidth>clientWidth also fires
+ * when a container overflows its parent by a pixel or two for reasons that
+ * have nothing to do with text — flagging "MIDI" as clipped inside a 448px
+ * bar is how a gate gets ignored. A Range over the element's own text nodes
+ * gives the true line width; a wrapped label returns one rect per line, each
+ * within the content box, so wrapping correctly reads as fine while
+ * truncation does not.
+ */
 const measureClipping = page => page.evaluate(() => {
   const out = [];
   const sel = '.panel label, .panel .group-title, .panel .btn, .panel .panel-tabs button, .panel .step-val';
+  const range = document.createRange();
   for (const el of document.querySelectorAll(sel)) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
-    if (el.scrollWidth > el.clientWidth + 1) {
+    let textW = 0;
+    for (const n of el.childNodes) {
+      if (n.nodeType !== 3 || !n.textContent.trim()) continue;
+      range.selectNodeContents(n);
+      for (const rect of range.getClientRects()) textW = Math.max(textW, rect.width);
+    }
+    if (!textW) continue;
+    const cs = getComputedStyle(el);
+    const contentW = el.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+    if (textW > contentW + 1) {
       const t = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
-      out.push(`${t || el.id || el.className} (${el.scrollWidth}px in ${el.clientWidth}px)`);
+      out.push(`${t || el.id || el.className} (${Math.round(textW)}px text in ${Math.round(contentW)}px)`);
     }
   }
   return out;
@@ -179,10 +198,13 @@ async function gate1(browser) {                                   // fidelity (a
   const { ctx, page } = await open(browser);
   const got = await page.evaluate(() => {
     const q = s => document.querySelector(s), cs = e => e ? getComputedStyle(e) : null, n = v => parseFloat(v) || 0;
-    const panel = q('.panel'), row = q('.panel .row'), group = q('.panel .group'), label = q('.panel .row label');
+    // .row is `display: contents` — its children flow into .grid/.subgrid, so
+    // the column template and gap live THERE. Measuring .row reports "none".
+    const panel = q('.panel'), grid = q('.panel .subgrid') || q('.panel .grid');
+    const group = q('.panel .group'), label = q('.panel .row label') || q('.panel label');
     return {
       fontFamily: cs(panel)?.fontFamily || '', labelPx: n(cs(label)?.fontSize),
-      rowCols: cs(row)?.gridTemplateColumns || '', rowGap: n(cs(row)?.columnGap),
+      rowCols: cs(grid)?.gridTemplateColumns || '', rowGap: n(cs(grid)?.columnGap),
       groupRadius: n(cs(group)?.borderRadius), panelBg: cs(panel)?.backgroundColor || '',
       labelColor: cs(label)?.color || '',
     };
@@ -192,9 +214,14 @@ async function gate1(browser) {                                   // fidelity (a
   if (got.labelPx !== SPEC.labelPx) f.push(`label size: ${got.labelPx}px → ${SPEC.labelPx}px`);
   if (got.rowGap !== SPEC.colGap) f.push(`row column-gap: ${got.rowGap}px → ${SPEC.colGap}px`);
   if (got.groupRadius !== SPEC.groupRadius) f.push(`group radius: ${got.groupRadius}px → ${SPEC.groupRadius}px`);
-  f.push(`row columns: "${got.rowCols}" → "${SPEC.labelCol}px 1fr ${SPEC.valueCol}px"`);
-  f.push(`panel bg: ${got.panelBg} → ${SPEC.colors.panel}`);
-  f.push(`label colour: ${got.labelColor} → ${SPEC.colors.label}`);
+  const cols = got.rowCols.split(/\s+/).filter(Boolean).length;
+  if (cols !== 3) f.push(`row columns: "${got.rowCols}" (${cols} cols) → 3: label / control / value`);
+  const hex = c => {
+    const m = c.match(/\d+/g); if (!m) return c;
+    return '#' + m.slice(0, 3).map(v => (+v).toString(16).padStart(2, '0')).join('').toUpperCase();
+  };
+  if (hex(got.panelBg) !== SPEC.colors.panel) f.push(`panel bg: ${hex(got.panelBg)} → ${SPEC.colors.panel}`);
+  if (hex(got.labelColor) !== SPEC.colors.label) f.push(`label colour: ${hex(got.labelColor)} → ${SPEC.colors.label}`);
   await ctx.close();
   record(1, 'Fidelity vs Direction A spec', f, true);
 }

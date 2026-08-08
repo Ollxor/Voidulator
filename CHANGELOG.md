@@ -2,6 +2,15 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.59.0] - 2026-08-07
+
+### ✨ New panel look — first pass
+The control panel has been redrawn as an instrument rather than a web form: flat surfaces separated by hairlines instead of gradients and glows, monospace throughout, tighter rows so far more fits on screen at once, and thin slider tracks with small square handles. Group titles now sit in their own bar, so a collapsed group reads as one labelled strip.
+
+Colours moved to a cooler, quieter set — the amber accent is unchanged. Nothing was added, removed, or rewired: every control does exactly what it did before.
+
+The Coral theme now shares the same shapes and sizes as the default one and differs only in colour, as a theme should. Previously it redefined its own slider sizes, corner radii and spacing, which made it a second design rather than a second palette.
+
 ## [1.58.0] - 2026-08-07
 
 ### 🩹 The panel behaves on a phone now
