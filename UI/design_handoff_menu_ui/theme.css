@@ -1,0 +1,111 @@
+/* theme.css — Voidulator visual identity (Obsidian & Ember).
+   Single warm skin driven by [data-theme="ember"] on .void-root.
+   Structural decoration (grain/glow/motion) lives here. */
+
+/* ───────────────────────── base ───────────────────────── */
+.void-root {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.void-root *::selection { background: var(--tint-strong); }
+
+/* scrollbars follow the theme */
+.void-root ::-webkit-scrollbar { width: 9px; height: 9px; }
+.void-root ::-webkit-scrollbar-thumb { background: var(--tint-strong); border-radius: 4px; }
+.void-root ::-webkit-scrollbar-track { background: transparent; }
+
+/* ─────────────────── OBSIDIAN & EMBER ─────────────────── */
+/* Hades-leaning · warm near-black + ember gold · serif wordmark · settle.
+   Text colors tuned UP from the original for legibility (see --ink/--dim/--faint). */
+[data-theme="ember"] {
+  --bg: #0a0705;
+  --rail: rgba(23,15,10,0.94);
+  --panel: rgba(25,16,10,0.99);
+  --tile: rgba(255,238,214,0.05);
+  --tile-on: rgba(245,166,35,0.14);
+  --tint-weak: rgba(245,166,35,0.09);
+  --tint: rgba(245,166,35,0.15);
+  --tint-strong: rgba(245,166,35,0.22);
+  --border: rgba(245,166,35,0.28);
+  --hair: rgba(255,228,196,0.11);
+  --ink: #fbf4ea;
+  --dim: rgba(244,231,213,0.82);
+  --faint: rgba(244,231,213,0.55);
+  --accent: #f5a623;
+  --accent2: #ff6a00;
+  --accent-ink: #2a1606;
+  --neg: #ff6f9c;
+  --danger: #e0445a;
+  --glow: rgba(245,166,35,0.5);
+  --radius: 12px; --radius-sm: 9px; --radius-lg: 16px;
+  --font-disp: 'Instrument Serif', Georgia, serif;
+  --font-sans: 'Hanken Grotesk', system-ui, sans-serif;
+  --font-mono: 'Spline Sans Mono', ui-monospace, monospace;
+}
+/* warm forge glow at the top + fine grain */
+[data-theme="ember"] .void-rail::before {
+  background: radial-gradient(130% 55% at 50% -8%, rgba(255,120,20,0.12), transparent 62%);
+}
+[data-theme="ember"] .void-rail::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: 0.5;
+  background-image: radial-gradient(rgba(255,225,190,0.05) 0.5px, transparent 0.6px);
+  background-size: 3px 3px;
+}
+[data-theme="ember"] .void-tile.is-on { box-shadow: inset 0 0 26px var(--glow); }
+/* hot top edge on panels */
+[data-theme="ember"] .void-panel::before,
+[data-theme="ember"] .void-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 2;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.7;
+}
+[data-theme="ember"] .void-pop { animation: emberPop .26s cubic-bezier(.34,1.4,.5,1) both; }
+@keyframes emberPop { from { transform: translateY(12px) scale(.985); } to { transform: none; } }
+[data-theme="ember"] .void-wordmark { font-size: 29px; letter-spacing: 0.3px; font-weight: 400; font-style: italic; }
+
+/* ─────────────────── shared structure ─────────────────── */
+.void-rail { position: relative; transition: opacity .55s ease; }
+.void-rail::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.void-rail > * { position: relative; z-index: 1; }
+.void-panel { position: absolute; inset: 0; opacity: 1; background: var(--panel); }
+.void-card { position: relative; opacity: 1; }
+
+/* anchored popover: the menu window grows out of the clicked tile, over a dimmed list */
+.void-scrim { position: absolute; inset: 0; background: rgba(6,5,3,0.6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.void-scrim-in  { animation: voidScrimIn .18s ease both; }
+.void-scrim-out { animation: voidScrimOut .16s ease both; }
+@keyframes voidScrimIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes voidScrimOut { from { opacity: 1; } to { opacity: 0; } }
+.void-popover-in  { animation: voidPopoverIn .2s cubic-bezier(.18,.9,.3,1) both; }
+.void-popover-out { animation: voidPopoverOut .16s cubic-bezier(.4,0,.7,.3) both; }
+@keyframes voidPopoverIn  { from { opacity: 0; transform: scale(.42); } to { opacity: 1; transform: scale(1); } }
+@keyframes voidPopoverOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.5); } }
+.void-panelhead { transition: background .15s ease; }
+.void-panelhead:hover { background: rgba(255,255,255,0.025); }
+.void-closebtn { transition: border-color .15s ease, box-shadow .2s ease, background .15s ease, color .15s ease; }
+.void-panelhead:hover .void-closebtn,
+.void-closebtn:hover { border-color: var(--accent); color: #fff; box-shadow: 0 0 14px var(--glow), inset 0 1px 0 rgba(255,255,255,0.1); background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+.void-wordmark { font-family: var(--font-disp); color: #fff; line-height: 1; }
+
+.void-tile {
+  background: var(--tile);
+  border: 1px solid var(--hair);
+  transition: background .16s ease, box-shadow .22s ease, border-color .16s ease, transform .12s ease;
+}
+.void-tile:hover { border-color: var(--border); transform: translateY(-1px); }
+.void-tile.is-on { border-color: var(--border); background: var(--tile-on); }
+
+/* Quick-customize: hover a tile to reveal its arrange cluster (no edit mode) */
+.void-tilewrap.is-quick .void-qcluster { opacity: 0; transition: opacity .13s ease; pointer-events: none; }
+.void-tilewrap.is-quick:hover .void-qcluster,
+.void-tilewrap.is-quick:focus-within .void-qcluster { opacity: 1; pointer-events: auto; }
+
+/* rail dim when idle (VJ mode) + full hide */
+.void-railwrap { transition: width .34s ease, opacity .5s ease; }
+.void-rail.is-idle { opacity: 0.16; }
+
+@media (prefers-reduced-motion: reduce) {
+  .void-pop, .void-popover-in, .void-popover-out, .void-scrim-in, .void-scrim-out { animation-duration: .01ms !important; }
+  .void-tile { transition: none; }
+}

@@ -2,6 +2,21 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.60.0] - 2026-08-07
+
+### ✨ Emission mode is now the main menu
+Beams, Waves, Rings and Generative sit in their own row at the top of the panel, and the tabs beneath show where a control lives rather than what's emitting: Source, Room, Effects, Live, Scenes. "Source" holds the active mode's own controls, so you only see what applies.
+
+Beams and Rings can now both be lit at once — that's what the old "Both" option meant, except it's no longer a separate menu item you have to know about. Waves and Generative take over and switch the others off. The old Emission dropdown is gone, replaced by the row above.
+
+Searching temporarily looks across every tab, so nothing became harder to find.
+
+### ✨ Sliders fill as you move them, and move smoothly
+The track now fills with colour up to the handle, so a value reads at a glance. Seventy sliders were also moving in visible jumps — they were limited to as few as 28 stops across their whole range — and are now continuous. Counts that must stay whole numbers, like Max bounces, are unchanged.
+
+### 🩹 Labels are readable again
+The previous release shrank control labels too far. Bigger now, with a wider label column so the extra size doesn't push more of them onto two lines.
+
 ## [1.59.0] - 2026-08-07
 
 ### ✨ New panel look — first pass

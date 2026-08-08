@@ -36,15 +36,19 @@ const SHAPES = ['circle', 'ellipse'];           // ellipse is what reveals #ecce
  */
 const REACHABILITY_EXEMPT = {
   presetFile:        'hidden <input type=file>, opened programmatically by Load preset',
+  emissionSel:       'row hidden in v1.60 — the mode picker drives it; kept in the DOM as the state carrier every handler, scene capture and undo snapshot reads',
   segCol:            'only shown when the selected segment has inherit-colour off',
   segItemWavelength: 'only shown when the selected segment has its own drift on',
   segItemSpeed:      'only shown when the selected segment has its own drift on',
 };
 
-/** Direction A spec — the fidelity target (see the reference artifact). */
+/** Direction A spec — the fidelity target (see the reference artifact).
+ *  labelPx was 10.5 and labelCol 88 in the original mockup; both were revised
+ *  after real use — 10.5px was too small to read comfortably, and the wider
+ *  column keeps the extra size from forcing more labels onto two lines. */
 const SPEC = {
-  labelPx: 10.5, colGap: 8, groupRadius: 3,
-  labelCol: 88, valueCol: 44,
+  labelPx: 12, colGap: 8, groupRadius: 3,
+  labelCol: 112, valueCol: 44,
   colors: { panel: '#16191F', label: '#A6ADBB' },
 };
 
@@ -200,7 +204,14 @@ async function gate1(browser) {                                   // fidelity (a
     const q = s => document.querySelector(s), cs = e => e ? getComputedStyle(e) : null, n = v => parseFloat(v) || 0;
     // .row is `display: contents` — its children flow into .grid/.subgrid, so
     // the column template and gap live THERE. Measuring .row reports "none".
-    const panel = q('.panel'), grid = q('.panel .subgrid') || q('.panel .grid');
+    // The grid must also be VISIBLE: on a hidden element getComputedStyle
+    // returns the unresolved template ("112px minmax(0px, 1fr)") instead of
+    // resolved pixels, and that reads as 3 whitespace-separated tokens — a
+    // 2-column grid silently passing a 3-column check.
+    const visible = el => el && el.getBoundingClientRect().width > 0;
+    const panel = q('.panel');
+    const grid = [...document.querySelectorAll('.panel .subgrid, .panel .grid')].find(visible)
+              || q('.panel .grid');
     const group = q('.panel .group'), label = q('.panel .row label') || q('.panel label');
     return {
       fontFamily: cs(panel)?.fontFamily || '', labelPx: n(cs(label)?.fontSize),
@@ -266,15 +277,24 @@ async function gate6(browser) {
   const { ctx, page } = await open(browser);
   const SEL = '.panel input, .panel select, .panel button';
   const all = await page.evaluate(s => [...document.querySelectorAll(s)].map(e => e.id).filter(Boolean), SEL);
+  const tabs = await page.evaluate(() =>
+    [...document.querySelectorAll('.panel-tabs button')].map(b => b.dataset.tab));
 
+  // Sweeps tab × emission mode × room shape. Simple/advanced is deliberately
+  // NOT swept: `.advanced-only`/`[data-advanced]` only ever HIDE things in
+  // simple, so advanced is a superset and adding it just doubles runtime.
   const seen = new Set();
-  for (const shape of SHAPES) {
-    await setShape(page, shape);
-    for (const mode of MODES) {
-      await setMode(page, mode);
-      for (const simple of [false, true]) {
-        await page.evaluate(v => document.body.classList.toggle('mode-simple', v), simple);
-        await page.waitForTimeout(50);
+  await page.evaluate(() => document.body.classList.remove('mode-simple'));
+  for (const tab of tabs) {
+    await page.evaluate(t => {
+      const b = [...document.querySelectorAll('.panel-tabs button')].find(x => x.dataset.tab === t);
+      if (b) b.click();
+    }, tab);
+    for (const shape of SHAPES) {
+      await setShape(page, shape);
+      for (const mode of MODES) {
+        await setMode(page, mode);
+        await page.waitForTimeout(35);
         (await page.evaluate(s => [...document.querySelectorAll(s)]
           .filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
           .map(e => e.id).filter(Boolean), SEL)).forEach(id => seen.add(id));
