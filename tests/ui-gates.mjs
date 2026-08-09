@@ -125,7 +125,13 @@ const COLOR_UTILS = `
  */
 const measureClipping = page => page.evaluate(() => {
   const out = [];
-  const sel = '.panel label, .panel .group-title, .panel .btn, .panel .panel-tabs button, .panel .step-val';
+  // .val (v1.61's injected value-column readouts) was missing here entirely —
+  // a real blind spot: the readout's own CSS sets `overflow: hidden`, so an
+  // overflowing value would clip SILENTLY with nothing to catch it. No value
+  // overflows today (verified by sweeping every slider to min/max across
+  // every tab x mode), but the gate has to actually watch the column, not
+  // just happen to pass because nothing currently overflows it.
+  const sel = '.panel label, .panel .group-title, .panel .btn, .panel .panel-tabs button, .panel .step-val, .panel .val';
   const range = document.createRange();
   for (const el of document.querySelectorAll(sel)) {
     const r = el.getBoundingClientRect();
@@ -145,6 +151,41 @@ const measureClipping = page => page.evaluate(() => {
     }
   }
   return out;
+});
+
+/**
+ * The 31 paired slider+number rows (v1.61) share the value column with the
+ * injected `.val` readouts, at a fixed 46px. Range-based measurement doesn't
+ * work on a native <input type=number> — its rendered text isn't in the DOM
+ * — so this sweeps each one to its own min and max (across every tab x
+ * emission mode, since a control's extremes only exist to reach in some
+ * states) and compares scrollWidth to clientWidth, which is the only signal
+ * a native number input gives for "the value doesn't fit". Restores nothing
+ * afterward — gate2 opens a fresh, disposable context per call.
+ */
+const measureNumberOverflow = page => page.evaluate(async () => {
+  const tabs = [...document.querySelectorAll('.panel-tabs button')];
+  const modes = ['beams', 'rings', 'both', 'field', 'generative'];
+  const out = new Map();
+  for (const t of tabs) {
+    t.click();
+    for (const m of modes) {
+      const s = document.getElementById('emissionSel');
+      if (s) { s.value = m; s.dispatchEvent(new Event('change')); }
+      for (const el of document.querySelectorAll('.ctrl-row.paired > input[type="number"]')) {
+        if (el.getBoundingClientRect().width === 0) continue;
+        for (const v of [el.min, el.max]) {
+          if (v === '') continue;
+          el.value = v;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          if (el.scrollWidth > el.clientWidth + 1) {
+            out.set(el.id, `${el.id} (value "${v}" doesn't fit its 46px column)`);
+          }
+        }
+      }
+    }
+  }
+  return [...out.values()];
 });
 
 /* Deduped by element CLASS, not text — 30 scene tiles with the same problem is
@@ -242,6 +283,13 @@ async function gate2(browser) {                                   // label clipp
   for (const lang of LANGS) {
     const { ctx, page } = await open(browser, { lang });
     (await measureClipping(page)).forEach(c => f.push(`[${lang}] ${c}`));
+    await ctx.close();
+  }
+  // Number-input overflow isn't language-dependent (digits, not translated
+  // strings), so this runs once rather than per language.
+  {
+    const { ctx, page } = await open(browser);
+    (await measureNumberOverflow(page)).forEach(c => f.push(c));
     await ctx.close();
   }
   record(2, 'No label clipping in en/es/pt/fr', f);
