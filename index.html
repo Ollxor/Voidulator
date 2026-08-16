@@ -151,7 +151,8 @@
     background: var(--panel);
     border: 1px solid var(--stroke);
     border-radius: 6px;
-    padding: 14px;
+    /* No top padding — see .panel-header for why. */
+    padding: 0 14px 14px;
     overflow: auto;
     touch-action: pan-y;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -981,27 +982,46 @@
   }
 
   /* === Panel header with buttons === */
-  /* Title/icons and the tab bar each stick independently to the top of the
-     panel's own scroll (the search/collapse-all row between them stays in
-     normal flow and scrolls away) so the group list below can be long
-     (many saved scenes, many segments...) without ever scrolling the
-     navigation itself out of view. Two separate `top: 0` sticky siblings of
-     `.panel` stack cleanly with no gap or overlap and no hardcoded offset
-     to keep in sync -- the browser stacks them in DOM order once both are
-     stuck, which is why panel-tabs doesn't need its own top-margin cancel,
-     only panel-header (the first one, flush against the panel's true top
-     edge) does. Negative side margins + matching padding extend each one
-     edge-to-edge across the panel's own padding, so their background fully
-     covers what's scrolling underneath instead of leaving the sides
-     see-through; panel-header's negative TOP margin does the same for the
-     panel's own top padding, so there's no gap above it either. */
+  /* Title/icons, the mode bar and the tab bar each stick independently to
+     the top of the panel's own scroll (the search/collapse-all row between
+     them stays in normal flow and scrolls away) so the group list below can
+     be long (many saved scenes, many segments...) without ever scrolling
+     the navigation itself out of view. Sticky siblings of `.panel` stack
+     cleanly with no gap or overlap and no hardcoded offset to keep in sync
+     -- the browser stacks them in DOM order once all are stuck.
+
+     `.panel` therefore has NO top padding (moved onto `.panel-header`'s own
+     `padding-top` instead) -- not a stylistic choice, a correctness fix.
+     The previous approach gave `.panel` a uniform 14px padding and tried to
+     cancel just the top of it with `.panel-header { margin-top: -14px }`,
+     on the theory that a negative margin pulls a box up through its
+     parent's padding same as it would for any other positioned element.
+     That reasoning holds for `position: static/relative` (verified: with
+     `position: relative` the same -14px margin correctly lands the header
+     flush against the panel's border) but NOT for `position: sticky` --
+     confirmed empirically that a sticky element's negative top margin is
+     silently ignored for its stuck offset, landing it exactly at the
+     parent's padding-box edge regardless of the margin, which is precisely
+     the 15px gap (14px padding + 1px border) a user spotted in a
+     screenshot. This is why removing the padding at the source, rather
+     than trying to cancel it after the fact on a sticky child, is the
+     correct fix and not just a workaround for one symptom -- any FUTURE
+     sticky element added as `.panel`'s first child would hit the exact
+     same bug from the exact same mistaken assumption.
+
+     Side margins are unaffected by this -- sticky's offset-clamping only
+     applies on the axis with an inset set (`top`, here), so the existing
+     negative LEFT/RIGHT margins (extending each bar edge-to-edge across
+     where .panel's side padding still exists, so a sticky bar's background
+     fully covers what's scrolling underneath) still work exactly as
+     before, verified unaffected by this fix. */
   .panel-header {
     position: sticky;
     top: 0;
     z-index: 20;
     background: var(--panel-top);
-    margin: -14px -14px 12px;
-    padding: 14px 14px 12px;
+    margin: 0 -14px 10px;
+    padding: 12px 14px 10px;
     box-shadow: 0 8px 12px -8px rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: space-between;
@@ -1927,13 +1947,13 @@
     z-index: 19;
     background: var(--panel-top);
     margin: 0 -14px 0;
-    padding: 8px 14px 6px;
+    padding: 6px 14px 4px;
     display: flex;
     gap: 3px;
   }
   .panel-modes button {
     flex: 1;
-    padding: 6px 2px;
+    padding: 5px 2px;
     font: inherit;
     font-size: 11.5px;
     letter-spacing: 0.03em;
@@ -1964,8 +1984,8 @@
     top: 0;
     z-index: 19;
     background: var(--panel-top);
-    margin: 0 -14px 8px;
-    padding: 6px 14px 6px;
+    margin: 0 -14px 6px;
+    padding: 4px 14px 4px;
     box-shadow: 0 8px 12px -8px rgba(0, 0, 0, 0.6);
     display: flex;
     gap: 2px;
@@ -1973,7 +1993,7 @@
   }
   .panel-tabs button {
     flex: 1;
-    padding: 5px 2px;
+    padding: 4px 2px;
     font-size: 10.5px;
     letter-spacing: 0.03em;
     background: transparent;
@@ -3337,7 +3357,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.62.0';
+  const APP_VERSION = 'v1.63.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control

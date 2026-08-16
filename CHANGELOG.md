@@ -2,6 +2,14 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.63.0] - 2026-08-16
+
+### 🩹 Fixed a gap above the sticky menu
+Scrolling down showed a sliver of scrolled-past content peeking in above the pinned header — a real gap between the panel's edge and the "stuck" navigation, not just a visual illusion. Fixed at the source rather than patched over.
+
+### ✨ Slightly tighter
+Trimmed the padding on the header, mode row and tab row a bit across the board — a little less dead space before you reach an actual control.
+
 ## [1.62.0] - 2026-08-16
 
 ### ✨ Save a preset for a single effect
