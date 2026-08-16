@@ -2,6 +2,13 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.62.0] - 2026-08-16
+
+### ✨ Save a preset for a single effect
+Trails, Glow, Kaleidoscope, Phosphor Walls, Rings, Wave Field, Generative, Segments, Beam Shapes and Beam glow can each save and recall their own named presets — separate from the whole-scene Scenes gallery. A "Preset" row at the top of each of these sections lets you name and save the current settings, pick a saved one from the dropdown to load it instantly, or delete one you no longer want. Loading a preset only touches that one effect; everything else in the scene — room shape, beam count, colours, every other effect — stays exactly as it was.
+
+These are personal, stored on your own device like the 8 quick-recall scene slots, not shared through the community gallery.
+
 ## [1.61.0] - 2026-08-08
 
 ### ✨ Every slider shows its value

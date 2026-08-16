@@ -2102,6 +2102,30 @@
      already showing you its controls. */
   .group.collapsed.has-toggle-off .group-title { opacity: 0.55; }
 
+  /* ---- Per-effect presets (v1.62) --------------------------------------
+     A named save/recall row injected at the top of each eligible group's
+     content, letting a single effect's own settings (Trails, Kaleidoscope,
+     etc.) be saved and swapped independently of the whole-scene Scenes
+     gallery. Flex, not grid: it needs to span the full content width as one
+     unit the way `.speed-control`/`.two` already do, not lay its four
+     controls into the label/control/value grid template. */
+  .group-preset-row {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--stroke);
+  }
+  .group-preset-row select { flex: 1.3; min-width: 0; }
+  .group-preset-row input[type="text"] { flex: 1; min-width: 0; padding: 4px 6px; }
+  .group-preset-row .btn { flex: none; padding: 4px 8px; }
+  /* Reuses .mod-del: same concept (a narrow destructive glyph button next to
+     a select) already gets the mobile min-width safeguard from that class —
+     seen in the shared @media (max-width:800px) rule above. */
+  .group-preset-row .mod-del { flex: none; padding: 2px 7px; }
+
   /* Per-beam material editor */
   .perbeam-head { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); opacity: 0.9; }
   .perbeam-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
@@ -3313,7 +3337,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.61.0';
+  const APP_VERSION = 'v1.62.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control
@@ -12757,6 +12781,7 @@ void main() {
       scheme: 'Scheme',
       scenes: 'Scenes',
       scene: 'Scene',
+      preset: 'Preset',
       name: 'Name',
       transition: 'Transition',
       screensaver: 'Screensaver',
@@ -13047,6 +13072,7 @@ void main() {
       scheme: 'Esquema',
       scenes: 'Escenas',
       scene: 'Escena',
+      preset: 'Preajuste',
       name: 'Nombre',
       transition: 'Transición',
       screensaver: 'Salvapantallas',
@@ -13336,6 +13362,7 @@ void main() {
       scheme: 'Esquema',
       scenes: 'Cenas',
       scene: 'Cena',
+      preset: 'Predefinição',
       name: 'Nome',
       transition: 'Transição',
       screensaver: 'Proteção de tela',
@@ -13625,6 +13652,7 @@ void main() {
       scheme: 'Schéma',
       scenes: 'Scènes',
       scene: 'Scène',
+      preset: 'Préréglage',
       name: 'Nom',
       transition: 'Transition',
       screensaver: 'Écran de veille',
@@ -14150,6 +14178,174 @@ void main() {
       sw.setAttribute('aria-pressed', on ? 'true' : 'false');
       sw.closest('.group')?.classList.toggle('has-toggle-off', !on);
     });
+  }
+
+  /* ---- Per-effect presets (v1.62) ---------------------------------------
+     A save/recall slot scoped to ONE effect group — e.g. a "long streak"
+     Trails preset you can drop onto any scene — separate from the
+     whole-scene Scenes gallery.
+
+     Curated to the groups captureScene()/applySceneInstant() already treat
+     as self-contained sub-objects (see FACTORY and GROUP_RESETS just above
+     and below this, which enumerate the same set). Deliberately excludes:
+     Beat Detection, Audio Reactive, Modulation Matrix, MIDI — these live in
+     a wholly separate "rig config" persistence layer (see FACTORY's own
+     audio/beat/lfo/bpm bundle and CLAUDE.md's "Rig config must load before
+     any preset" note), not in captureScene()'s scene shape, so they'd need
+     their own capture/apply pair rather than fitting this one. Also
+     excludes Room, Colors, Beam Material and Per-beam Rotation — each of
+     those is either foundational (room shape) or holds a per-beam ARRAY
+     whose length depends on the live beam count, which doesn't round-trip
+     as a fixed-shape named preset the way a plain settings object does. */
+  const GROUP_PRESET_FIELDS = {
+    segments:        ['segments'],
+    ringsTitle:      ['rings'],
+    fieldTitle:      ['field'],
+    generativeTitle: ['generative'],
+    trails:          ['trails'],
+    glow:            ['bloom'],
+    kaleido:         ['kaleido'],
+    phosphorWalls:   ['phosphor'],
+    shapeTitle:      ['widthWave'],
+    beamGlow:        ['beamEdge', 'beamCore'],
+  };
+
+  /* Captures via captureScene() rather than cloning S directly, so a preset
+     can only ever contain fields captureScene() already considers a real,
+     round-trippable SETTING for that namespace — never live/runtime state
+     (current phase, drag position, accumulation buffers) that happens to
+     live on the same S sub-object. */
+  function captureGroupPresetData(groupKey) {
+    const keys = GROUP_PRESET_FIELDS[groupKey];
+    if (!keys) return null;
+    const full = captureScene();
+    const out = {};
+    for (const k of keys) out[k] = full[k];
+    return out;
+  }
+
+  /* Overlays the saved fields onto a FULL capture of the CURRENT live scene
+     (not onto FACTORY, and not a partial scene) so applySceneInstant()'s own
+     `scene.x ?? default` fallback logic never engages — every field outside
+     this one group's namespace is the value already re-supplied by
+     captureScene(), so loading a Trails preset cannot touch the room shape,
+     beam count, other effects, or anything else. applySceneInstant()'s tail
+     (syncUIFromState -> syncRingsUI/syncFieldUI/syncGenerativeUI/
+     syncPhosphorUI -> syncEmissionSel -> updateEmissionVisibility ->
+     syncModeChips, plus refreshSliderFills -> setSliderReadout ->
+     syncGroupToggles) already does every bit of repaint this needs — the
+     exact same pipeline a normal scene load already goes through. */
+  function applyGroupPresetData(groupKey, data) {
+    if (!GROUP_PRESET_FIELDS[groupKey] || !data) return;
+    applySceneInstant({ ...captureScene(), ...data });
+    // Matches GROUP_RESETS.phosphorWalls: clears the phosphor accumulation
+    // buffer so a preset with very different persistence/intensity doesn't
+    // show one frame of the OLD preset's glow blended with the new settings.
+    if (groupKey === 'phosphorWalls') clearPhosphor();
+  }
+
+  const GROUP_PRESETS_KEY = 'voidulator-group-presets';
+  function loadAllGroupPresets() {
+    try { return JSON.parse(localStorage.getItem(GROUP_PRESETS_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveAllGroupPresets(all) {
+    try { localStorage.setItem(GROUP_PRESETS_KEY, JSON.stringify(all)); } catch (e) {}
+  }
+  // Always appends, never overwrites-by-name — same convention saveSceneToList()
+  // already uses; duplicates are harmless and Delete already exists for cleanup.
+  function saveGroupPreset(groupKey, name) {
+    const all = loadAllGroupPresets();
+    if (!Array.isArray(all[groupKey])) all[groupKey] = [];
+    const entry = { id: crypto.randomUUID(), name, data: captureGroupPresetData(groupKey) };
+    all[groupKey].push(entry);
+    saveAllGroupPresets(all);
+    return entry;
+  }
+  function deleteGroupPreset(groupKey, id) {
+    const all = loadAllGroupPresets();
+    if (!Array.isArray(all[groupKey])) return;
+    all[groupKey] = all[groupKey].filter(p => p.id !== id);
+    saveAllGroupPresets(all);
+  }
+
+  /* Injects the save/recall row into each eligible group's content, once,
+     at init. Local-only (localStorage, like the 8 Scene Slots) rather than
+     synced through the shared Supabase gallery (like the Scenes tab) — a
+     per-effect preset is closer in spirit to a personal working set than to
+     something 2-3 people would browse and share. */
+  function initGroupPresets() {
+    for (const key in GROUP_PRESET_FIELDS) {
+      const g = document.querySelector(`.group[data-group-key="${key}"]`);
+      const content = g && g.querySelector('.group-content');
+      if (!content) continue;
+
+      const row = document.createElement('div');
+      row.className = 'group-preset-row';
+
+      const label = document.createElement('label');
+      label.setAttribute('data-i18n', 'preset');
+      label.textContent = 'Preset';
+      label.style.flex = 'none';
+
+      const sel = document.createElement('select');
+      // Matches the Scenes dropdown's own un-i18n'd default option text
+      // ("-- Select scene --") — established precedent in this app for
+      // JS-owned placeholder-style option text, not every string needs a key.
+      const placeholder = document.createElement('option');
+      placeholder.value = ''; placeholder.textContent = '— Select —';
+      sel.appendChild(placeholder);
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.placeholder = 'Name…';
+
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button'; saveBtn.className = 'btn';
+      saveBtn.setAttribute('data-i18n', 'save');
+      saveBtn.textContent = 'Save';
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button'; delBtn.className = 'btn mod-del';
+      delBtn.textContent = '×';
+      delBtn.title = 'Delete selected preset';
+
+      row.append(label, sel, nameInput, saveBtn, delBtn);
+      content.insertBefore(row, content.firstChild);
+
+      const refresh = (selectId) => {
+        const list = loadAllGroupPresets()[key] || [];
+        sel.innerHTML = '';
+        sel.appendChild(placeholder);
+        for (const p of list) {
+          const o = document.createElement('option');
+          o.value = p.id; o.textContent = p.name;
+          sel.appendChild(o);
+        }
+        sel.value = selectId && list.some(p => p.id === selectId) ? selectId : '';
+      };
+      refresh();
+
+      sel.addEventListener('change', () => {
+        if (!sel.value) return;
+        const list = loadAllGroupPresets()[key] || [];
+        const p = list.find(x => x.id === sel.value);
+        if (p) applyGroupPresetData(key, p.data);
+      });
+      saveBtn.addEventListener('click', () => {
+        const title = g.querySelector('.group-title')?.textContent?.trim() || '';
+        const list = loadAllGroupPresets()[key] || [];
+        const name = nameInput.value.trim() || `${title} ${list.length + 1}`;
+        const entry = saveGroupPreset(key, name);
+        nameInput.value = '';
+        refresh(entry.id);
+      });
+      delBtn.addEventListener('click', () => {
+        if (!sel.value) return;
+        deleteGroupPreset(key, sel.value);
+        refresh();
+      });
+    }
   }
 
   const GROUP_RESETS = {
@@ -14872,6 +15068,7 @@ void main() {
     // so the tab buttons pick up the language)
     initPanelTools();
     initValueReadouts();   // must follow initPanelTools: both write into the grids
+    initGroupPresets();    // same reason — needs .group-content already built
     syncGroupToggles();    // first paint of the header switches
     initTooltips();
     initClickableResets();
