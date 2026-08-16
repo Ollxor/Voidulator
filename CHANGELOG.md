@@ -2,6 +2,11 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.64.0] - 2026-08-16
+
+### ✨ The menu gets out of the way on mobile
+On a phone, the header/mode/tab bar stayed pinned no matter how far you scrolled — measured eating up to 40% of the panel's visible height before a single control appeared. It now slides away as you scroll down into a group's settings, and slides right back the moment you scroll up even slightly — no need to scroll all the way back to the top. Desktop is unchanged; there's plenty of room there.
+
 ## [1.63.0] - 2026-08-16
 
 ### 🩹 Fixed a gap above the sticky menu
