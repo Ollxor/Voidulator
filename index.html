@@ -2013,28 +2013,39 @@
   .panel-tabs button:hover { color: var(--text-dim); }
   .panel-tabs button.active:hover { color: var(--accent); }
 
-  /* ---- Hide-on-scroll-down sticky nav (v1.64, mobile only) --------------
-     `.nav-hidden` is toggled by a scroll-direction listener in
-     initPanelTools() regardless of viewport width (see its own comment for
-     why) — this media query is the ONE place that actually decides "mobile
-     or not", so there's nothing else to keep in sync on a resize.
+  /* ---- Compact-when-scrolled sticky nav (v1.65, mobile only) ------------
+     Supersedes v1.64's hide-on-scroll-down: hiding the whole stack (even
+     with an instant reveal on the smallest upward scroll) read as
+     disorienting rather than helpful. `.nav-compact` keeps the header/mode
+     bar/tab bar PERMANENTLY visible and pinned — nothing ever disappears,
+     nothing to scroll back for — but shrinks once you've scrolled past the
+     very top, buying back a meaningful chunk of the same vertical space
+     without the "where did my menu go" moment.
 
-     All three bars translate by the SAME pixel amount (--nav-stack-h, the
-     combined height of all three, kept live by the ResizeObserver above)
-     rather than each by its own `-100%`. `-100%` in a transform is relative
-     to the ELEMENT's own size, so each bar would only clear ITS OWN height —
-     header sliding fully away while modes/tabs merely shuffled up into each
-     other, not a clean "whole stack leaves together" motion. Translating
-     all three by the full stack height means every one of them ends up
-     fully clear of the panel's visible top at the same time, however tall
-     any individual bar currently is (2-line header included). */
-  .panel-header, .panel-modes, .panel-tabs { transition: transform 220ms ease; }
+     Toggled by a scroll-POSITION listener (not direction — there's no
+     hide/reveal distinction to track anymore, just "scrolled or not") in
+     initPanelTools(), regardless of viewport width, same reasoning as
+     before: this media query is the ONE place that decides "mobile or
+     not", so there's nothing to keep in sync on a resize.
+
+     Button heights are untouched by any of this. The existing mobile
+     touch-target rules (min-height: 28px on .panel-modes/.panel-tabs
+     buttons, further up this file) apply unconditionally, not just outside
+     `.nav-compact` — so compacting can only ever shrink the padding AROUND
+     those buttons, never the buttons themselves below the accessible
+     floor. The title text is the one element hidden outright rather than
+     shrunk: a re-identifying "VOIDULATOR" wordmark matters on first load,
+     not three rows into a scrolled control list — and hiding it is also
+     what lets Advanced mode's 7-icon toolbar row (which wraps to a second
+     line at ≤390px with the title competing for space, see the note further
+     down about btnShare) fit on one line once compact, on top of its own
+     padding savings. */
+  .panel-header, .panel-modes, .panel-tabs { transition: padding 150ms ease; }
   @media (max-width: 800px) {
-    .panel.nav-hidden .panel-header,
-    .panel.nav-hidden .panel-modes,
-    .panel.nav-hidden .panel-tabs {
-      transform: translateY(calc(-1 * var(--nav-stack-h, 0px)));
-    }
+    .panel.nav-compact .panel-header h2 { display: none; }
+    .panel.nav-compact .panel-header { padding-top: 6px; padding-bottom: 6px; }
+    .panel.nav-compact .panel-modes { padding-top: 3px; padding-bottom: 2px; }
+    .panel.nav-compact .panel-tabs { padding-top: 2px; padding-bottom: 2px; }
   }
 
   /* Tab/search filtering */
@@ -3381,7 +3392,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.64.0';
+  const APP_VERSION = 'v1.65.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control
@@ -14898,18 +14909,10 @@ void main() {
       // Three sticky layers now, not two: header, then the mode picker, then
       // the tabs. Each one's `top` is the sum of the heights above it —
       // siblings at the same `top` overlap rather than stacking.
-      //
-      // --nav-stack-h (v1.64) is the combined height of all three, used by
-      // the mobile hide-on-scroll-down rule below to translate the whole
-      // stack fully clear of the panel in one move. Computed here rather
-      // than hardcoded for the same reason the two `top` offsets are: it
-      // can't go stale when a header wraps to two lines, a language switch
-      // changes a label's height, or a future row gets added.
       const syncStickyOffset = () => {
         const h = panelHeaderEl.offsetHeight;
         modeBar.style.top = h + 'px';
         tabBar.style.top = (h + modeBar.offsetHeight) + 'px';
-        panel.style.setProperty('--nav-stack-h', (h + modeBar.offsetHeight + tabBar.offsetHeight) + 'px');
       };
       const ro = new ResizeObserver(syncStickyOffset);
       ro.observe(panelHeaderEl);
@@ -14918,41 +14921,25 @@ void main() {
       syncStickyOffset();
     }
 
-    /* Hide-on-scroll-down, reveal-on-scroll-up for the sticky stack (v1.64,
-       mobile only — see the `.nav-hidden` rule, scoped to the same
-       max-width:800px breakpoint every other mobile-only rule in this file
-       uses). On a phone the always-visible header+modes+tabs stack was
-       measured eating up to ~40% of the panel's own visible height before
-       any control appears; this keeps quick mode/tab switching one small
-       upward scroll away instead of removing it, rather than dropping
-       sticky entirely and losing that a permanent fixture.
+    /* Compact-when-scrolled sticky stack (v1.65, mobile only — see
+       `.nav-compact`'s own comment for the full mechanism and why it
+       replaced v1.64's hide-on-scroll-down: hiding the nav entirely, even
+       with an instant reveal on the smallest upward scroll, read as
+       disorienting rather than helpful). This is deliberately simpler than
+       v1.64's listener — a straight position check, no direction tracking —
+       because there's no hide/reveal distinction left to track, just
+       "scrolled past the top or not".
 
-       Deliberately toggles `.nav-hidden` on `.panel` regardless of viewport
-       width — the CSS effect itself is what's confined to mobile, not this
-       listener — so there's exactly one place that decides "mobile or not"
-       (the media query) instead of two that could drift out of sync on a
-       resize. Toggling an inert class on desktop costs nothing. */
-    let navLastScrollTop = 0;
+       Asymmetric thresholds (compact past 8px, full again only at <=4px)
+       are a small hysteresis band so a scroll position sitting exactly on
+       one boundary can't flap the class back and forth every frame; they
+       don't need to be large since — unlike v1.64 — there's no jarring
+       show/hide motion for jitter to make visible, just a 150ms padding
+       transition, so a false trigger here is low-cost either way. */
     panel.addEventListener('scroll', () => {
       const st = panel.scrollTop;
-      const delta = st - navLastScrollTop;
-      if (st <= 4) {
-        // Right at the top: nothing gained by hiding, and it avoids a
-        // flicker exactly at the boundary where delta hovers near 0.
-        panel.classList.remove('nav-hidden');
-      } else if (delta > 6) {
-        panel.classList.add('nav-hidden');
-      } else if (delta < -6) {
-        // Any real upward scroll reveals immediately — matches the
-        // established pattern (Medium, most mobile news sites): the nav
-        // should feel like it's always one small flick away, not something
-        // you have to scroll all the way back to the top to reach.
-        panel.classList.remove('nav-hidden');
-      }
-      // A small dead zone (6px) absorbs sub-pixel/momentum scroll jitter
-      // that would otherwise flip the class back and forth on essentially
-      // no movement, without making real scrolling feel unresponsive.
-      navLastScrollTop = st;
+      if (st > 8) panel.classList.add('nav-compact');
+      else if (st <= 4) panel.classList.remove('nav-compact');
     }, { passive: true });
 
     let activeTab = localStorage.getItem('voidulator-tab') || 'source';

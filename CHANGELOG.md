@@ -2,6 +2,11 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.65.0] - 2026-08-16
+
+### ✨ The menu shrinks instead of disappearing
+Replaces v1.64's approach after trying it and finding the vanishing nav disorienting. The header/mode/tab bar now stays visible and pinned the whole time — nothing ever disappears — but compacts once you scroll past the very top: the title tucks away and everything tightens up, then expands back to full size the moment you're back near the top. Mode chips and tabs stay reachable throughout, at any scroll depth.
+
 ## [1.64.0] - 2026-08-16
 
 ### ✨ The menu gets out of the way on mobile
