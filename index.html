@@ -525,6 +525,29 @@
     margin-bottom: 2px;
     letter-spacing: 0.5px;
   }
+
+  /* Particle colour-group picker: click a swatch to make it the "active"
+     group new particles spawn into — pick a colour, then drop a batch, like
+     choosing a paint before a brush stroke. Deliberately its own small CSS
+     rather than reusing #beamColors' .sw/.color-row — those carry drag-to-
+     reorder styling (grab cursor, drag-over highlight) that doesn't apply
+     here; a swatch's INDEX is its group, nothing to reorder. */
+  .particle-group-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 6px 0 2px;
+  }
+  .particle-group-sw {
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  .particle-group-sw:hover { border-color: var(--control-edge); }
+  .particle-group-sw.active { border-color: var(--text); }
   input[type="color"] {
     -webkit-appearance: none;
     appearance: none;
@@ -2470,6 +2493,7 @@
       <div class="row" id="emissionRow"><label data-i18n="emission">Emission</label>
         <select id="emissionSel">
           <option value="beams" selected="" data-i18n="optBeams">Beams</option>
+          <option value="particles" data-i18n="optParticles">Particles</option>
           <option value="rings" data-i18n="optRings">Rings</option>
           <option value="both" data-i18n="optBoth">Both</option>
           <option value="field" data-i18n="optField">Wave field</option>
@@ -2971,6 +2995,97 @@
       </div>
     </div>
 
+    <div class="group collapsible advanced-only" id="particlesGroup" data-emit="particle">
+      <div class="group-title" data-i18n="particlesTitle">Particles</div>
+      <div class="group-content">
+        <div class="subgrid">
+          <label data-i18n="enable">Enable</label>
+          <button class="btn" id="particlesToggle">Off</button>
+          <label data-i18n="shape">Shape</label>
+          <select id="particlesShape">
+            <option value="circle" data-i18n="shapeCircle">Circle</option>
+            <option value="triangle" data-i18n="shapeTriangle">Triangle</option>
+            <option value="square" data-i18n="shapeSquare">Square</option>
+            <option value="pentagon" data-i18n="shapePentagon">Pentagon</option>
+            <option value="hexagon" data-i18n="shapeHexagon">Hexagon</option>
+          </select>
+          <label class="clickable" data-reset="particlesSize" data-i18n="particlesSize">Size</label>
+          <div class="ctrl-row">
+            <input id="particlesSize" type="range" min="1" max="24" step="0.5" value="6">
+            <input id="particlesSizeNum" type="number" min="1" max="24" step="0.5" value="6">
+          </div>
+          <label class="clickable" data-reset="particlesMaxCount" data-i18n="particlesMaxCount">Max particles</label>
+          <div class="ctrl-row">
+            <input id="particlesMaxCount" type="range" min="20" max="3000" step="10" value="600">
+            <input id="particlesMaxCountNum" type="number" min="20" max="3000" step="10" value="600">
+          </div>
+        </div>
+
+        <div class="subgrid" style="margin-top:8px;">
+          <label data-i18n="particlesGravity">Gravity</label>
+          <select id="particlesGravity">
+            <option value="off" data-i18n="particlesGravityOff">Off</option>
+            <option value="down" data-i18n="particlesGravityDown">Down</option>
+            <option value="up" data-i18n="particlesGravityUp">Up</option>
+            <option value="centerIn" data-i18n="particlesGravityIn">Toward centre</option>
+            <option value="centerOut" data-i18n="particlesGravityOut">Away from centre</option>
+          </select>
+          <label class="clickable" data-reset="particlesGravityStrength" data-i18n="particlesGravityStrength">Gravity strength</label>
+          <div class="ctrl-row">
+            <input id="particlesGravityStrength" type="range" min="0" max="2000" step="10" value="500">
+            <input id="particlesGravityStrengthNum" type="number" min="0" max="2000" step="10" value="500">
+          </div>
+          <label class="clickable" data-reset="particlesBounciness" data-i18n="particlesBounciness">Bounciness</label>
+          <input id="particlesBounciness" type="range" min="0" max="1" step="0.01" value="0.8">
+          <label class="clickable" data-reset="particlesFriction" data-i18n="particlesFriction">Friction</label>
+          <input id="particlesFriction" type="range" min="0" max="3" step="0.01" value="0.15">
+        </div>
+
+        <div class="subgrid" style="margin-top:8px;">
+          <label class="clickable" data-reset="particlesSpawnRate" data-i18n="particlesSpawnRate">Continuous spawn</label>
+          <div class="ctrl-row">
+            <input id="particlesSpawnRate" type="range" min="0" max="200" step="1" value="0">
+            <input id="particlesSpawnRateNum" type="number" min="0" max="200" step="1" value="0">
+          </div>
+          <label data-i18n="particlesSpawnSpeed">Spawn speed</label>
+          <div id="particlesSpawnSpeedSlot"></div>
+          <label class="clickable" data-reset="particlesBurstCount" data-i18n="particlesBurstCount">Drop count</label>
+          <div class="ctrl-row">
+            <input id="particlesBurstCount" type="range" min="1" max="500" step="1" value="60">
+            <input id="particlesBurstCountNum" type="number" min="1" max="500" step="1" value="60">
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="particlesDropBtn" data-i18n="particlesDrop">Drop</button>
+          <button class="btn" id="particlesClearBtn" data-i18n="particlesClear">Clear</button>
+        </div>
+        <div class="hint" data-i18n="hintParticlesSpawn">Drag the spawn marker in the room to move it. Click anywhere in the room to drop a burst there instead.</div>
+
+        <div class="subgrid" style="margin-top:8px;">
+          <label class="clickable" data-reset="particlesGroups" data-i18n="particlesGroups">Colour groups</label>
+          <div class="ctrl-row">
+            <input id="particlesGroups" type="range" min="1" max="8" step="1" value="3">
+            <input id="particlesGroupsNum" type="number" min="1" max="8" step="1" value="3">
+          </div>
+          <label data-i18n="scheme">Scheme</label>
+          <select id="particlesScheme">
+            <option value="rainbow" data-i18n="schemeRainbow">Rainbow</option>
+            <option value="analogous" data-i18n="schemeAnalogous">Analogous</option>
+            <option value="warm" data-i18n="schemeWarm">Warm</option>
+            <option value="cool" data-i18n="schemeCool">Cool</option>
+            <option value="monochrome" data-i18n="schemeMonochrome">Monochrome</option>
+            <option value="earth" data-i18n="schemeEarth">Earth</option>
+            <option value="grayscale" data-i18n="schemeGrayscale">Greyscale</option>
+            <option value="noir" data-i18n="schemeNoir">Noir</option>
+            <option value="pantone-soft" data-i18n="schemePantone">Pantone</option>
+            <option value="random" data-i18n="schemeRandom">Random</option>
+          </select>
+        </div>
+        <div id="particlesGroupSwatches" class="particle-group-swatches"></div>
+        <div class="hint" data-i18n="hintParticlesGroups">Pick a colour, then Drop or turn on continuous spawn — new particles use whichever group is selected here, so you can build up a pattern one colour at a time.</div>
+      </div>
+    </div>
+
     <div class="group collapsible advanced-only">
       <div class="group-title" data-i18n="trails">Trails</div>
       <div class="group-content">
@@ -3392,7 +3507,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.65.0';
+  const APP_VERSION = 'v1.66.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control
@@ -3650,6 +3765,7 @@
     emitters: [{ x: 0, y: 0 }],
     draggingIdx: -1,
     fieldDraggingIdx: -1,
+    particleDraggingIdx: -1,
     // Emitter cluster: arrange the beam emitters as a regular polygon
     // (2 = line, 3 = triangle, 4 = square…) with manual rotation + auto spin
     emitterGeo: true,        // geometric alignment / drag-follow on
@@ -3814,6 +3930,29 @@
       speed: 1,
       scale: 1,
       hue: 0
+    },
+    // Particles: a sixth emission mode — physically simulated shapes that
+    // bounce off the room walls (reusing the exact ray/reflect math beams
+    // already use for their own bounces), mutually exclusive with
+    // beams/rings/field/generative, same "takes over the room" pattern as
+    // field/generative (user's own framing: "they take over the room").
+    particles: {
+      enabled: false,
+      shape: 'circle',    // circle | triangle | square | pentagon | hexagon — same vocabulary as widthWave/room shape. Single global shape for now (v1) — per-colour-group shape was considered and deliberately deferred.
+      size: 6,             // px radius
+      maxCount: 600,        // live pool cap; oldest evicted first past this, same policy as liveRings
+      gravityMode: 'down',  // off | down | up | centerIn | centerOut — a live selectable knob, not a one-time design decision
+      gravityStrength: 500, // px/s^2
+      bounciness: 0.8,      // velocity fraction kept per wall bounce (0 = sticks, 1 = perfectly elastic)
+      friction: 0.15,       // per-second exponential velocity damping (air drag)
+      spawnRate: 0,         // continuous spawn, particles/sec (0 = off)
+      spawnSpeed: [60, 160], // initial speed range at spawn, px/s
+      burstCount: 60,        // particles released by one click/drop
+      groups: 3,              // population colour groups
+      activeGroup: 0,          // which group new particles are currently assigned to — pick your colour, then drop a batch, like choosing a paint before a brush stroke
+      scheme: 'rainbow',       // palette scheme (generatePalette) seeding S.particles.palette, one colour per group
+      palette: [{ h: 0, s: 80, l: 55 }],
+      emittersNorm: [{ nx: 0.5, ny: 0.72 }] // draggable continuous-spawn point, same nx/ny room-normalized convention as every other mode's emitters
     },
     // Width wave effect (sine wave along beam width)
     widthWave: {
@@ -4249,8 +4388,8 @@
     }
   }
 
-  function generatePalette(scheme) {
-    const n = S.beamCount | 0;
+  function generatePalette(scheme, count) {
+    const n = count !== undefined ? count : (S.beamCount | 0);
     const base = (rand() * 360) % 360;
     const out = [];
     // Use golden angle (137.508°) for stable per-index colors that don't shift when count changes
@@ -4498,6 +4637,7 @@
       rings: JSON.parse(JSON.stringify(S.rings)),
       showBeams: S.showBeams,
       field: JSON.parse(JSON.stringify(S.field)),
+      particles: JSON.parse(JSON.stringify(S.particles)),
       // Shape (widthWave)
       widthWave: {
         enabled: S.widthWave.enabled,
@@ -4772,6 +4912,30 @@
     S.field.radialDuty = scene.field?.radialDuty ?? 0.5;
     S.field.radialPhase = 0;
 
+    // Particles — no runtime-only fields live on S.particles (liveParticles/
+    // particleSpawnClock are separate module-scope state, deliberately NOT
+    // cleared here, same convention as liveRings: existing particles just
+    // keep bouncing under whatever physics the newly-loaded scene brought,
+    // rather than an abrupt clear on every scene switch).
+    S.particles.enabled = scene.particles?.enabled ?? false;
+    S.particles.shape = scene.particles?.shape ?? 'circle';
+    S.particles.size = scene.particles?.size ?? 6;
+    S.particles.maxCount = scene.particles?.maxCount ?? 600;
+    S.particles.gravityMode = scene.particles?.gravityMode ?? 'down';
+    S.particles.gravityStrength = scene.particles?.gravityStrength ?? 500;
+    S.particles.bounciness = scene.particles?.bounciness ?? 0.8;
+    S.particles.friction = scene.particles?.friction ?? 0.15;
+    S.particles.spawnRate = scene.particles?.spawnRate ?? 0;
+    S.particles.spawnSpeed = Array.isArray(scene.particles?.spawnSpeed) ? [...scene.particles.spawnSpeed] : [60, 160];
+    S.particles.burstCount = scene.particles?.burstCount ?? 60;
+    S.particles.groups = scene.particles?.groups ?? 3;
+    S.particles.activeGroup = scene.particles?.activeGroup ?? 0;
+    S.particles.scheme = scene.particles?.scheme ?? 'rainbow';
+    S.particles.palette = Array.isArray(scene.particles?.palette) && scene.particles.palette.length
+      ? scene.particles.palette.map(c => ({ ...c })) : [{ h: 0, s: 80, l: 55 }];
+    S.particles.emittersNorm = Array.isArray(scene.particles?.emittersNorm) && scene.particles.emittersNorm.length
+      ? JSON.parse(JSON.stringify(scene.particles.emittersNorm)) : [{ nx: 0.5, ny: 0.72 }];
+
     // Shape (widthWave)
     S.widthWave.enabled = scene.widthWave?.enabled ?? false;
     S.widthWave.shape = scene.widthWave?.shape ?? 'circle';
@@ -4966,6 +5130,8 @@
     if (typeof syncFieldUI === 'function') syncFieldUI();
     // Generative
     if (typeof syncGenerativeUI === 'function') syncGenerativeUI();
+    // Particles
+    if (typeof syncParticlesUI === 'function') syncParticlesUI();
     // Phosphor
     syncPhosphorUI();
     // Bloom
@@ -6313,6 +6479,21 @@
   let waveProg, waveColorProg;
   let fieldImpulses = [];       // {x, y} grid-UV points to inject a one-shot bump
 
+  // Particles: own tiny shader + own vertex buffer, entirely separate from
+  // the beam vertBuf/prog below. Deliberately NOT reusing the beam shader —
+  // its a_t/a_edge attributes carry beam-strip-specific meaning (along-length
+  // segments, cross-beam glow falloff) that a filled particle polygon has no
+  // clean equivalent for; a small dedicated program is lower-risk than
+  // picking degenerate values to fake beam semantics into behaving like a
+  // flat-filled shape. Own ping-pong pair of FBOs/textures gives particles a
+  // simple accumulation trail (see renderParticlesGL) driven by the SAME
+  // Trails Enabled/Length controls beams use, without touching the beam
+  // trail pipeline's own FBOs at all.
+  let particleProg, particleBuf;
+  let particleVertBuf = new Float32Array(16384);
+  let particleVertCount = 0;
+  let particleTrailFBO, particleTrailTex, particleTrailFBO2, particleTrailTex2, particleTrailPingPong = 0;
+
   // Reusable vertex buffer — grows as needed, never re-allocated per frame
   let vertBuf = new Float32Array(65536);
   let vertCount = 0;
@@ -6948,6 +7129,31 @@ void main() {
     waveProg = makeProgram(copyVs, waveFs);
     waveColorProg = makeProgram(copyVs, waveColorFs);
 
+    // === Particle shader ===
+    // Deliberately minimal — flat-filled colour per particle, no per-pixel
+    // glow/edge shaping of its own. Any glow comes from the existing bloom
+    // pass on top (ensureBloomTargets/runBloom, same as everything else),
+    // not from this shader, so a triangle/pentagon/hexagon particle still
+    // reads as that shape rather than blurring toward a soft circle.
+    const particleVs = `#version 300 es
+precision highp float;
+in vec2 a_pos; in vec3 a_col; in float a_alpha;
+uniform vec2 u_res;
+out vec3 v_col; out float v_alpha;
+void main() {
+  vec2 clip = (a_pos / u_res) * 2.0 - 1.0;
+  clip.y = -clip.y;
+  gl_Position = vec4(clip, 0.0, 1.0);
+  v_col = a_col; v_alpha = a_alpha;
+}`;
+    const particleFs = `#version 300 es
+precision highp float;
+in vec3 v_col; in float v_alpha;
+out vec4 outColor;
+void main() { outColor = vec4(v_col, v_alpha); }`;
+    particleProg = makeProgram(particleVs, particleFs);
+    particleBuf = gl.createBuffer();
+
     gl.enable(gl.BLEND);
     setBlendMode('normal');
   }
@@ -7254,6 +7460,11 @@ void main() {
   let nextActivationIn = 0;  // s until next automatic activation
   let ringColorIdx = 0;
   let ringLastMoved = 0;     // most recently dragged ring emitter (geo anchor)
+  // {x, y, vx, vy, group} — live simulated particles. Capped at
+  // S.particles.maxCount, oldest evicted first, same policy as liveRings.
+  let liveParticles = [];
+  let particleSpawnClock = 0;  // fractional-particle accumulator for continuous spawn
+  let particleEmitters = [];   // px positions derived from S.particles.emittersNorm
   let fieldEmitters = [];    // px positions derived from S.field.emittersNorm
   let fieldLastMoved = 0;
 
@@ -7349,6 +7560,7 @@ void main() {
     if (geometric && n > 1) arrangeFormationGeometric(emittersNorm, anchorIdx < n ? anchorIdx : 0);
   }
   function updateFieldEmitters() { fieldEmitters = normToRoomPx(S.field.emittersNorm); }
+  function updateParticleEmitters() { particleEmitters = normToRoomPx(S.particles.emittersNorm); }
 
   const randIn = (range) => range[0] + Math.random() * Math.max(0, range[1] - range[0]);
   // Migrates legacy scalar settings to [min,max] ranges
@@ -7509,6 +7721,126 @@ void main() {
     const maxLeg = roomMaxLeg();
     for (const ring of liveRings) { ring.prev = ring.d; ring.d += ring.speed * mul * dtSec; }
     liveRings = liveRings.filter(r => r.d < r.legs * maxLeg + S.rings.fade * r.speed * mul);
+  }
+
+  // ---- Particles ----------------------------------------------------------
+  // Wall collision reuses the exact ray-cast + reflect primitives beams use
+  // for their own bounces (firstHitCircle/firstHitArcs/firstHitPoly +
+  // reflectByNormal) — see computePath() above for the beam version this
+  // mirrors. Kept as an independent function rather than factored out of
+  // computePath(): a shared refactor would touch beams' own proven bounce
+  // path for no benefit particles need, since particles trace ONE bounded
+  // step per frame (a real time-stepped simulation) where beams trace the
+  // WHOLE path algebraically once. Same dispatch, different consumer.
+  function particleWallHit(o, d) {
+    const arcs = S.isCircle ? null : S.wallArcs;
+    const hit = S.isCircle ? firstHitCircle(o, d, S.circle)
+      : arcs ? firstHitArcs(o, d, arcs)
+      : firstHitPoly(o, d, S.vertices);
+    if (!hit) return null;
+    let normal;
+    if (S.isCircle) {
+      normal = norm({ x: hit.point.x - S.circle.cx, y: hit.point.y - S.circle.cy });
+    } else if (arcs && hit.arc) {
+      normal = arcNormal(hit.arc, hit.point);
+    } else {
+      const edge = findNearestEdge(hit.point, S.vertices);
+      if (!edge) return null;
+      const e = sub(edge.b, edge.a);
+      normal = norm({ x: -e.y, y: e.x });
+    }
+    return { point: hit.point, t: hit.t, normal };
+  }
+
+  function particleGravity(p) {
+    const g = S.particles.gravityStrength;
+    const mode = S.particles.gravityMode;
+    if (mode === 'off' || !g) return { ax: 0, ay: 0 };
+    if (mode === 'down') return { ax: 0, ay: g };
+    if (mode === 'up') return { ax: 0, ay: -g };
+    // centerIn / centerOut: pull toward or push away from the room's own
+    // centre — roomCenter() already exists for the "Center emitters" button,
+    // reused here rather than re-deriving it.
+    const c = roomCenter();
+    const dx = c.x - p.x, dy = c.y - p.y;
+    const m = Math.hypot(dx, dy) || 1;
+    const sign = mode === 'centerIn' ? 1 : -1;
+    return { ax: (dx / m) * g * sign, ay: (dy / m) * g * sign };
+  }
+
+  // One physics step for one particle. Sub-steps its own move (up to 4 wall
+  // hits per frame) rather than moving the full frame distance and checking
+  // once, so a fast particle clipping a corner still bounces correctly
+  // instead of tunnelling through the wall it should have hit first.
+  function advanceParticle(p, dt) {
+    const { ax, ay } = particleGravity(p);
+    p.vx += ax * dt; p.vy += ay * dt;
+    // Exponential damping — frame-rate independent, same convention as the
+    // rest of the app's decay effects (beat envelope, etc.), not a flat
+    // per-frame multiply that would run at a different effective rate on a
+    // 30fps phone than a 120fz monitor.
+    const damp = Math.exp(-S.particles.friction * dt);
+    p.vx *= damp; p.vy *= damp;
+
+    let remaining = dt;
+    for (let iter = 0; iter < 4 && remaining > 1e-6; iter++) {
+      const moveDist = Math.hypot(p.vx, p.vy) * remaining;
+      if (moveDist < 1e-6) break;
+      const dn = norm({ x: p.vx, y: p.vy });
+      const hit = particleWallHit(p, dn);
+      if (!hit || hit.t > moveDist) {
+        p.x += p.vx * remaining;
+        p.y += p.vy * remaining;
+        remaining = 0;
+      } else {
+        remaining -= remaining * (hit.t / moveDist);
+        p.x = hit.point.x; p.y = hit.point.y;
+        const refl = reflectByNormal(dn, hit.normal);
+        const speed = Math.hypot(p.vx, p.vy) * clamp(S.particles.bounciness, 0, 1);
+        p.vx = refl.x * speed; p.vy = refl.y * speed;
+        // Nudge just off the wall along the new direction — same epsilon
+        // trick computePath() uses after its own bounce — so the NEXT
+        // sub-step's ray cast doesn't immediately re-hit the same wall from
+        // sitting exactly on it (floating point).
+        p.x += refl.x * 0.5; p.y += refl.y * 0.5;
+      }
+    }
+  }
+
+  function spawnParticle(x, y, group) {
+    if (liveParticles.length >= S.particles.maxCount) liveParticles.shift();
+    const ang = rand() * Math.PI * 2;
+    const speed = randIn(S.particles.spawnSpeed);
+    liveParticles.push({
+      x, y,
+      vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+      group: group ?? S.particles.activeGroup
+    });
+  }
+
+  // Drops `count` particles at (almost) the same point — the user's own
+  // "large number dropped from almost the same position" case. A few px of
+  // jitter keeps them from spawning stacked at a literal single coordinate
+  // (which would otherwise draw as one particle until the physics step
+  // separates them), while still reading as "one spot."
+  function spawnParticleBurst(x, y, count, group) {
+    for (let i = 0; i < count; i++) {
+      const jr = rand() * 3, ja = rand() * Math.PI * 2;
+      spawnParticle(x + Math.cos(ja) * jr, y + Math.sin(ja) * jr, group);
+    }
+  }
+
+  function clearLiveParticles() { liveParticles = []; }
+
+  function advanceParticles(dtSec) {
+    if (!S.particles.enabled) return;
+    updateParticleEmitters();
+    if (S.particles.spawnRate > 0) {
+      particleSpawnClock += S.particles.spawnRate * dtSec;
+      const src = particleEmitters[0] || { x: 0, y: 0 };
+      while (particleSpawnClock >= 1) { particleSpawnClock -= 1; spawnParticle(src.x, src.y); }
+    }
+    for (const p of liveParticles) advanceParticle(p, dtSec);
   }
 
   // Plain quad writer for ring segments — t is the expansion distance so the
@@ -8329,6 +8661,168 @@ void main() {
     }
   }
 
+  // Same shape vocabulary as widthWave/room shape. 'circle' has no discrete
+  // side count of its own, so it's approximated with enough segments to
+  // read as round at the particle sizes this slider actually reaches.
+  const PARTICLE_SIDES = { circle: 14, triangle: 3, square: 4, pentagon: 5, hexagon: 6 };
+
+  function particleVertReserve(n) {
+    if (particleVertCount + n > particleVertBuf.length) {
+      let newSize = particleVertBuf.length * 2;
+      while (newSize < particleVertCount + n) newSize *= 2;
+      const bigger = new Float32Array(newSize);
+      bigger.set(particleVertBuf);
+      particleVertBuf = bigger;
+    }
+  }
+
+  // Appends one filled regular polygon as `sides` independent triangles
+  // (TRIANGLES, not TRIANGLE_FAN — a fan resets per drawArrays call, which
+  // would mean one draw call per particle; flat triangles let every live
+  // particle batch into the SAME buffer and the SAME single draw call).
+  function pushParticleShape(cx, cy, size, sides, r, g, b, alpha) {
+    particleVertReserve(sides * 3 * 6);
+    const step = (Math.PI * 2) / sides;
+    const rot = -Math.PI / 2; // point "up" — arbitrary but consistent
+    let prevX = cx + Math.cos(rot) * size, prevY = cy + Math.sin(rot) * size;
+    for (let i = 1; i <= sides; i++) {
+      const ang = rot + step * i;
+      const x = cx + Math.cos(ang) * size, y = cy + Math.sin(ang) * size;
+      particleVertBuf[particleVertCount++] = cx;    particleVertBuf[particleVertCount++] = cy;
+      particleVertBuf[particleVertCount++] = r;     particleVertBuf[particleVertCount++] = g;     particleVertBuf[particleVertCount++] = b;
+      particleVertBuf[particleVertCount++] = alpha;
+      particleVertBuf[particleVertCount++] = prevX; particleVertBuf[particleVertCount++] = prevY;
+      particleVertBuf[particleVertCount++] = r;     particleVertBuf[particleVertCount++] = g;     particleVertBuf[particleVertCount++] = b;
+      particleVertBuf[particleVertCount++] = alpha;
+      particleVertBuf[particleVertCount++] = x;     particleVertBuf[particleVertCount++] = y;
+      particleVertBuf[particleVertCount++] = r;     particleVertBuf[particleVertCount++] = g;     particleVertBuf[particleVertCount++] = b;
+      particleVertBuf[particleVertCount++] = alpha;
+      prevX = x; prevY = y;
+    }
+  }
+
+  function ensureParticleTrailFBO() {
+    const w = glCanvas.width, h = glCanvas.height;
+    if (particleTrailTex && particleTrailTex._w === w && particleTrailTex._h === h) return;
+    if (particleTrailFBO) gl.deleteFramebuffer(particleTrailFBO);
+    if (particleTrailTex) gl.deleteTexture(particleTrailTex);
+    if (particleTrailFBO2) gl.deleteFramebuffer(particleTrailFBO2);
+    if (particleTrailTex2) gl.deleteTexture(particleTrailTex2);
+    const a = makeRenderTarget(w, h); particleTrailFBO = a.fbo; particleTrailTex = a.tex;
+    const b = makeRenderTarget(w, h); particleTrailFBO2 = b.fbo; particleTrailTex2 = b.tex;
+  }
+
+  function drawParticleVerts(fbo, w, h, clear) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.viewport(0, 0, w, h);
+    if (clear) { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+    gl.useProgram(particleProg);
+    gl.bindBuffer(gl.ARRAY_BUFFER, particleBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, particleVertBuf.subarray(0, particleVertCount), gl.DYNAMIC_DRAW);
+    const stride = 6 * 4;
+    const ppos = aloc(particleProg, 'a_pos'), pcol = aloc(particleProg, 'a_col'), palpha = aloc(particleProg, 'a_alpha');
+    gl.enableVertexAttribArray(ppos); gl.vertexAttribPointer(ppos, 2, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(pcol); gl.vertexAttribPointer(pcol, 3, gl.FLOAT, false, stride, 8);
+    gl.enableVertexAttribArray(palpha); gl.vertexAttribPointer(palpha, 1, gl.FLOAT, false, stride, 20);
+    gl.uniform2f(uloc(particleProg, 'u_res'), glCanvas.width / S.dpr, glCanvas.height / S.dpr);
+    setBlendMode(S.blendMode);
+    if (particleVertCount > 0) gl.drawArrays(gl.TRIANGLES, 0, particleVertCount / 6);
+  }
+
+  // Mirrors renderField()'s overall shape (self-contained simulation, draws
+  // into sceneFBO, bloom, composite) rather than trying to route particle
+  // geometry through the beam vertBuf + its trails ping-pong pipeline — see
+  // the particleWallHit() comment above for why the collision code is
+  // independent, and CLAUDE.md for why the trail treatment here is a
+  // deliberately simpler, particle-only one (Enabled + Length only, not the
+  // full beam Trails feature set).
+  function renderParticlesGL(timeSec) {
+    const P = S.particles;
+    const size = Math.max(0.5, P.size);
+    const sides = PARTICLE_SIDES[P.shape] || 14;
+    particleVertCount = 0;
+    for (const p of liveParticles) {
+      const col = P.palette[p.group % P.palette.length] || P.palette[0] || { h: 0, s: 0, l: 100 };
+      const mh = (((col.h + S.hueOffset) % 360) + 360) % 360;
+      const ms = clamp(col.s + S.satOffset, 0, 100);
+      const ml = clamp(col.l + S.lightOffset, 0, 100);
+      const rgb = hslToRgb(mh, ms, ml);
+      pushParticleShape(p.x, p.y, size, sides, rgb[0], rgb[1], rgb[2], 1);
+    }
+
+    ensureBloomTargets();
+    const w = glCanvas.width, h = glCanvas.height;
+
+    if (S.trails.enabled) {
+      ensureParticleTrailFBO();
+      const pp = particleTrailPingPong;
+      const readTex = pp === 0 ? particleTrailTex : particleTrailTex2;
+      const writeFBO = pp === 0 ? particleTrailFBO2 : particleTrailFBO;
+      const writeTex = pp === 0 ? particleTrailTex2 : particleTrailTex;
+
+      // Same fade-rate curve buildBeamsOnly() derives from S.trails.length —
+      // reused verbatim so "Length" means the same thing (in seconds of
+      // visible trail) whether you're looking at beams or particles.
+      const len = Math.max(1, S.trails.length);
+      const t = (len - 1) / 179;
+      const fadeRate = 0.995 * Math.pow(t, 0.5);
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO);
+      gl.viewport(0, 0, w, h);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(blitProg);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, readTex);
+      gl.uniform1i(uloc(blitProg, 'u_tex'), 0);
+      gl.uniform1f(uloc(blitProg, 'u_mult'), fadeRate);
+      gl.uniform1f(uloc(blitProg, 'u_kOn'), 0); // fold once, at final display — same convention as beams
+      gl.disable(gl.BLEND);
+      drawPostQuad(blitProg);
+      gl.enable(gl.BLEND);
+
+      drawParticleVerts(writeFBO, w, h, false); // fresh particles on top of the faded history
+
+      if (S.bloom.enabled && S.bloom.strength > 0.001) {
+        runBloom(writeTex);
+        compositeWithBloom(writeTex);
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(copyProg);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, writeTex);
+        gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
+        uploadKscopeUniforms(copyProg);
+        gl.disable(gl.BLEND);
+        drawPostQuad(copyProg);
+        gl.enable(gl.BLEND);
+      }
+      particleTrailPingPong = 1 - pp;
+    } else {
+      drawParticleVerts(sceneFBO, w, h, true);
+      if (S.bloom.enabled && S.bloom.strength > 0.001) {
+        runBloom(sceneTex);
+        compositeWithBloom(sceneTex);
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.useProgram(copyProg);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sceneTex);
+        gl.uniform1i(uloc(copyProg, 'u_tex'), 0);
+        uploadKscopeUniforms(copyProg);
+        gl.disable(gl.BLEND);
+        drawPostQuad(copyProg);
+        gl.enable(gl.BLEND);
+      }
+    }
+  }
+
   const GEN_PROGS = { aurora: () => genAuroraProg, tunnel: () => genTunnelProg, orbs: () => genOrbsProg };
   // Generative: a fullscreen shader from the gallery, standing in for beams/
   // rings/field as its own emission mode. Always draws through sceneFBO (a
@@ -8848,6 +9342,7 @@ void main() {
     if (!S.overlap.enabled) releaseCoverageTargets();
     if (S.generative.enabled) { renderGenerative(timeSec); return; }
     if (S.field.enabled) { renderField(timeSec); return; }
+    if (S.particles.enabled) { renderParticlesGL(timeSec); return; }
     uploadBeamUniforms();
     if (S.phosphor.enabled) ensurePhosphorGeometry();
 
@@ -9162,9 +9657,9 @@ void main() {
     // wrapped Field's own dot-drawing below -- making Field's dots
     // permanently unreachable (S.field.enabled and !S.field.enabled can
     // never both be true) the entire time Field has ever been active.
-    // Field's block now has its own independent condition instead of living
-    // inside this one.
-    if (S.showEmitter && !S.generative.enabled && !S.field.enabled) {
+    // Field's (and now Particles') block has its own independent condition
+    // instead of living inside this one.
+    if (S.showEmitter && !S.generative.enabled && !S.field.enabled && !S.particles.enabled) {
       overlayHasContent = true;
       for (const e of S.emitters) {
         octx.fillStyle = '#ff9f1c';
@@ -9203,6 +9698,20 @@ void main() {
         octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.fill();
       }
     }
+    // Particle spawn point, in lime — draggable to relocate continuous spawn;
+    // clicking anywhere else in the room (not on this marker) drops a burst
+    // there instead, handled in the pointerdown listener below.
+    if (S.showEmitter && S.particles.enabled) {
+      overlayHasContent = true;
+      updateParticleEmitters();
+      for (const e of particleEmitters) {
+        octx.strokeStyle = '#0a0b0e';
+        octx.lineWidth = 2.5;
+        octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.stroke();
+        octx.fillStyle = '#9fff4f';
+        octx.beginPath(); octx.arc(e.x, e.y, 5, 0, Math.PI * 2); octx.fill();
+      }
+    }
   }
 
   // Interaction
@@ -9232,21 +9741,40 @@ void main() {
         if (d < best) { best = d; fieldIdx = i; idx = -1; ringIdx = -1; }
       }
     }
-    if (fieldIdx >= 0) { S.fieldDraggingIdx = fieldIdx; fieldLastMoved = fieldIdx; ovCanvas.setPointerCapture(e.pointerId); }
+    let particleIdx = -1;
+    if (S.particles.enabled) {
+      updateParticleEmitters();
+      for (let i = 0; i < particleEmitters.length; i++) {
+        const d = Math.hypot(x - particleEmitters[i].x, y - particleEmitters[i].y);
+        if (d < best) { best = d; particleIdx = i; idx = -1; ringIdx = -1; fieldIdx = -1; }
+      }
+    }
+    if (particleIdx >= 0) { S.particleDraggingIdx = particleIdx; ovCanvas.setPointerCapture(e.pointerId); }
+    else if (fieldIdx >= 0) { S.fieldDraggingIdx = fieldIdx; fieldLastMoved = fieldIdx; ovCanvas.setPointerCapture(e.pointerId); }
     else if (ringIdx >= 0) { S.ringDraggingIdx = ringIdx; ovCanvas.setPointerCapture(e.pointerId); }
     else if (idx >= 0) { S.draggingIdx = idx; ovCanvas.setPointerCapture(e.pointerId); }
     else if (S.field.enabled) {
       // Click in empty space while the wave field is active = drop a ripple
       const uv = fieldPxToUV(x, y);
       if (uv && uv.u >= 0 && uv.u <= 1 && uv.v >= 0 && uv.v <= 1) fieldImpulses.push(uv);
+    } else if (S.particles.enabled) {
+      // Click in empty space while Particles is active = drop a burst right
+      // there — same "click empty space to act" convention as Wave field's
+      // ripple, just spawning particles instead of a ripple impulse.
+      const p = constrainToRoom({ x, y });
+      spawnParticleBurst(p.x, p.y, S.particles.burstCount);
     }
   });
 
   ovCanvas.addEventListener('pointermove', (e) => {
-    if (S.draggingIdx < 0 && S.ringDraggingIdx < 0 && S.fieldDraggingIdx < 0) return;
+    if (S.draggingIdx < 0 && S.ringDraggingIdx < 0 && S.fieldDraggingIdx < 0 && S.particleDraggingIdx < 0) return;
     const r = ovCanvas.getBoundingClientRect();
     const newX = e.clientX - r.left, newY = e.clientY - r.top;
     const newPos = { x: newX, y: newY };
+    if (S.particleDraggingIdx >= 0) {
+      writeNormFromPx(S.particles.emittersNorm, S.particleDraggingIdx, newPos);
+      return;
+    }
     if (S.fieldDraggingIdx >= 0) {
       writeNormFromPx(S.field.emittersNorm, S.fieldDraggingIdx, newPos);
       fieldLastMoved = S.fieldDraggingIdx;
@@ -9276,16 +9804,18 @@ void main() {
 
   // Use window to catch pointer release anywhere (fixes sticky dragging)
   window.addEventListener('pointerup', () => {
-    const wasDragging = S.draggingIdx >= 0 || S.ringDraggingIdx >= 0 || S.fieldDraggingIdx >= 0;
+    const wasDragging = S.draggingIdx >= 0 || S.ringDraggingIdx >= 0 || S.fieldDraggingIdx >= 0 || S.particleDraggingIdx >= 0;
     S.draggingIdx = -1;
     S.ringDraggingIdx = -1;
     S.fieldDraggingIdx = -1;
+    S.particleDraggingIdx = -1;
     if (wasDragging) requestAutosave();
   });
   window.addEventListener('pointercancel', () => {
     S.draggingIdx = -1;
     S.ringDraggingIdx = -1;
     S.fieldDraggingIdx = -1;
+    S.particleDraggingIdx = -1;
   });
 
   // Double-tap on stage to toggle fullscreen (but not when dragging the emitter)
@@ -9754,6 +10284,7 @@ void main() {
       rings: JSON.parse(JSON.stringify(S.rings)),
       showBeams: S.showBeams,
       field: JSON.parse(JSON.stringify(S.field)),
+      particles: JSON.parse(JSON.stringify(S.particles)),
       // Performance rig config (modulation matrix + beat actions)
       modRoutes: S.modRoutes,
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep }
@@ -9901,6 +10432,24 @@ void main() {
     S.field.radialDepth = P.field?.radialDepth ?? 1;
     S.field.radialDuty = P.field?.radialDuty ?? 0.5;
     S.field.radialPhase = 0;
+    S.particles.enabled = P.particles?.enabled ?? false;
+    S.particles.shape = P.particles?.shape ?? 'circle';
+    S.particles.size = P.particles?.size ?? 6;
+    S.particles.maxCount = P.particles?.maxCount ?? 600;
+    S.particles.gravityMode = P.particles?.gravityMode ?? 'down';
+    S.particles.gravityStrength = P.particles?.gravityStrength ?? 500;
+    S.particles.bounciness = P.particles?.bounciness ?? 0.8;
+    S.particles.friction = P.particles?.friction ?? 0.15;
+    S.particles.spawnRate = P.particles?.spawnRate ?? 0;
+    S.particles.spawnSpeed = Array.isArray(P.particles?.spawnSpeed) ? [...P.particles.spawnSpeed] : [60, 160];
+    S.particles.burstCount = P.particles?.burstCount ?? 60;
+    S.particles.groups = P.particles?.groups ?? 3;
+    S.particles.activeGroup = P.particles?.activeGroup ?? 0;
+    S.particles.scheme = P.particles?.scheme ?? 'rainbow';
+    S.particles.palette = Array.isArray(P.particles?.palette) && P.particles.palette.length
+      ? P.particles.palette.map(c => ({ ...c })) : [{ h: 0, s: 80, l: 55 }];
+    S.particles.emittersNorm = Array.isArray(P.particles?.emittersNorm) && P.particles.emittersNorm.length
+      ? JSON.parse(JSON.stringify(P.particles.emittersNorm)) : [{ nx: 0.5, ny: 0.72 }];
     if (Array.isArray(P.modRoutes)) {
       S.modRoutes = P.modRoutes.filter(r => MOD_SOURCES[r.source] && MOD_PARAMS[r.target]);
       renderModRoutes();
@@ -10098,6 +10647,7 @@ void main() {
   function syncEmissionSel() {
     if (!emissionSelEl) return;
     emissionSelEl.value = S.generative.enabled ? 'generative' : S.field.enabled ? 'field'
+      : S.particles.enabled ? 'particles'
       : (S.showBeams && S.rings.enabled ? 'both' : (S.rings.enabled ? 'rings' : 'beams'));
     updateEmissionVisibility();
   }
@@ -10107,14 +10657,16 @@ void main() {
   function updateEmissionVisibility() {
     const genOn = S.generative.enabled;
     const fieldOn = !genOn && S.field.enabled;
-    const beamOn = !genOn && !fieldOn && S.showBeams;
-    const ringOn = !genOn && !fieldOn && S.rings.enabled;
+    const particleOn = !genOn && !fieldOn && S.particles.enabled;
+    const beamOn = !genOn && !fieldOn && !particleOn && S.showBeams;
+    const ringOn = !genOn && !fieldOn && !particleOn && S.rings.enabled;
     const show = {
       beam: beamOn,
       beamring: beamOn || ringOn,
-      room: beamOn || ringOn || fieldOn, // room-bearing modes (everything but generative)
+      room: beamOn || ringOn || fieldOn || particleOn, // room-bearing modes (everything but generative)
       ring: ringOn,
       field: fieldOn,
+      particle: particleOn,
       gen: genOn,
     };
     document.querySelectorAll('.panel [data-emit]').forEach(el => {
@@ -10130,7 +10682,9 @@ void main() {
     const v = emissionSelEl.value;
     S.field.enabled = v === 'field';
     S.generative.enabled = v === 'generative';
-    // Field and Generative are their own full-screen modes — beams and rings step aside
+    S.particles.enabled = v === 'particles';
+    // Field, Particles and Generative are their own full-screen-room modes —
+    // beams and rings step aside.
     S.showBeams = v === 'beams' || v === 'both';
     const wasOn = S.rings.enabled;
     S.rings.enabled = v === 'rings' || v === 'both';
@@ -10140,6 +10694,7 @@ void main() {
     syncRingsUI();
     syncFieldUI();
     syncGenerativeUI();
+    syncParticlesUI();
   });
 
   // Move the emitter formation so its centroid lands on the room center
@@ -10429,6 +10984,121 @@ void main() {
   _on(generativeScaleEl, 'input', () => { S.generative.scale = parseFloat(generativeScaleEl.value) || 1; generativeScaleNumEl.value = S.generative.scale; });
   _on(generativeScaleNumEl, 'input', () => { S.generative.scale = clamp(parseFloat(generativeScaleNumEl.value) || 1, 0.2, 3); generativeScaleEl.value = S.generative.scale; });
   _on(generativeHueEl, 'input', () => { S.generative.hue = parseFloat(generativeHueEl.value) || 0; });
+
+  // ---- Particles UI bindings ----
+  const particlesToggleBtn = _el('particlesToggle');
+  const particlesShapeEl = _el('particlesShape');
+  const particlesSizeEl = _el('particlesSize'), particlesSizeNumEl = _el('particlesSizeNum');
+  const particlesMaxCountEl = _el('particlesMaxCount'), particlesMaxCountNumEl = _el('particlesMaxCountNum');
+  const particlesGravityEl = _el('particlesGravity');
+  const particlesGravityStrengthEl = _el('particlesGravityStrength'), particlesGravityStrengthNumEl = _el('particlesGravityStrengthNum');
+  const particlesBouncinessEl = _el('particlesBounciness');
+  const particlesFrictionEl = _el('particlesFriction');
+  const particlesSpawnRateEl = _el('particlesSpawnRate'), particlesSpawnRateNumEl = _el('particlesSpawnRateNum');
+  const particlesBurstCountEl = _el('particlesBurstCount'), particlesBurstCountNumEl = _el('particlesBurstCountNum');
+  const particlesGroupsEl = _el('particlesGroups'), particlesGroupsNumEl = _el('particlesGroupsNum');
+  const particlesSchemeEl = _el('particlesScheme');
+  const particlesDropBtn = _el('particlesDropBtn');
+  const particlesClearBtn = _el('particlesClearBtn');
+  const particlesGroupSwatchesEl = _el('particlesGroupSwatches');
+
+  const particlesSpawnSpeedDR = makeDualRange('particlesSpawnSpeedSlot', 0, 500, 5,
+    () => S.particles.spawnSpeed, r => S.particles.spawnSpeed = r, v => Math.round(v));
+
+  // Growing/shrinking the group COUNT uses the deterministic per-index
+  // colour (no randomness) so existing groups keep their colour and only
+  // the new slot(s) get one — same split beamCount/beamScheme already
+  // establish (ensurePaletteSize vs generatePalette): a count change grows
+  // predictably, a SCHEME change is the one action that deliberately
+  // reshuffles everything, including groups that already existed.
+  function ensureParticlePaletteSize(n) {
+    while (S.particles.palette.length < n) {
+      const i = S.particles.palette.length;
+      S.particles.palette.push(getSchemeColorForIndex(S.particles.scheme, i));
+    }
+    if (S.particles.palette.length > n) S.particles.palette.length = n;
+    if (S.particles.activeGroup >= n) S.particles.activeGroup = 0;
+  }
+
+  function rebuildParticleGroupSwatches() {
+    if (!particlesGroupSwatchesEl) return;
+    particlesGroupSwatchesEl.innerHTML = '';
+    for (let i = 0; i < S.particles.groups; i++) {
+      const col = S.particles.palette[i] || { h: 0, s: 0, l: 100 };
+      const sw = document.createElement('button');
+      sw.type = 'button';
+      sw.className = 'particle-group-sw' + (i === S.particles.activeGroup ? ' active' : '');
+      sw.style.background = `hsl(${col.h}, ${col.s}%, ${col.l}%)`;
+      sw.title = `Group ${i + 1}`;
+      sw.addEventListener('click', () => { S.particles.activeGroup = i; rebuildParticleGroupSwatches(); });
+      particlesGroupSwatchesEl.appendChild(sw);
+    }
+  }
+
+  function syncParticlesUI() {
+    if (!particlesToggleBtn) return;
+    particlesToggleBtn.textContent = S.particles.enabled ? 'On' : 'Off';
+    particlesToggleBtn.style.borderColor = S.particles.enabled ? 'var(--accent)' : '';
+    particlesShapeEl.value = S.particles.shape;
+    particlesSizeEl.value = particlesSizeNumEl.value = S.particles.size;
+    particlesMaxCountEl.value = particlesMaxCountNumEl.value = S.particles.maxCount;
+    particlesGravityEl.value = S.particles.gravityMode;
+    particlesGravityStrengthEl.value = particlesGravityStrengthNumEl.value = S.particles.gravityStrength;
+    particlesBouncinessEl.value = S.particles.bounciness;
+    particlesFrictionEl.value = S.particles.friction;
+    particlesSpawnRateEl.value = particlesSpawnRateNumEl.value = S.particles.spawnRate;
+    particlesBurstCountEl.value = particlesBurstCountNumEl.value = S.particles.burstCount;
+    particlesGroupsEl.value = particlesGroupsNumEl.value = S.particles.groups;
+    particlesSchemeEl.value = S.particles.scheme;
+    particlesSpawnSpeedDR.sync();
+    ensureParticlePaletteSize(S.particles.groups);
+    rebuildParticleGroupSwatches();
+  }
+
+  _on(particlesToggleBtn, 'click', () => {
+    S.particles.enabled = !S.particles.enabled;
+    if (S.particles.enabled) {
+      S.showBeams = false; S.rings.enabled = false; clearLiveRings();
+      S.field.enabled = false; S.generative.enabled = false;
+    } else {
+      S.showBeams = true;
+      clearLiveParticles();
+    }
+    syncParticlesUI(); syncRingsUI(); syncFieldUI(); syncGenerativeUI();
+  });
+  _on(particlesShapeEl, 'change', () => { S.particles.shape = particlesShapeEl.value; });
+  _on(particlesSizeEl, 'input', () => { S.particles.size = parseFloat(particlesSizeEl.value) || 1; particlesSizeNumEl.value = S.particles.size; });
+  _on(particlesSizeNumEl, 'input', () => { S.particles.size = clamp(parseFloat(particlesSizeNumEl.value) || 1, 1, 24); particlesSizeEl.value = S.particles.size; });
+  _on(particlesMaxCountEl, 'input', () => { S.particles.maxCount = parseInt(particlesMaxCountEl.value) || 20; particlesMaxCountNumEl.value = S.particles.maxCount; });
+  _on(particlesMaxCountNumEl, 'input', () => { S.particles.maxCount = clamp(parseInt(particlesMaxCountNumEl.value) || 20, 20, 3000); particlesMaxCountEl.value = S.particles.maxCount; });
+  _on(particlesGravityEl, 'change', () => { S.particles.gravityMode = particlesGravityEl.value; });
+  _on(particlesGravityStrengthEl, 'input', () => { S.particles.gravityStrength = parseFloat(particlesGravityStrengthEl.value) || 0; particlesGravityStrengthNumEl.value = S.particles.gravityStrength; });
+  _on(particlesGravityStrengthNumEl, 'input', () => { S.particles.gravityStrength = clamp(parseFloat(particlesGravityStrengthNumEl.value) || 0, 0, 2000); particlesGravityStrengthEl.value = S.particles.gravityStrength; });
+  _on(particlesBouncinessEl, 'input', () => { S.particles.bounciness = clamp(parseFloat(particlesBouncinessEl.value) || 0, 0, 1); });
+  _on(particlesFrictionEl, 'input', () => { S.particles.friction = Math.max(0, parseFloat(particlesFrictionEl.value) || 0); });
+  _on(particlesSpawnRateEl, 'input', () => { S.particles.spawnRate = parseFloat(particlesSpawnRateEl.value) || 0; particlesSpawnRateNumEl.value = S.particles.spawnRate; });
+  _on(particlesSpawnRateNumEl, 'input', () => { S.particles.spawnRate = clamp(parseFloat(particlesSpawnRateNumEl.value) || 0, 0, 200); particlesSpawnRateEl.value = S.particles.spawnRate; });
+  _on(particlesBurstCountEl, 'input', () => { S.particles.burstCount = parseInt(particlesBurstCountEl.value) || 1; particlesBurstCountNumEl.value = S.particles.burstCount; });
+  _on(particlesBurstCountNumEl, 'input', () => { S.particles.burstCount = clamp(parseInt(particlesBurstCountNumEl.value) || 1, 1, 500); particlesBurstCountEl.value = S.particles.burstCount; });
+  _on(particlesGroupsEl, 'input', () => {
+    S.particles.groups = parseInt(particlesGroupsEl.value) || 1; particlesGroupsNumEl.value = S.particles.groups;
+    ensureParticlePaletteSize(S.particles.groups); rebuildParticleGroupSwatches();
+  });
+  _on(particlesGroupsNumEl, 'input', () => {
+    S.particles.groups = clamp(parseInt(particlesGroupsNumEl.value) || 1, 1, 8); particlesGroupsEl.value = S.particles.groups;
+    ensureParticlePaletteSize(S.particles.groups); rebuildParticleGroupSwatches();
+  });
+  _on(particlesSchemeEl, 'change', () => {
+    S.particles.scheme = particlesSchemeEl.value;
+    S.particles.palette = generatePalette(S.particles.scheme, S.particles.groups);
+    rebuildParticleGroupSwatches();
+  });
+  _on(particlesDropBtn, 'click', () => {
+    updateParticleEmitters();
+    const src = particleEmitters[0] || { x: 0, y: 0 };
+    spawnParticleBurst(src.x, src.y, S.particles.burstCount);
+  });
+  _on(particlesClearBtn, 'click', () => { clearLiveParticles(); });
 
   // Phosphor walls UI bindings
   const phosToggleBtn = _el('phosToggle');
@@ -11689,6 +12359,7 @@ void main() {
     }
     // Ring spawning + expansion (uses possibly-modulated ring speed)
     advanceRings(dtSec);
+    advanceParticles(dtSec);
     // Wave-field source phases advance each frame (sim itself is dt-independent)
     if (S.field.enabled) {
       S.field.phase = (S.field.phase + Math.PI * 2 * S.field.freq * dtSec) % (Math.PI * 2);
@@ -13009,6 +13680,43 @@ void main() {
       scale: 'Scale',
       color: 'Colour',
       hintGenerative: 'A gallery of original fullscreen shaders standing in for beams/rings — no room geometry involved. Works with Glow and Kaleidoscope like every other mode.',
+      optParticles: 'Particles',
+      modeParticles: 'Particles',
+      particlesTitle: 'Particles',
+      shapeCircle: 'Circle',
+      shapeTriangle: 'Triangle',
+      shapeSquare: 'Square',
+      shapePentagon: 'Pentagon',
+      shapeHexagon: 'Hexagon',
+      particlesSize: 'Size',
+      particlesMaxCount: 'Max particles',
+      particlesGravity: 'Gravity',
+      particlesGravityOff: 'Off',
+      particlesGravityDown: 'Down',
+      particlesGravityUp: 'Up',
+      particlesGravityIn: 'Toward centre',
+      particlesGravityOut: 'Away from centre',
+      particlesGravityStrength: 'Gravity strength',
+      particlesBounciness: 'Bounciness',
+      particlesFriction: 'Friction',
+      particlesSpawnRate: 'Continuous spawn',
+      particlesSpawnSpeed: 'Spawn speed',
+      particlesBurstCount: 'Drop count',
+      particlesDrop: 'Drop',
+      particlesClear: 'Clear',
+      hintParticlesSpawn: 'Drag the spawn marker in the room to move it. Click anywhere in the room to drop a burst there instead.',
+      particlesGroups: 'Colour groups',
+      schemeRainbow: 'Rainbow',
+      schemeAnalogous: 'Analogous',
+      schemeWarm: 'Warm',
+      schemeCool: 'Cool',
+      schemeMonochrome: 'Monochrome',
+      schemeEarth: 'Earth',
+      schemeGrayscale: 'Greyscale',
+      schemeNoir: 'Noir',
+      schemePantone: 'Pantone',
+      schemeRandom: 'Random',
+      hintParticlesGroups: 'Pick a colour, then Drop or turn on continuous spawn — new particles use whichever group is selected here, so you can build up a pattern one colour at a time.',
       fieldPulse: 'Pulse',
       fieldWaveform: 'Waveform',
       fieldWfCont: 'Continuous',
@@ -13299,6 +14007,43 @@ void main() {
       scale: 'Escala',
       color: 'Color',
       hintGenerative: 'Una galería de shaders originales a pantalla completa que sustituyen a los haces/anillos — sin geometría de sala. Funciona con Resplandor y Caleidoscopio como cualquier otro modo.',
+      optParticles: 'Partículas',
+      modeParticles: 'Partículas',
+      particlesTitle: 'Partículas',
+      shapeCircle: 'Círculo',
+      shapeTriangle: 'Triángulo',
+      shapeSquare: 'Cuadrado',
+      shapePentagon: 'Pentágono',
+      shapeHexagon: 'Hexágono',
+      particlesSize: 'Tamaño',
+      particlesMaxCount: 'Máx. partículas',
+      particlesGravity: 'Gravedad',
+      particlesGravityOff: 'Desactivada',
+      particlesGravityDown: 'Hacia abajo',
+      particlesGravityUp: 'Hacia arriba',
+      particlesGravityIn: 'Hacia el centro',
+      particlesGravityOut: 'Alejándose del centro',
+      particlesGravityStrength: 'Fuerza de gravedad',
+      particlesBounciness: 'Rebote',
+      particlesFriction: 'Fricción',
+      particlesSpawnRate: 'Generación continua',
+      particlesSpawnSpeed: 'Velocidad de aparición',
+      particlesBurstCount: 'Cantidad al soltar',
+      particlesDrop: 'Soltar',
+      particlesClear: 'Vaciar',
+      hintParticlesSpawn: 'Arrastra el marcador de origen en la sala para moverlo. Haz clic en cualquier otro punto de la sala para soltar allí un grupo de partículas.',
+      particlesGroups: 'Grupos de color',
+      schemeRainbow: 'Arcoíris',
+      schemeAnalogous: 'Análogo',
+      schemeWarm: 'Cálido',
+      schemeCool: 'Frío',
+      schemeMonochrome: 'Monocromo',
+      schemeEarth: 'Tierra',
+      schemeGrayscale: 'Escala de grises',
+      schemeNoir: 'Noir',
+      schemePantone: 'Pantone',
+      schemeRandom: 'Aleatorio',
+      hintParticlesGroups: 'Elige un color y luego pulsa Soltar o activa la generación continua — las nuevas partículas usan el grupo seleccionado aquí, así que puedes construir un patrón un color a la vez.',
       fieldPulse: 'Pulso',
       fieldWaveform: 'Forma de onda',
       fieldWfCont: 'Continua',
@@ -13589,6 +14334,43 @@ void main() {
       scale: 'Escala',
       color: 'Cor',
       hintGenerative: 'Uma galeria de shaders originais em ecrã inteiro que substituem feixes/anéis — sem geometria de sala. Funciona com Brilho e Caleidoscópio como qualquer outro modo.',
+      optParticles: 'Partículas',
+      modeParticles: 'Partículas',
+      particlesTitle: 'Partículas',
+      shapeCircle: 'Círculo',
+      shapeTriangle: 'Triângulo',
+      shapeSquare: 'Quadrado',
+      shapePentagon: 'Pentágono',
+      shapeHexagon: 'Hexágono',
+      particlesSize: 'Tamanho',
+      particlesMaxCount: 'Máx. de partículas',
+      particlesGravity: 'Gravidade',
+      particlesGravityOff: 'Desativada',
+      particlesGravityDown: 'Para baixo',
+      particlesGravityUp: 'Para cima',
+      particlesGravityIn: 'Para o centro',
+      particlesGravityOut: 'Para fora do centro',
+      particlesGravityStrength: 'Força da gravidade',
+      particlesBounciness: 'Quique',
+      particlesFriction: 'Atrito',
+      particlesSpawnRate: 'Geração contínua',
+      particlesSpawnSpeed: 'Velocidade de origem',
+      particlesBurstCount: 'Quantidade ao soltar',
+      particlesDrop: 'Soltar',
+      particlesClear: 'Limpar',
+      hintParticlesSpawn: 'Arraste o marcador de origem na sala para o mover. Clique noutro ponto da sala para soltar ali um grupo de partículas.',
+      particlesGroups: 'Grupos de cor',
+      schemeRainbow: 'Arco-íris',
+      schemeAnalogous: 'Análogo',
+      schemeWarm: 'Quente',
+      schemeCool: 'Frio',
+      schemeMonochrome: 'Monocromático',
+      schemeEarth: 'Terra',
+      schemeGrayscale: 'Escala de cinzentos',
+      schemeNoir: 'Noir',
+      schemePantone: 'Pantone',
+      schemeRandom: 'Aleatório',
+      hintParticlesGroups: 'Escolha uma cor e depois clique em Soltar ou ative a geração contínua — as novas partículas usam o grupo selecionado aqui, para poder construir um padrão uma cor de cada vez.',
       fieldPulse: 'Pulso',
       fieldWaveform: 'Forma de onda',
       fieldWfCont: 'Contínua',
@@ -13879,6 +14661,43 @@ void main() {
       scale: 'Échelle',
       color: 'Couleur',
       hintGenerative: 'Une galerie de shaders originaux plein écran remplaçant les faisceaux/anneaux — sans géométrie de salle. Fonctionne avec Halo et Kaléidoscope comme tout autre mode.',
+      optParticles: 'Particules',
+      modeParticles: 'Particules',
+      particlesTitle: 'Particules',
+      shapeCircle: 'Cercle',
+      shapeTriangle: 'Triangle',
+      shapeSquare: 'Carré',
+      shapePentagon: 'Pentagone',
+      shapeHexagon: 'Hexagone',
+      particlesSize: 'Taille',
+      particlesMaxCount: 'Particules max.',
+      particlesGravity: 'Gravité',
+      particlesGravityOff: 'Désactivée',
+      particlesGravityDown: 'Vers le bas',
+      particlesGravityUp: 'Vers le haut',
+      particlesGravityIn: 'Vers le centre',
+      particlesGravityOut: 'Loin du centre',
+      particlesGravityStrength: 'Force de gravité',
+      particlesBounciness: 'Rebond',
+      particlesFriction: 'Friction',
+      particlesSpawnRate: 'Génération continue',
+      particlesSpawnSpeed: 'Vitesse d\'apparition',
+      particlesBurstCount: 'Quantité au lâcher',
+      particlesDrop: 'Lâcher',
+      particlesClear: 'Effacer',
+      hintParticlesSpawn: 'Faites glisser le marqueur d\'origine dans la salle pour le déplacer. Cliquez ailleurs dans la salle pour y lâcher un groupe de particules.',
+      particlesGroups: 'Groupes de couleur',
+      schemeRainbow: 'Arc-en-ciel',
+      schemeAnalogous: 'Analogue',
+      schemeWarm: 'Chaud',
+      schemeCool: 'Froid',
+      schemeMonochrome: 'Monochrome',
+      schemeEarth: 'Terre',
+      schemeGrayscale: 'Niveaux de gris',
+      schemeNoir: 'Noir',
+      schemePantone: 'Pantone',
+      schemeRandom: 'Aléatoire',
+      hintParticlesGroups: 'Choisissez une couleur, puis cliquez sur Lâcher ou activez la génération continue — les nouvelles particules utilisent le groupe sélectionné ici, pour construire un motif une couleur à la fois.',
       fieldPulse: 'Impulsion',
       fieldWaveform: 'Forme d\'onde',
       fieldWfCont: 'Continue',
@@ -14181,7 +15000,7 @@ void main() {
       beamAlpha: S.beamAlpha, beamAbsorb: S.beamAbsorb, beamHueDrift: S.beamHueDrift,
       beamEdge: S.beamEdge, beamCore: S.beamCore,
       segments: S.segments,
-      widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, kaleido: S.kaleido, generative: S.generative, phosphor: S.phosphor, rings: S.rings, field: S.field,
+      widthWave: S.widthWave, trails: S.trails, bloom: S.bloom, kaleido: S.kaleido, generative: S.generative, phosphor: S.phosphor, rings: S.rings, field: S.field, particles: S.particles,
       audio: { sensitivity: S.audio.sensitivity, smoothing: S.audio.smoothing, autoGain: S.audio.autoGain },
       beat: { enabled: S.beat.enabled, sensitivity: S.beat.sensitivity, decay: S.beat.decay, ripple: S.beat.ripple, hueJump: S.beat.hueJump, hueStep: S.beat.hueStep },
       lfo: { rate1: S.lfo.rate1, rate2: S.lfo.rate2, sync1: S.lfo.sync1, sync2: S.lfo.sync2 },
@@ -14213,6 +15032,7 @@ void main() {
     segments:        { btn: 'segToggle',        on: () => !!S.segments.on },
     ringsTitle:      { btn: 'ringsToggle',      on: () => !!S.rings.enabled },
     fieldTitle:      { btn: 'fieldToggle',      on: () => !!S.field.enabled },
+    particlesTitle:  { btn: 'particlesToggle',  on: () => !!S.particles.enabled },
     generativeTitle: { btn: 'generativeToggle', on: () => !!S.generative.enabled },
     trails:          { btn: 'trailsToggle',     on: () => !!S.trails.enabled },
     glow:            { btn: 'bloomToggle',      on: () => !!S.bloom.enabled },
@@ -14256,6 +15076,7 @@ void main() {
     segments:        ['segments'],
     ringsTitle:      ['rings'],
     fieldTitle:      ['field'],
+    particlesTitle:  ['particles'],
     generativeTitle: ['generative'],
     trails:          ['trails'],
     glow:            ['bloom'],
@@ -14434,6 +15255,7 @@ void main() {
     shapeTitle: () => { S.widthWave = F().widthWave; },
     ringsTitle: () => { S.rings = F().rings; syncRingsUI(); },
     fieldTitle: () => { const en = S.field.enabled; S.field = F().field; S.field.enabled = en; syncFieldUI(); },
+    particlesTitle: () => { const en = S.particles.enabled; S.particles = F().particles; S.particles.enabled = en; syncParticlesUI(); },
     trails: () => { S.trails = F().trails; },
     glow: () => { S.bloom = F().bloom; },
     kaleido: () => { S.kaleido = F().kaleido; },
@@ -14627,26 +15449,30 @@ void main() {
      scene-capture path keeps working untouched. */
   const MODE_CHIPS = [
     ['beams', 'modeBeams', 'Beams'],
+    ['particles', 'modeParticles', 'Particles'],
     ['field', 'modeWaves', 'Waves'],
     ['rings', 'modeRings', 'Rings'],
     ['generative', 'modeGen', 'Generative'],
   ];
 
-  /* Resolves a chip click back to one of emissionSel's five values and fires
-     a real change event, so the existing handler does all the actual work --
-     no second source of truth, and undo/autosave/scene-capture keep working
-     because they listen to that same event. */
+  /* Resolves a chip click back to one of emissionSel's five... now six...
+     values and fires a real change event, so the existing handler does all
+     the actual work -- no second source of truth, and undo/autosave/scene-
+     capture keep working because they listen to that same event. */
   function toggleMode(id) {
     const sel = document.getElementById('emissionSel');
     if (!sel) return;
-    const exclusive = S.field.enabled || S.generative.enabled;
+    // Particles takes over the room exactly like Waves/Generative do --
+    // the user's own framing ("they take over the room") when asked whether
+    // it should instead be combinable with Beams the way Rings can be.
+    const exclusive = S.field.enabled || S.generative.enabled || S.particles.enabled;
     let next;
-    if (id === 'field' || id === 'generative') {
-      const already = id === 'field' ? S.field.enabled : S.generative.enabled;
+    if (id === 'field' || id === 'generative' || id === 'particles') {
+      const already = id === 'field' ? S.field.enabled : id === 'generative' ? S.generative.enabled : S.particles.enabled;
       next = already ? 'beams' : id;   // clicking the active takeover mode returns to beams
     } else {
       let beams = S.showBeams, rings = S.rings.enabled;
-      if (exclusive) {                  // leaving Waves/Generative: land on just the one clicked
+      if (exclusive) {                  // leaving Waves/Particles/Generative: land on just the one clicked
         beams = id === 'beams';
         rings = id === 'rings';
       } else if (id === 'beams') beams = !beams;
@@ -14663,17 +15489,18 @@ void main() {
   function syncModeChips() {
     const bar = document.querySelector('.panel-modes');
     if (!bar) return;
-    const takeover = S.field.enabled || S.generative.enabled;
+    const takeover = S.field.enabled || S.generative.enabled || S.particles.enabled;
     const on = {
       beams: S.showBeams && !takeover,
       rings: S.rings.enabled && !takeover,
       field: S.field.enabled,
+      particles: S.particles.enabled,
       generative: S.generative.enabled,
     };
     bar.querySelectorAll('button').forEach(x => x.classList.toggle('active', !!on[x.dataset.mode]));
   }
   const TAB_OF_GROUP = {
-    colors: 'source', perBeamRotation: 'source', beamMaterial: 'source', beamGlow: 'source', segments: 'source', shapeTitle: 'source', ringsTitle: 'source', fieldTitle: 'source', generativeTitle: 'source',
+    colors: 'source', perBeamRotation: 'source', beamMaterial: 'source', beamGlow: 'source', segments: 'source', shapeTitle: 'source', ringsTitle: 'source', fieldTitle: 'source', generativeTitle: 'source', particlesTitle: 'source',
     trails: 'fx', glow: 'fx', kaleido: 'fx', phosphorWalls: 'fx',
     roomTitle: 'room', bonus: 'room',
     audio: 'live', modMatrix: 'live', beatDetection: 'live', midiTitle: 'live', recordVideo: 'live',
@@ -15186,6 +16013,8 @@ void main() {
       S, MOD_PARAMS, triggerBeatActions, startRecording, stopRecording,
       renderModRoutes, syncBeatUI, onMidiMessage, renderMidiBindings,
       activateRings, syncRingsUI,
+      spawnParticle, spawnParticleBurst, clearLiveParticles, advanceParticles, particleWallHit, computePath,
+      get liveParticles() { return liveParticles; },
       // Segments / persistence surface for headless tests
       currentPreset, applyPreset, readSegments, syncSegmentsUI, captureScene, startTransition,
       // Manually advance one frame — testing/headless use (rAF doesn't fire

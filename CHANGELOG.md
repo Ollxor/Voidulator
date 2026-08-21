@@ -2,6 +2,16 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.66.0] - 2026-08-16
+
+### ✨ Particles — a new emission mode
+A sixth way to fill the room, sitting between Beams and Waves: physically simulated shapes that bounce off the room's walls with real gravity, bounciness and friction, rather than beams tracing rays.
+
+- **Shape and physics** — pick circle, triangle, square, pentagon or hexagon; set size, bounciness, friction, and gravity (off, down, up, toward the centre, or away from it — a live setting, not a fixed feel).
+- **Two ways to spawn** — drag the spawn marker to a spot in the room and turn on continuous spawn for a steady stream, or just click anywhere in the room to drop a burst right there. A large batch dropped from nearly the same point and left to bounce is where this gets interesting — try it with Trails on.
+- **Colour groups** — split the population into up to 8 colour groups drawn from any of the app's palette schemes. Pick a swatch, then drop a batch; switch swatches and drop again to build a pattern up one colour at a time.
+- Works with Glow, Kaleidoscope and a simplified Trails (Enabled + Length) like every other mode. Settings save with scenes and the shared gallery, and Particles gets its own per-effect preset slot like Trails, Kaleidoscope and the other effects.
+
 ## [1.65.0] - 2026-08-16
 
 ### ✨ The menu shrinks instead of disappearing

@@ -27,7 +27,7 @@ const SELFTEST = argv.includes('--selftest');
 const want = n => ONLY.length === 0 || ONLY.includes(n);
 
 const LANGS = ['en', 'es', 'pt', 'fr'];
-const MODES = ['beams', 'rings', 'both', 'field', 'generative'];
+const MODES = ['beams', 'rings', 'both', 'particles', 'field', 'generative'];
 const SHAPES = ['circle', 'ellipse'];           // ellipse is what reveals #eccentricity
 
 /**
