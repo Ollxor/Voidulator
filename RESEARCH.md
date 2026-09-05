@@ -4,13 +4,15 @@ A living reference of similar projects, useful code, designs, and ideas. Each
 entry notes the **license** (decisive for any code reuse) and **what's worth
 borrowing**. Append freely; keep license notes honest.
 
-**Voidulator is MIT.** For *code* reuse that means:
-- ✅ **MIT / BSD / Apache-2.0 / CC0 / public-domain** — fine to adapt, with attribution (Apache-2.0 also wants the NOTICE preserved).
-- ⚠️ **AGPL / GPL / CC-BY-SA** — copyleft; do **not** copy code into Voidulator. Study for *ideas* only.
-- ⚠️ **Custom / non-commercial** — ideas only unless the author grants permission.
-- 🟢 **Math & algorithms are never copyrightable** — the wave equation, ray reflection, FFT, gaussian kernels, etc. are free to reimplement from any source.
+**Voidulator is AGPL-3.0 as of 2026-08-16** (was MIT before). This *flips* one of the categories below from the assumptions baked into older entries in this file — re-read an entry's reasoning if it predates this date and leans on the old MIT-only logic. For *code* reuse:
+- ✅ **MIT / BSD / Apache-2.0 / CC0 / public-domain** — still fine to adapt, with attribution (Apache-2.0 also wants the NOTICE preserved). Unaffected by the license change.
+- ✅ **AGPL / GPL** — **now fine to copy code from**, not ideas-only. A permissive (MIT) project couldn't absorb copyleft code without a license conflict; a copyleft (AGPL) project can, since both require derivatives to stay open. Entries below flagged ⚠️ for being AGPL/GPL are stale by this change — worth revisiting if one of them was excluded for that reason alone.
+- ⚠️ **CC-BY-SA (or any Creative Commons share-alike) on *code*** — still treat as ideas-only, not because of a licensing conflict with AGPL specifically, but because CC licenses aren't written for software (no patent grant, ambiguous interaction with source-vs-binary distribution) and mixing them into a codebase is a genuinely unsettled area even the FSF advises against. Verify with something more certain before relying on this.
+- ⚠️ **Anything with a NonCommercial clause (CC-BY-NC-SA, etc.)** — still excluded, and this one is NOT resolved by the license change: AGPL explicitly permits commercial use, so incorporating NC-restricted material would contradict Voidulator's own license terms toward anyone downstream. Ideas only.
+- ⚠️ **Custom / non-commercial** — still ideas only unless the author grants permission.
+- 🟢 **Math & algorithms are never copyrightable** — the wave equation, ray reflection, FFT, gaussian kernels, etc. are free to reimplement from any source. Unaffected by any of this.
 
-_Last updated: 2026-07-23._
+_Last updated: 2026-08-16 (AGPL license change)._
 
 ---
 
@@ -311,7 +313,7 @@ useful distinction beyond just this one case.
 
 | Source | License | Notes |
 |---|---|---|
-| [kishimisu](https://www.kishimisu.art/) — [Shadertoy profile](https://www.shadertoy.com/user/kishimisu) | **CC BY-NC-SA 3.0** (Shadertoy's platform default; verified via the [Shadertoy terms](https://www.shadertoy.com/terms) — applies unless an author states otherwise) ⚠️ | Real, well-known Paris-based creative coder; the popular *"An Introduction to Shader Art Coding"* tutorial (raymarching, HSV cosine-palette loops, domain repetition) lives here as [shadertoy.com/view/mtyGWy](https://www.shadertoy.com/view/mtyGWy). **ShareAlike makes this incompatible with our MIT license regardless of commercial intent** — SA legally forces derivatives to carry the same license, which MIT can't satisfy. Shadertoy itself sits behind Cloudflare bot-protection (blocks both plain fetch and headless browser), which is moot given the license finding. **Ideas/technique only.** |
+| [kishimisu](https://www.kishimisu.art/) — [Shadertoy profile](https://www.shadertoy.com/user/kishimisu) | **CC BY-NC-SA 3.0** (Shadertoy's platform default; verified via the [Shadertoy terms](https://www.shadertoy.com/terms) — applies unless an author states otherwise) ⚠️ | Real, well-known Paris-based creative coder; the popular *"An Introduction to Shader Art Coding"* tutorial (raymarching, HSV cosine-palette loops, domain repetition) lives here as [shadertoy.com/view/mtyGWy](https://www.shadertoy.com/view/mtyGWy). **The NonCommercial clause is what actually excludes this, not ShareAlike** (updated 2026-08-16: Voidulator moved to AGPL, which is itself share-alike/copyleft, so the SA half of CC-BY-NC-SA is no longer the blocker it was under the old MIT license — but AGPL explicitly permits commercial use, and NC-restricted material can't be folded into a project whose license promises that to everyone downstream). Shadertoy itself sits behind Cloudflare bot-protection (blocks both plain fetch and headless browser), which is moot given the license finding. **Ideas/technique only.** |
 | [kishimisu — GitHub](https://github.com/kishimisu) | Mixed: `Gaussian-Splatting-WebGL` is **MIT** ✅ (269★, unrelated to shader-art); `WebGPU-Fluid-Simulation`, `WebGPU-Radix-Sort`, and the rest carry **no LICENSE file** ⚠️ (checked via `gh api users/kishimisu/repos`) | No shader-art repo here — those pieces live on Shadertoy under the default above, not GitHub. The no-LICENSE repos default to "all rights reserved": ideas only. |
 | [XorDev](https://www.xordev.com/) — [Shader Arsenal](https://www.xordev.com/arsenal) | **Unclear / likely commercial** ⚠️ | 412 tiny (<280-char) shaders, explicitly pitched as *"license production-ready code for your commercial projects"* — reads as a paid-licensing storefront, not a giveaway; don't assume free without checking a specific shader's terms. |
 | [XorDev — GitHub](https://github.com/XorDev) | **25 of 26 repos have no LICENSE file** ⚠️ (checked via `gh api`); one demo (`GM_MRT`) is MIT | Same "all rights reserved by default" situation as kishimisu's GitHub — slightly more restrictive than his Shadertoy CC-BY-NC-SA default, which is a useful reminder that license posture varies repo-to-repo even within one author, let alone one genre. |

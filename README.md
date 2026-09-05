@@ -99,10 +99,12 @@ Requires WebGL2 support.
 
 ```
 Voidulator/
-├── index.html      # Complete app (single file)
-├── manifest.json   # PWA manifest
-├── README.md       # This file
-└── LICENSE         # MIT License
+├── index.html          # Complete app (single file)
+├── manifest.json       # PWA manifest
+├── README.md           # This file
+├── CONTRIBUTING.md     # Forking/collaboration guide + license in plain language
+├── CLAUDE-INTRO.md     # Fast on-ramp for an AI assistant joining a fork
+└── LICENSE             # AGPL-3.0 License
 ```
 
 ## 🛠️ Technical Details
@@ -115,7 +117,7 @@ Voidulator/
 
 ## 📝 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+AGPL-3.0 License — see [LICENSE](LICENSE) for details. Commercial use is fine; modified versions you distribute or run as a public service need to stay open under the same terms. See [CONTRIBUTING.md](CONTRIBUTING.md) for the plain-language version.
 
 ## 🙏 Credits
 
