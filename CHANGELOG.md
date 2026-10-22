@@ -2,6 +2,49 @@
 
 All notable changes to Voidulator will be documented in this file.
 
+## [1.67.0] - 2026-08-26
+
+### ✨ Particles: control how alike a dropped batch starts out
+Three new settings decide how much two particles born from the same spawn differ — and they are the *only* things that differ, so setting all three to zero really does give you identical particles that stay a single dot forever.
+
+- **Start spread** — how far the spawn position is jittered, from 40px down to exactly 0. This replaces the fixed 3px jitter that used to be hardcoded into a drop, and it now applies to continuous spawn too, which previously had no spread at all.
+- **Direction** and **Direction spread** — aim the burst, and set how wide a cone it fans into. At 360° it's random in every direction, exactly as before; at a fraction of a degree the whole batch sets off as one.
+
+Turn them all near zero, drop a few hundred, and the batch flies as a single particle that only reveals itself as a crowd once the room's geometry has pulled the copies apart — no staged offsets, nothing but the bouncing. Bent walls do that fastest, then an ellipse or blob; a plain circle or regular polygon barely separates them at all (measured: after a minute from a 0.2° cone, a bent hexagon had spread the batch 189px across while a circle managed 0.7px).
+
+### 🩹 Particles could escape the room
+A particle whose step happened to land it exactly on a wall, to the last bit of floating-point precision, would stop being seen as inside the room and fly off forever. Not rare: a burst of 20 in a circular room lost over half of them within five seconds. Fixed, along with a backstop that recovers any particle that ends up outside for any other reason.
+
+### 🩹 Particle labels didn't reset when clicked
+Every other slider in the app resets to its default when you click its label. The Particles group was set up for it but never wired in, so all eleven of its labels quietly did nothing.
+
+### 🩹 The dark smudge stuck to every ball
+Each ball wore a faint dark-red aura about three times its own radius — not a trail, and not removable by turning Trails off, because it came from Glow (which is on by default). Glow blurs at quarter resolution, which is right for beams: they're long and soft, so a coarse blur is invisible and the upscale usefully widens the glow. On a small round shape the same blur quantises into a faceted block that sits on the ball and follows it around. Particles now blur at half resolution, so the glow hugs the shape instead — measured reach around an 8px ball: 24px before, 15px now, and smooth rather than stepped.
+
+### ✨ New shape: Point
+A single pixel. Drawn as a real point rather than a very small polygon, which matters — see below.
+
+### ✨ Every shape goes down to a single pixel
+Size now starts at 0.5 instead of 1, in finer steps. Below about a pixel and a half across, *any* shape is drawn as a point: a polygon that small becomes triangles smaller than a pixel, and a triangle that covers no pixel centre simply isn't drawn — at the old minimum only about 40 of 60 identical shapes actually appeared, and which ones depended on where they happened to sit between pixels, so a moving swarm blinked. Every shape now draws exactly one pixel per particle at the smallest size, none dropped. Nothing is lost by the switch: at that scale a triangle and a hexagon are the same one or two pixels.
+
+### ✨ Balls bounce off the wall at their edge, not their centre
+Collision treated every particle as a single point, so anything bigger than a few pixels buried itself in the wall on every bounce — a size-24 circle ended up 24px past it, half-vanishing each time. They now collide as discs, which is also why a pile settling under gravity finally rests *on* the floor instead of sunk into it.
+
+### ✨ Bouncing keeps the speed it should
+Bounciness scaled a particle's whole velocity, so a ball skimming along a floor lost exactly as much energy as one dropped straight down onto it. It now damps only the part of the motion heading into the wall and leaves the part along it alone — grazing hits skim and slide, head-on hits still lose exactly the amount the slider says. At bounciness 1 nothing changes; it's still perfectly elastic.
+
+### ⚡ Dense rooms got roughly 100× cheaper
+2000 particles in the blob room cost 71ms of physics per frame — about 14fps, before drawing anything. Every particle was testing itself against all 720 wall segments, every frame, even in the middle of the room nowhere near a wall. Now 0.65ms. Two changes: particles far enough from any wall to be unable to reach one this frame skip the test entirely, and a particle flying in a straight line between bounces reuses the wall it already found rather than re-finding it every frame. Neither approximates anything — the result is identical, it just stops recomputing what it already knows.
+
+### ⚡ Particle colours stopped being recomputed per particle
+Each particle converted its group's colour from HSL to RGB every frame, allocating as it went — up to 3000 conversions a frame for at most 8 distinct colours. Now computed once per colour, the same way the rainbow rings already did it.
+
+### 🩹 Max particles didn't apply to particles already in flight
+Lowering the limit with a full room did nothing until the next particle happened to be born. It now trims immediately, oldest first.
+
+### 🩹 Slow particles no longer get free travel
+Each bounce nudged the particle 0.5px along its new direction to get it off the wall. Harmless for beams, which trace their path once, but a particle bounces for as long as it lives — at the low speeds this mode is built for that was real distance the physics never paid for. Now 0.05px.
+
 ## [1.66.0] - 2026-08-16
 
 ### ✨ Particles — a new emission mode

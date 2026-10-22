@@ -3003,6 +3003,7 @@
           <button class="btn" id="particlesToggle">Off</button>
           <label data-i18n="shape">Shape</label>
           <select id="particlesShape">
+            <option value="point" data-i18n="shapePoint">Point</option>
             <option value="circle" data-i18n="shapeCircle">Circle</option>
             <option value="triangle" data-i18n="shapeTriangle">Triangle</option>
             <option value="square" data-i18n="shapeSquare">Square</option>
@@ -3011,8 +3012,8 @@
           </select>
           <label class="clickable" data-reset="particlesSize" data-i18n="particlesSize">Size</label>
           <div class="ctrl-row">
-            <input id="particlesSize" type="range" min="1" max="24" step="0.5" value="6">
-            <input id="particlesSizeNum" type="number" min="1" max="24" step="0.5" value="6">
+            <input id="particlesSize" type="range" min="0.5" max="24" step="0.1" value="6">
+            <input id="particlesSizeNum" type="number" min="0.5" max="24" step="0.1" value="6">
           </div>
           <label class="clickable" data-reset="particlesMaxCount" data-i18n="particlesMaxCount">Max particles</label>
           <div class="ctrl-row">
@@ -3049,6 +3050,21 @@
           </div>
           <label data-i18n="particlesSpawnSpeed">Spawn speed</label>
           <div id="particlesSpawnSpeedSlot"></div>
+          <label class="clickable" data-reset="particlesSpawnSpread" data-i18n="particlesSpawnSpread">Start spread</label>
+          <div class="ctrl-row">
+            <input id="particlesSpawnSpread" type="range" min="0" max="40" step="0.1" value="3">
+            <input id="particlesSpawnSpreadNum" type="number" min="0" max="40" step="0.1" value="3">
+          </div>
+          <label class="clickable" data-reset="particlesSpawnAngle" data-i18n="particlesSpawnAngle">Direction</label>
+          <div class="ctrl-row">
+            <input id="particlesSpawnAngle" type="range" min="0" max="360" step="0.5" value="0">
+            <input id="particlesSpawnAngleNum" type="number" min="0" max="360" step="0.5" value="0">
+          </div>
+          <label class="clickable" data-reset="particlesSpawnCone" data-i18n="particlesSpawnCone">Direction spread</label>
+          <div class="ctrl-row">
+            <input id="particlesSpawnCone" type="range" min="0" max="360" step="0.1" value="360">
+            <input id="particlesSpawnConeNum" type="number" min="0" max="360" step="0.1" value="360">
+          </div>
           <label class="clickable" data-reset="particlesBurstCount" data-i18n="particlesBurstCount">Drop count</label>
           <div class="ctrl-row">
             <input id="particlesBurstCount" type="range" min="1" max="500" step="1" value="60">
@@ -3060,6 +3076,7 @@
           <button class="btn" id="particlesClearBtn" data-i18n="particlesClear">Clear</button>
         </div>
         <div class="hint" data-i18n="hintParticlesSpawn">Drag the spawn marker in the room to move it. Click anywhere in the room to drop a burst there instead.</div>
+        <div class="hint" data-i18n="hintParticlesSpread">Start spread, Direction spread and the Spawn speed range are the only things that make two particles differ — at exactly zero on all three they are identical and stay one dot forever. Just above zero, a drop looks like a single particle that only reveals itself as a crowd once the room's own geometry has pulled the copies apart. Bent walls do that fastest, then an ellipse or blob; a plain circle or regular polygon barely separates them at all, so widen the cone there.</div>
 
         <div class="subgrid" style="margin-top:8px;">
           <label class="clickable" data-reset="particlesGroups" data-i18n="particlesGroups">Colour groups</label>
@@ -3507,7 +3524,7 @@
   // === CONFIGURATION ===
   // Change this URL to your Google Form for collecting feedback
   const FEEDBACK_FORM_URL = 'https://forms.gle/8QFMGkoKZoKyDBLR6';
-  const APP_VERSION = 'v1.66.0';
+  const APP_VERSION = 'v1.67.0';
   // Shared scene gallery (v1.56): every saved/deleted scene syncs through this
   // Supabase table for everyone using the app, no login -- the anon key below
   // is Supabase's public key, meant to be exposed client-side; access control
@@ -3947,6 +3964,9 @@
       friction: 0.15,       // per-second exponential velocity damping (air drag)
       spawnRate: 0,         // continuous spawn, particles/sec (0 = off)
       spawnSpeed: [60, 160], // initial speed range at spawn, px/s
+      spawnSpread: 3,        // px — radius of the random position jitter at spawn. 0 means every particle starts at the EXACT same point, which is the whole point of the control: with the direction cone narrow too, a drop of 200 renders as one dot and only separates later, from the room's own geometry rather than from any staged offset.
+      spawnAngle: 0,         // deg — base emission direction (0 = +x, to the right)
+      spawnCone: 360,        // deg — full angular width of the emission cone around spawnAngle. 360 = uniformly random in every direction (v1.66's only behaviour).
       burstCount: 60,        // particles released by one click/drop
       groups: 3,              // population colour groups
       activeGroup: 0,          // which group new particles are currently assigned to — pick your colour, then drop a batch, like choosing a paint before a brush stroke
@@ -4927,6 +4947,9 @@
     S.particles.friction = scene.particles?.friction ?? 0.15;
     S.particles.spawnRate = scene.particles?.spawnRate ?? 0;
     S.particles.spawnSpeed = Array.isArray(scene.particles?.spawnSpeed) ? [...scene.particles.spawnSpeed] : [60, 160];
+    S.particles.spawnSpread = scene.particles?.spawnSpread ?? 3;
+    S.particles.spawnAngle = scene.particles?.spawnAngle ?? 0;
+    S.particles.spawnCone = scene.particles?.spawnCone ?? 360;
     S.particles.burstCount = scene.particles?.burstCount ?? 60;
     S.particles.groups = scene.particles?.groups ?? 3;
     S.particles.activeGroup = scene.particles?.activeGroup ?? 0;
@@ -7139,11 +7162,18 @@ void main() {
 precision highp float;
 in vec2 a_pos; in vec3 a_col; in float a_alpha;
 uniform vec2 u_res;
+uniform float u_pointSize;
 out vec3 v_col; out float v_alpha;
 void main() {
   vec2 clip = (a_pos / u_res) * 2.0 - 1.0;
   clip.y = -clip.y;
   gl_Position = vec4(clip, 0.0, 1.0);
+  // Ignored entirely when the draw is TRIANGLES, which is every shape but
+  // 'point'. Points are drawn as GL_POINTS rather than as a tiny quad
+  // because a sub-pixel quad is not reliably rasterised at all — it can miss
+  // every sample centre and simply vanish, or flicker as it moves — whereas
+  // a point of size 1 always lights exactly one pixel, crisply.
+  gl_PointSize = u_pointSize;
   v_col = a_col; v_alpha = a_alpha;
 }`;
     const particleFs = `#version 300 es
@@ -7759,10 +7789,11 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     if (mode === 'down') return { ax: 0, ay: g };
     if (mode === 'up') return { ax: 0, ay: -g };
     // centerIn / centerOut: pull toward or push away from the room's own
-    // centre — roomCenter() already exists for the "Center emitters" button,
-    // reused here rather than re-deriving it.
-    const c = roomCenter();
-    const dx = c.x - p.x, dy = c.y - p.y;
+    // centre. Reads the cached centre rather than calling roomCenter()
+    // directly — that runs centroid(S.vertices) and allocates, and this is
+    // per particle per frame. advanceParticle() calls ensureRoomInradius()
+    // before it reaches here, so the cache is always current.
+    const dx = roomInCx - p.x, dy = roomInCy - p.y;
     const m = Math.hypot(dx, dy) || 1;
     const sign = mode === 'centerIn' ? 1 : -1;
     return { ax: (dx / m) * g * sign, ay: (dy / m) * g * sign };
@@ -7772,7 +7803,76 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
   // hits per frame) rather than moving the full frame distance and checking
   // once, so a fast particle clipping a corner still bounces correctly
   // instead of tunnelling through the wall it should have hit first.
+  // How far off the wall a bounced particle is nudged before the next
+  // sub-step's ray cast, so it does not immediately re-hit the wall it is
+  // sitting exactly on. computePath() uses 0.5px for the same reason, but a
+  // beam traces its whole path once where a particle bounces for as long as
+  // it lives — and at the slow speeds this mode is built for, a 0.5px
+  // forward teleport per bounce is real free travel that the physics never
+  // paid for. 0.05px is still 500x the 1e-4 ray-t guard every firstHit*
+  // helper applies, so it cannot re-hit the wall it just left.
+  const PARTICLE_WALL_EPS = 0.05;
+
+  // Largest circle centred on the room's own centre that fits entirely
+  // inside it, plus that centre. A particle closer to the centre than
+  // (inradius - reach) provably cannot touch a wall this step, so it can
+  // skip the ray cast: one hypot() instead of a test against every wall
+  // segment. That is the difference between 0.4ms and 71ms of physics a
+  // frame for 2000 particles in a blob room (a 720-point polyline).
+  //
+  // The centre is cached HERE rather than read from roomCenter() at the call
+  // site on purpose: roomCenter() runs centroid(S.vertices) — O(720) plus an
+  // allocation — and the call site is the inner sub-step loop, so calling it
+  // there would have cost far more than the cast it was meant to avoid.
+  //
+  // roomGeomGen also doubles as the generation token for the per-particle
+  // hit cache below, so a room change invalidates both together and neither
+  // needs its own key. Keyed on the S.vertices array REFERENCE, which is
+  // sound because bendWalls() reassigns it (S.vertices = bendVerts(...))
+  // rather than mutating in place — the same signal ensurePhosphorGeometry()
+  // already relies on.
+  let roomInradius = 0, roomInCx = 0, roomInCy = 0, roomGeomGen = 0;
+  let roomInKeyVerts = null, roomInKeyCircle = false, roomInKeyR = -1, roomInKeyCx = NaN, roomInKeyCy = NaN;
+  function ensureRoomInradius() {
+    if (S.isCircle) {
+      if (roomInKeyCircle && roomInKeyR === S.circle.R && roomInKeyCx === S.circle.cx && roomInKeyCy === S.circle.cy) return roomInradius;
+      roomInKeyCircle = true; roomInKeyVerts = null;
+      roomInKeyR = S.circle.R; roomInKeyCx = S.circle.cx; roomInKeyCy = S.circle.cy;
+      roomInCx = S.circle.cx; roomInCy = S.circle.cy; roomInradius = S.circle.R;
+      roomGeomGen++;
+      return roomInradius;
+    }
+    if (!roomInKeyCircle && roomInKeyVerts === S.vertices) return roomInradius;
+    roomInKeyCircle = false; roomInKeyVerts = S.vertices; roomInKeyR = -1;
+    // Distance to the nearest point of the POLYLINE, not to the nearest
+    // vertex: the closest boundary point is usually mid-segment, and using
+    // vertices alone would overstate the clearance and let a particle skip a
+    // cast it actually needed. On bent walls the polyline's chords sit
+    // inside the true arcs, so this stays a safe under-estimate there too.
+    const c = roomCenter();
+    roomInCx = c.x; roomInCy = c.y;
+    const vs = S.vertices;
+    let best = Infinity;
+    for (let i = 0; i < vs.length; i++) {
+      const a = vs[i], b = vs[(i + 1) % vs.length];
+      const ex = b.x - a.x, ey = b.y - a.y;
+      const len2 = ex * ex + ey * ey;
+      let t = len2 > 0 ? ((c.x - a.x) * ex + (c.y - a.y) * ey) / len2 : 0;
+      t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = c.x - (a.x + ex * t), dy = c.y - (a.y + ey * t);
+      const d2 = dx * dx + dy * dy;
+      if (d2 < best) best = d2;
+    }
+    roomInradius = Math.sqrt(best);
+    roomGeomGen++;
+    return roomInradius;
+  }
+
   function advanceParticle(p, dt) {
+    // Refresh the cached room centre/inradius FIRST: particleGravity()'s
+    // centre-seeking modes read the cached centre, and the sub-step loop
+    // below reads both.
+    const inR = ensureRoomInradius();
     const { ax, ay } = particleGravity(p);
     p.vx += ax * dt; p.vy += ay * dt;
     // Exponential damping — frame-rate independent, same convention as the
@@ -7782,52 +7882,140 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     const damp = Math.exp(-S.particles.friction * dt);
     p.vx *= damp; p.vy *= damp;
 
+    // Collide as a disc of the drawn radius, not as a point. A point
+    // collider lets a big shape bury itself in the wall by its whole radius
+    // on every bounce (measured: a size-24 circle ended up 23.9px past the
+    // wall), which reads as the ball sinking through it. Clamped so an
+    // absurd size in a small room can't push the collision surface past the
+    // room's own centre.
+    const radius = Math.min(Math.max(0, S.particles.size), inR * 0.9);
+
     let remaining = dt;
     for (let iter = 0; iter < 4 && remaining > 1e-6; iter++) {
-      const moveDist = Math.hypot(p.vx, p.vy) * remaining;
+      const speedNow = Math.hypot(p.vx, p.vy);
+      const moveDist = speedNow * remaining;
       if (moveDist < 1e-6) break;
-      const dn = norm({ x: p.vx, y: p.vy });
-      const hit = particleWallHit(p, dn);
-      if (!hit || hit.t > moveDist) {
+      const dn = { x: p.vx / speedNow, y: p.vy / speedNow };
+      // Cheap proof that no wall is reachable this step — see
+      // ensureRoomInradius(). Skips the cast entirely for every particle
+      // that is not near a wall, which is most of them most of the time.
+      if (Math.hypot(p.x - roomInCx, p.y - roomInCy) + moveDist + radius + PARTICLE_WALL_EPS < roomInradius) {
+        p.x += p.vx * remaining;
+        p.y += p.vy * remaining;
+        break;
+      }
+      // Between two bounces the path is a straight line, so a cast already
+      // made for this exact direction still names the correct first wall —
+      // the particle has only moved along that ray, and the stretch it
+      // covered was by definition empty. Reusing it turns "one cast per
+      // particle per frame" into "one cast per particle per BOUNCE", which
+      // is what makes a dense polyline room affordable. Gravity changes the
+      // direction every step, so it simply misses the cache and re-casts.
+      let hit = null;
+      if (p.hd && p.hd.gen === roomGeomGen &&
+          Math.abs(p.hd.dx - dn.x) < 1e-12 && Math.abs(p.hd.dy - dn.y) < 1e-12) {
+        const t = (p.hd.px - p.x) * dn.x + (p.hd.py - p.y) * dn.y;
+        if (t > 1e-4) hit = { point: { x: p.hd.px, y: p.hd.py }, t, normal: { x: p.hd.nx, y: p.hd.ny } };
+      }
+      if (!hit) {
+        hit = particleWallHit(p, dn);
+        if (hit) p.hd = { gen: roomGeomGen, dx: dn.x, dy: dn.y, px: hit.point.x, py: hit.point.y, nx: hit.normal.x, ny: hit.normal.y };
+      }
+      if (!hit) {
+        // No wall ahead at all, which for a point strictly inside a closed
+        // room is impossible — so the particle is sitting ON the boundary or
+        // a hair outside it. That state is a one-way trap: every firstHit*
+        // helper rejects roots at t <= 1e-4, so a cast from out there keeps
+        // returning null and the particle free-flies away forever (v1.66
+        // shipped with exactly this; a circle room leaked ~half a 20-particle
+        // burst within five seconds). The margin in the branch below is what
+        // stops it arising; this is the backstop for anything that margin
+        // can't cover, e.g. the room being reshaped out from under a live
+        // particle. constrainToRoom() returns the point untouched when it is
+        // already inside and otherwise pulls it properly inside, so the next
+        // sub-step casts normally again.
+        const fixed = constrainToRoom({ x: p.x, y: p.y });
+        p.x = fixed.x; p.y = fixed.y;
+        p.hd = null;
+        break;
+      }
+      // Bounce whenever the wall is within this step's reach PLUS a margin,
+      // rather than only when it is strictly within reach. Without the
+      // margin, a step whose length happens to equal the distance to the
+      // wall to the last bit of float precision lands the particle exactly
+      // on the boundary — the trap above. The margin is 0.05px against a
+      // rounding error around 1e-10px, so it can never be the close call,
+      // and the cost is that a bouncing step may travel up to 0.05px more
+      // than its speed strictly allows: the same order as the surface nudge
+      // below, and far smaller than the 0.5px this code used to spend there.
+      // Contact happens a radius short of the wall itself.
+      const contactT = hit.t - radius;
+      if (contactT > moveDist + PARTICLE_WALL_EPS) {
         p.x += p.vx * remaining;
         p.y += p.vy * remaining;
         remaining = 0;
       } else {
-        remaining -= remaining * (hit.t / moveDist);
-        p.x = hit.point.x; p.y = hit.point.y;
-        const refl = reflectByNormal(dn, hit.normal);
-        const speed = Math.hypot(p.vx, p.vy) * clamp(S.particles.bounciness, 0, 1);
-        p.vx = refl.x * speed; p.vy = refl.y * speed;
+        const travel = Math.max(0, contactT);
+        remaining -= remaining * (travel / moveDist);
+        p.x += dn.x * travel; p.y += dn.y * travel;
+        // Restitution damps the component INTO the wall and leaves the
+        // component along it alone, instead of scaling the whole velocity.
+        // Scaling everything made a grazing skim along a floor lose as much
+        // energy as a head-on drop, so anything settling under gravity died
+        // unnaturally fast and never slid. At bounciness 1 the two are
+        // identical (a reflection preserves magnitude either way), so the
+        // measured energy conservation is unaffected.
+        const n = hit.normal;
+        const b = clamp(S.particles.bounciness, 0, 1);
+        const vn = p.vx * n.x + p.vy * n.y;
+        p.vx -= (1 + b) * vn * n.x;
+        p.vy -= (1 + b) * vn * n.y;
         // Nudge just off the wall along the new direction — same epsilon
         // trick computePath() uses after its own bounce — so the NEXT
         // sub-step's ray cast doesn't immediately re-hit the same wall from
         // sitting exactly on it (floating point).
-        p.x += refl.x * 0.5; p.y += refl.y * 0.5;
+        const sp = Math.hypot(p.vx, p.vy);
+        if (sp > 1e-9) { p.x += (p.vx / sp) * PARTICLE_WALL_EPS; p.y += (p.vy / sp) * PARTICLE_WALL_EPS; }
+        p.hd = null; // direction changed — the cached cast no longer applies
       }
     }
   }
 
+  // Every difference between two particles born from the same spawn point
+  // comes from exactly three knobs — position jitter, direction cone, speed
+  // range — and nothing else. That is deliberate: set all three to zero and
+  // the particles are genuinely identical and stay one dot forever, because
+  // there is no hidden per-particle randomness anywhere else in the
+  // simulation for them to drift apart on. Set them barely above zero and a
+  // drop reads as a single particle that only reveals itself as a crowd once
+  // the room's own geometry has pulled the copies apart.
   function spawnParticle(x, y, group) {
-    if (liveParticles.length >= S.particles.maxCount) liveParticles.shift();
-    const ang = rand() * Math.PI * 2;
-    const speed = randIn(S.particles.spawnSpeed);
+    const P = S.particles;
+    if (liveParticles.length >= P.maxCount) liveParticles.shift();
+    // sqrt() makes the jitter uniform over the disc's AREA — without it the
+    // samples pile up near the centre, so a wide spread would still look
+    // like a dense core with a thin halo rather than an even cloud.
+    const jr = P.spawnSpread > 0 ? Math.sqrt(rand()) * P.spawnSpread : 0;
+    const ja = rand() * Math.PI * 2;
+    // cone == 360 is uniform over the full turn, i.e. exactly the old
+    // behaviour, so an existing scene that never had these fields renders
+    // the same as before.
+    const cone = clamp(P.spawnCone, 0, 360) * Math.PI / 180;
+    const ang = P.spawnAngle * Math.PI / 180 + (rand() - 0.5) * cone;
+    const speed = randIn(P.spawnSpeed);
     liveParticles.push({
-      x, y,
+      x: x + Math.cos(ja) * jr, y: y + Math.sin(ja) * jr,
       vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-      group: group ?? S.particles.activeGroup
+      group: group ?? P.activeGroup
     });
   }
 
-  // Drops `count` particles at (almost) the same point — the user's own
-  // "large number dropped from almost the same position" case. A few px of
-  // jitter keeps them from spawning stacked at a literal single coordinate
-  // (which would otherwise draw as one particle until the physics step
-  // separates them), while still reading as "one spot."
+  // Drops `count` particles at one point. The jitter that used to be
+  // hardcoded here (a fixed 3px) is now S.particles.spawnSpread and lives in
+  // spawnParticle() instead, so continuous spawn gets the same treatment as
+  // a burst rather than being the one path with no spread at all.
   function spawnParticleBurst(x, y, count, group) {
-    for (let i = 0; i < count; i++) {
-      const jr = rand() * 3, ja = rand() * Math.PI * 2;
-      spawnParticle(x + Math.cos(ja) * jr, y + Math.sin(ja) * jr, group);
-    }
+    for (let i = 0; i < count; i++) spawnParticle(x, y, group);
   }
 
   function clearLiveParticles() { liveParticles = []; }
@@ -7835,6 +8023,12 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
   function advanceParticles(dtSec) {
     if (!S.particles.enabled) return;
     updateParticleEmitters();
+    // "Max particles" used to be enforced only at spawn time, so lowering it
+    // with a big pool already in flight did nothing at all until the next
+    // particle happened to be born. Trim here too, oldest first, same policy.
+    if (liveParticles.length > S.particles.maxCount) {
+      liveParticles.splice(0, liveParticles.length - S.particles.maxCount);
+    }
     if (S.particles.spawnRate > 0) {
       particleSpawnClock += S.particles.spawnRate * dtSec;
       const src = particleEmitters[0] || { x: 0, y: 0 };
@@ -8039,7 +8233,22 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
 
   function ensureBloomTargets() {
     const w = glCanvas.width, h = glCanvas.height;
-    if (sceneTex && sceneTex._w === w && sceneTex._h === h) return;
+    // Blur resolution. A quarter-res blur is right for beams: they are long,
+    // continuous and already soft, so the coarse source is invisible and the
+    // upscale usefully widens the glow. It is wrong for particles, which are
+    // small isolated discs — a quarter-res texel is 4 device px and the
+    // 9-tap gaussian steps 1.5 texels apart, so a ball ends up wearing a
+    // dark, faceted aura about three times its own radius (measured: a 24px
+    // halo on an 8px ball), which reads as a smudge or a shadow stuck to it
+    // rather than as glow. Half-res for that mode: the halo comes in tighter
+    // and the facets stop being resolvable.
+    const shift = S.particles.enabled ? 1 : 2;
+    const bw = Math.max(1, w >> shift), bh = Math.max(1, h >> shift);
+    // The bloom size has to be part of the "is this still valid" check, not
+    // just the canvas size — otherwise switching in or out of Particles
+    // keeps whatever resolution was allocated for the previous mode.
+    if (sceneTex && sceneTex._w === w && sceneTex._h === h &&
+        bloomTexA && bloomTexA._w === bw && bloomTexA._h === bh) return;
     if (sceneFBO) gl.deleteFramebuffer(sceneFBO);
     if (sceneTex) gl.deleteTexture(sceneTex);
     if (bloomFBOA) gl.deleteFramebuffer(bloomFBOA);
@@ -8048,9 +8257,6 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     if (bloomTexB) gl.deleteTexture(bloomTexB);
     const scene = makeRenderTarget(w, h);
     sceneFBO = scene.fbo; sceneTex = scene.tex;
-    // Quarter resolution: blur cost stays trivial even at 4K, and the
-    // upscale itself widens the glow
-    const bw = Math.max(1, w >> 2), bh = Math.max(1, h >> 2);
     const a = makeRenderTarget(bw, bh);
     bloomFBOA = a.fbo; bloomTexA = a.tex;
     const b = makeRenderTarget(bw, bh);
@@ -8664,7 +8870,14 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
   // Same shape vocabulary as widthWave/room shape. 'circle' has no discrete
   // side count of its own, so it's approximated with enough segments to
   // read as round at the particle sizes this slider actually reaches.
-  const PARTICLE_SIDES = { circle: 14, triangle: 3, square: 4, pentagon: 5, hexagon: 6 };
+  // 'point' has no sides — it is drawn as a GL point, not a polygon. It is
+  // in the table so shape lookups stay total; the renderer branches before
+  // ever using the value.
+  const PARTICLE_SIDES = { point: 0, circle: 14, triangle: 3, square: 4, pentagon: 5, hexagon: 6 };
+  // Which primitive the current particle vertex buffer holds. Set by
+  // renderParticlesGL() before it draws, read by drawParticleVerts(), which
+  // is called from two places and must agree with whatever was just built.
+  let particlePrim = 'tri', particlePointPx = 1;
 
   function particleVertReserve(n) {
     if (particleVertCount + n > particleVertBuf.length) {
@@ -8725,8 +8938,11 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     gl.enableVertexAttribArray(pcol); gl.vertexAttribPointer(pcol, 3, gl.FLOAT, false, stride, 8);
     gl.enableVertexAttribArray(palpha); gl.vertexAttribPointer(palpha, 1, gl.FLOAT, false, stride, 20);
     gl.uniform2f(uloc(particleProg, 'u_res'), glCanvas.width / S.dpr, glCanvas.height / S.dpr);
+    gl.uniform1f(uloc(particleProg, 'u_pointSize'), particlePointPx);
     setBlendMode(S.blendMode);
-    if (particleVertCount > 0) gl.drawArrays(gl.TRIANGLES, 0, particleVertCount / 6);
+    if (particleVertCount > 0) {
+      gl.drawArrays(particlePrim === 'point' ? gl.POINTS : gl.TRIANGLES, 0, particleVertCount / 6);
+    }
   }
 
   // Mirrors renderField()'s overall shape (self-contained simulation, draws
@@ -8736,18 +8952,64 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
   // independent, and CLAUDE.md for why the trail treatment here is a
   // deliberately simpler, particle-only one (Enabled + Length only, not the
   // full beam Trails feature set).
+  let particleColorLUT = null, particleColorLUTKey = '';
+  function ensureParticleColorLUT() {
+    const P = S.particles;
+    const key = P.palette.map(c => c.h + ',' + c.s + ',' + c.l).join('|') +
+      '#' + S.hueOffset + ',' + S.satOffset + ',' + S.lightOffset;
+    if (particleColorLUT && particleColorLUTKey === key) return particleColorLUT;
+    particleColorLUTKey = key;
+    const src = P.palette.length ? P.palette : [{ h: 0, s: 0, l: 100 }];
+    particleColorLUT = src.map(col => hslToRgb(
+      (((col.h + S.hueOffset) % 360) + 360) % 360,
+      clamp(col.s + S.satOffset, 0, 100),
+      clamp(col.l + S.lightOffset, 0, 100)));
+    return particleColorLUT;
+  }
+
   function renderParticlesGL(timeSec) {
     const P = S.particles;
-    const size = Math.max(0.5, P.size);
+    const size = Math.max(0.1, P.size);
     const sides = PARTICLE_SIDES[P.shape] || 14;
     particleVertCount = 0;
-    for (const p of liveParticles) {
-      const col = P.palette[p.group % P.palette.length] || P.palette[0] || { h: 0, s: 0, l: 100 };
-      const mh = (((col.h + S.hueOffset) % 360) + 360) % 360;
-      const ms = clamp(col.s + S.satOffset, 0, 100);
-      const ml = clamp(col.l + S.lightOffset, 0, 100);
-      const rgb = hslToRgb(mh, ms, ml);
-      pushParticleShape(p.x, p.y, size, sides, rgb[0], rgb[1], rgb[2], 1);
+    // A colour depends only on the particle's GROUP and the three global
+    // colour offsets, so it is at most a handful of distinct values — but it
+    // was being recomputed (with a fresh [r,g,b] array) once per particle
+    // per frame, i.e. up to 3000 hslToRgb calls and 3000 allocations a
+    // frame. Same collapse-to-a-table fix, and same reasoning, as
+    // ensureRingRainbowLUT() above.
+    const lut = ensureParticleColorLUT();
+    // gl_PointSize is in DEVICE pixels, and size is a CSS-px radius, so the
+    // on-screen diameter is size * 2 * dpr — the same size the polygon
+    // shapes get out of the same slider.
+    const pxDiameter = size * 2 * S.dpr;
+    // Below about a pixel and a half across, EVERY shape is drawn as a point,
+    // not just the 'point' shape. A polygon that small is split into
+    // triangles that are each far under a pixel, and a triangle covering no
+    // sample centre is not drawn at all: measured at size 0.5, only ~40 of 60
+    // identical shapes lit a pixel, and which ones depended on their
+    // sub-pixel position — so a moving swarm visibly blinks. A GL point of
+    // size 1 always lights exactly one pixel. Nothing is lost by the switch:
+    // at that scale a triangle and a hexagon are the same one or two pixels.
+    particlePrim = (P.shape === 'point' || pxDiameter < 1.5) ? 'point' : 'tri';
+    if (particlePrim === 'point') {
+      // Floored at one device pixel — the whole point of the shape — and
+      // capped because a gl_PointSize past an implementation's
+      // ALIASED_POINT_SIZE_RANGE is silently clamped anyway; 64 is
+      // comfortably inside every implementation's range.
+      particlePointPx = clamp(pxDiameter, 1, 64);
+      for (const p of liveParticles) {
+        const c = lut[p.group % lut.length];
+        particleVertReserve(6);
+        particleVertBuf[particleVertCount++] = p.x; particleVertBuf[particleVertCount++] = p.y;
+        particleVertBuf[particleVertCount++] = c[0]; particleVertBuf[particleVertCount++] = c[1]; particleVertBuf[particleVertCount++] = c[2];
+        particleVertBuf[particleVertCount++] = 1;
+      }
+    } else {
+      for (const p of liveParticles) {
+        const c = lut[p.group % lut.length];
+        pushParticleShape(p.x, p.y, size, sides, c[0], c[1], c[2], 1);
+      }
     }
 
     ensureBloomTargets();
@@ -10442,6 +10704,9 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     S.particles.friction = P.particles?.friction ?? 0.15;
     S.particles.spawnRate = P.particles?.spawnRate ?? 0;
     S.particles.spawnSpeed = Array.isArray(P.particles?.spawnSpeed) ? [...P.particles.spawnSpeed] : [60, 160];
+    S.particles.spawnSpread = P.particles?.spawnSpread ?? 3;
+    S.particles.spawnAngle = P.particles?.spawnAngle ?? 0;
+    S.particles.spawnCone = P.particles?.spawnCone ?? 360;
     S.particles.burstCount = P.particles?.burstCount ?? 60;
     S.particles.groups = P.particles?.groups ?? 3;
     S.particles.activeGroup = P.particles?.activeGroup ?? 0;
@@ -10996,6 +11261,9 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
   const particlesFrictionEl = _el('particlesFriction');
   const particlesSpawnRateEl = _el('particlesSpawnRate'), particlesSpawnRateNumEl = _el('particlesSpawnRateNum');
   const particlesBurstCountEl = _el('particlesBurstCount'), particlesBurstCountNumEl = _el('particlesBurstCountNum');
+  const particlesSpawnSpreadEl = _el('particlesSpawnSpread'), particlesSpawnSpreadNumEl = _el('particlesSpawnSpreadNum');
+  const particlesSpawnAngleEl = _el('particlesSpawnAngle'), particlesSpawnAngleNumEl = _el('particlesSpawnAngleNum');
+  const particlesSpawnConeEl = _el('particlesSpawnCone'), particlesSpawnConeNumEl = _el('particlesSpawnConeNum');
   const particlesGroupsEl = _el('particlesGroups'), particlesGroupsNumEl = _el('particlesGroupsNum');
   const particlesSchemeEl = _el('particlesScheme');
   const particlesDropBtn = _el('particlesDropBtn');
@@ -11048,6 +11316,9 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     particlesFrictionEl.value = S.particles.friction;
     particlesSpawnRateEl.value = particlesSpawnRateNumEl.value = S.particles.spawnRate;
     particlesBurstCountEl.value = particlesBurstCountNumEl.value = S.particles.burstCount;
+    particlesSpawnSpreadEl.value = particlesSpawnSpreadNumEl.value = S.particles.spawnSpread;
+    particlesSpawnAngleEl.value = particlesSpawnAngleNumEl.value = S.particles.spawnAngle;
+    particlesSpawnConeEl.value = particlesSpawnConeNumEl.value = S.particles.spawnCone;
     particlesGroupsEl.value = particlesGroupsNumEl.value = S.particles.groups;
     particlesSchemeEl.value = S.particles.scheme;
     particlesSpawnSpeedDR.sync();
@@ -11067,8 +11338,8 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     syncParticlesUI(); syncRingsUI(); syncFieldUI(); syncGenerativeUI();
   });
   _on(particlesShapeEl, 'change', () => { S.particles.shape = particlesShapeEl.value; });
-  _on(particlesSizeEl, 'input', () => { S.particles.size = parseFloat(particlesSizeEl.value) || 1; particlesSizeNumEl.value = S.particles.size; });
-  _on(particlesSizeNumEl, 'input', () => { S.particles.size = clamp(parseFloat(particlesSizeNumEl.value) || 1, 1, 24); particlesSizeEl.value = S.particles.size; });
+  _on(particlesSizeEl, 'input', () => { S.particles.size = clamp(parseFloat(particlesSizeEl.value) || 0.5, 0.5, 24); particlesSizeNumEl.value = S.particles.size; });
+  _on(particlesSizeNumEl, 'input', () => { S.particles.size = clamp(parseFloat(particlesSizeNumEl.value) || 0.5, 0.5, 24); particlesSizeEl.value = S.particles.size; });
   _on(particlesMaxCountEl, 'input', () => { S.particles.maxCount = parseInt(particlesMaxCountEl.value) || 20; particlesMaxCountNumEl.value = S.particles.maxCount; });
   _on(particlesMaxCountNumEl, 'input', () => { S.particles.maxCount = clamp(parseInt(particlesMaxCountNumEl.value) || 20, 20, 3000); particlesMaxCountEl.value = S.particles.maxCount; });
   _on(particlesGravityEl, 'change', () => { S.particles.gravityMode = particlesGravityEl.value; });
@@ -11080,6 +11351,12 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
   _on(particlesSpawnRateNumEl, 'input', () => { S.particles.spawnRate = clamp(parseFloat(particlesSpawnRateNumEl.value) || 0, 0, 200); particlesSpawnRateEl.value = S.particles.spawnRate; });
   _on(particlesBurstCountEl, 'input', () => { S.particles.burstCount = parseInt(particlesBurstCountEl.value) || 1; particlesBurstCountNumEl.value = S.particles.burstCount; });
   _on(particlesBurstCountNumEl, 'input', () => { S.particles.burstCount = clamp(parseInt(particlesBurstCountNumEl.value) || 1, 1, 500); particlesBurstCountEl.value = S.particles.burstCount; });
+  _on(particlesSpawnSpreadEl, 'input', () => { S.particles.spawnSpread = Math.max(0, parseFloat(particlesSpawnSpreadEl.value) || 0); particlesSpawnSpreadNumEl.value = S.particles.spawnSpread; });
+  _on(particlesSpawnSpreadNumEl, 'input', () => { S.particles.spawnSpread = clamp(parseFloat(particlesSpawnSpreadNumEl.value) || 0, 0, 40); particlesSpawnSpreadEl.value = S.particles.spawnSpread; });
+  _on(particlesSpawnAngleEl, 'input', () => { S.particles.spawnAngle = parseFloat(particlesSpawnAngleEl.value) || 0; particlesSpawnAngleNumEl.value = S.particles.spawnAngle; });
+  _on(particlesSpawnAngleNumEl, 'input', () => { S.particles.spawnAngle = clamp(parseFloat(particlesSpawnAngleNumEl.value) || 0, 0, 360); particlesSpawnAngleEl.value = S.particles.spawnAngle; });
+  _on(particlesSpawnConeEl, 'input', () => { S.particles.spawnCone = clamp(parseFloat(particlesSpawnConeEl.value) || 0, 0, 360); particlesSpawnConeNumEl.value = S.particles.spawnCone; });
+  _on(particlesSpawnConeNumEl, 'input', () => { S.particles.spawnCone = clamp(parseFloat(particlesSpawnConeNumEl.value) || 0, 0, 360); particlesSpawnConeEl.value = S.particles.spawnCone; });
   _on(particlesGroupsEl, 'input', () => {
     S.particles.groups = parseInt(particlesGroupsEl.value) || 1; particlesGroupsNumEl.value = S.particles.groups;
     ensureParticlePaletteSize(S.particles.groups); rebuildParticleGroupSwatches();
@@ -13683,6 +13960,7 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       optParticles: 'Particles',
       modeParticles: 'Particles',
       particlesTitle: 'Particles',
+      shapePoint: "Point",
       shapeCircle: 'Circle',
       shapeTriangle: 'Triangle',
       shapeSquare: 'Square',
@@ -13701,6 +13979,10 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       particlesFriction: 'Friction',
       particlesSpawnRate: 'Continuous spawn',
       particlesSpawnSpeed: 'Spawn speed',
+      particlesSpawnSpread: "Start spread",
+      particlesSpawnAngle: "Direction",
+      particlesSpawnCone: "Direction spread",
+      hintParticlesSpread: "Start spread, Direction spread and the Spawn speed range are the only things that make two particles differ — at exactly zero on all three they are identical and stay one dot forever. Just above zero, a drop looks like a single particle that only reveals itself as a crowd once the room's own geometry has pulled the copies apart. Bent walls do that fastest, then an ellipse or blob; a plain circle or regular polygon barely separates them at all, so widen the cone there.",
       particlesBurstCount: 'Drop count',
       particlesDrop: 'Drop',
       particlesClear: 'Clear',
@@ -14010,6 +14292,7 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       optParticles: 'Partículas',
       modeParticles: 'Partículas',
       particlesTitle: 'Partículas',
+      shapePoint: "Punto",
       shapeCircle: 'Círculo',
       shapeTriangle: 'Triángulo',
       shapeSquare: 'Cuadrado',
@@ -14028,6 +14311,10 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       particlesFriction: 'Fricción',
       particlesSpawnRate: 'Generación continua',
       particlesSpawnSpeed: 'Velocidad de aparición',
+      particlesSpawnSpread: "Dispersión inicial",
+      particlesSpawnAngle: "Dirección",
+      particlesSpawnCone: "Dispersión angular",
+      hintParticlesSpread: "La dispersión inicial, la dispersión angular y el rango de velocidad de aparición son lo único que diferencia a dos partículas: con las tres exactamente a cero son idénticas y siguen siendo un único punto para siempre. Justo por encima de cero, al soltar parece una sola partícula que solo se revela como un grupo cuando la geometría de la sala separa las copias. Las paredes curvadas lo hacen más rápido, luego la elipse o la mancha; un círculo o polígono regular casi no las separa, así que allí conviene ampliar el ángulo.",
       particlesBurstCount: 'Cantidad al soltar',
       particlesDrop: 'Soltar',
       particlesClear: 'Vaciar',
@@ -14337,6 +14624,7 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       optParticles: 'Partículas',
       modeParticles: 'Partículas',
       particlesTitle: 'Partículas',
+      shapePoint: "Ponto",
       shapeCircle: 'Círculo',
       shapeTriangle: 'Triângulo',
       shapeSquare: 'Quadrado',
@@ -14355,6 +14643,10 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       particlesFriction: 'Atrito',
       particlesSpawnRate: 'Geração contínua',
       particlesSpawnSpeed: 'Velocidade de origem',
+      particlesSpawnSpread: "Dispersão inicial",
+      particlesSpawnAngle: "Direção",
+      particlesSpawnCone: "Dispersão angular",
+      hintParticlesSpread: "A dispersão inicial, a dispersão angular e o intervalo de velocidade de partida são as únicas coisas que distinguem duas partículas: com as três exatamente a zero são idênticas e continuam a ser um único ponto para sempre. Logo acima de zero, ao soltar parece uma só partícula que só se revela um grupo quando a geometria da sala separa as cópias. Paredes curvas fazem-no mais depressa, depois a elipse ou a mancha; um círculo ou polígono regular quase não as separa, por isso vale a pena alargar o ângulo aí.",
       particlesBurstCount: 'Quantidade ao soltar',
       particlesDrop: 'Soltar',
       particlesClear: 'Limpar',
@@ -14664,6 +14956,7 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       optParticles: 'Particules',
       modeParticles: 'Particules',
       particlesTitle: 'Particules',
+      shapePoint: "Point",
       shapeCircle: 'Cercle',
       shapeTriangle: 'Triangle',
       shapeSquare: 'Carré',
@@ -14682,6 +14975,10 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
       particlesFriction: 'Friction',
       particlesSpawnRate: 'Génération continue',
       particlesSpawnSpeed: 'Vitesse d\'apparition',
+      particlesSpawnSpread: "Dispersion initiale",
+      particlesSpawnAngle: "Direction",
+      particlesSpawnCone: "Dispersion angulaire",
+      hintParticlesSpread: "La dispersion initiale, la dispersion angulaire et la plage de vitesse de départ sont les seules choses qui différencient deux particules : à exactement zéro pour les trois, elles sont identiques et restent un seul point pour toujours. Juste au-dessus de zéro, un lâcher ressemble à une seule particule qui ne se révèle comme une foule qu'une fois les copies écartées par la géométrie de la salle. Les murs courbés le font le plus vite, puis l'ellipse ou le blob ; un cercle ou un polygone régulier ne les sépare presque pas, il faut donc y élargir l'angle.",
       particlesBurstCount: 'Quantité au lâcher',
       particlesDrop: 'Lâcher',
       particlesClear: 'Effacer',
@@ -15401,6 +15698,18 @@ void main() { outColor = vec4(v_col, v_alpha); }`;
     // Beat detection
     beatSens: () => FACTORY.beat.sensitivity,
     beatDecay: () => FACTORY.beat.decay,
+    // Particles
+    particlesSize: () => FACTORY.particles.size,
+    particlesMaxCount: () => FACTORY.particles.maxCount,
+    particlesGravityStrength: () => FACTORY.particles.gravityStrength,
+    particlesBounciness: () => FACTORY.particles.bounciness,
+    particlesFriction: () => FACTORY.particles.friction,
+    particlesSpawnRate: () => FACTORY.particles.spawnRate,
+    particlesSpawnSpread: () => FACTORY.particles.spawnSpread,
+    particlesSpawnAngle: () => FACTORY.particles.spawnAngle,
+    particlesSpawnCone: () => FACTORY.particles.spawnCone,
+    particlesBurstCount: () => FACTORY.particles.burstCount,
+    particlesGroups: () => FACTORY.particles.groups,
     // Emitters
     emitterRot: () => 0,
     emitterSpin: () => 0,
